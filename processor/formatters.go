@@ -3,8 +3,35 @@ package processor
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 )
+
+
+func fileSummarize(input chan *FileJob) string {
+	//switch {
+	//case strings.ToLower(Format) == "json":
+	//	return toJSON(input)
+	//}
+
+	// Collect results
+	results := []*FileJob{}
+	for res := range input {
+		res.Content = nil // TODO this is just a temp thing
+		results = append(results, res)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	for _, res := range results {
+		fmt.Println(res.Filename, res.Score)
+	}
+
+	return ""
+}
+
 
 // Get the time as standard UTC/Zulu format
 func getFormattedTime() string {

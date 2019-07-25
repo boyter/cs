@@ -26,8 +26,6 @@ func BuildConcordance(document string) Concordance {
 	for _, key := range words {
 		_, ok := con[key]
 
-		key = strings.Trim(key, " ")
-
 		if ok && key != "" {
 			con[key] = con[key] + 1
 		} else {

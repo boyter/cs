@@ -84,11 +84,8 @@ func Process() {
 	go fileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go fileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
-	result := ""
-	//result := fileSummarize(fileSummaryJobQueue)
-	for x := range fileSummaryJobQueue {
-		fmt.Println(x.Filename, x.Score)
-	}
+
+	result := fileSummarize(fileSummaryJobQueue)
 
 	if FileOutput == "" {
 		fmt.Println(result)
