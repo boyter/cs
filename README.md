@@ -1,2 +1,1 @@
-# sc
-searchcode command line
+sc
