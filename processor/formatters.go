@@ -17,7 +17,6 @@ func fileSummarize(input chan *FileJob) string {
 	// Collect results
 	results := []*FileJob{}
 	for res := range input {
-		res.Content = nil // TODO this is just a temp thing
 		results = append(results, res)
 	}
 
