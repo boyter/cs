@@ -2,6 +2,60 @@
 
 
 [[projects]]
+  name = "github.com/alecthomas/chroma"
+  packages = [
+    ".",
+    "formatters",
+    "formatters/html",
+    "lexers",
+    "lexers/a",
+    "lexers/b",
+    "lexers/c",
+    "lexers/circular",
+    "lexers/d",
+    "lexers/e",
+    "lexers/f",
+    "lexers/g",
+    "lexers/h",
+    "lexers/i",
+    "lexers/internal",
+    "lexers/j",
+    "lexers/k",
+    "lexers/l",
+    "lexers/m",
+    "lexers/n",
+    "lexers/o",
+    "lexers/p",
+    "lexers/q",
+    "lexers/r",
+    "lexers/s",
+    "lexers/t",
+    "lexers/v",
+    "lexers/w",
+    "lexers/x",
+    "lexers/y",
+    "quick",
+    "styles"
+  ]
+  revision = "be3313d5c7e126403733115d0f2bd40e896e94d8"
+  version = "v0.6.6"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/danwakefield/fnmatch"
+  packages = ["."]
+  revision = "cbb64ac3d964b81592e64f957ad53df015803288"
+
+[[projects]]
+  name = "github.com/dlclark/regexp2"
+  packages = [
+    ".",
+    "syntax"
+  ]
+  revision = "dcdbc3f2ab3984e49f0c83f00839cdfa0333b592"
+  version = "v1.1.8"
+
+[[projects]]
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
@@ -40,6 +94,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2d4dfa6d8881d22b71c5a64cfca30e32137938ae761df0cfaa2255d2580d0d87"
+  inputs-digest = "7948dcff8cd6e1e88a74de46ebb3a400d9e66a07a1f32a6849ff50790f80e1b2"
   solver-name = "gps-cdcl"
   solver-version = 1
