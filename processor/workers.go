@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
-	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -126,27 +125,32 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 				// https://blog.gopheracademy.com/advent-2014/string-matching/
 
-				for _, term := range SearchString {
-					if strings.HasPrefix(term, "-") {
-						index := bytes.Index(res.Content, []byte(term[1:]))
+				// TODO make this work as follows func AND main OR stuff NOT other
 
-						// If a negated term is found we bail out instantly
-						if index != -1 {
-							res.Score = 0
-							break
-						}
-					} else {
-						index := bytes.Index(res.Content, []byte(term))
+				for i, term := range SearchString {
 
-						locations := regexp.MustCompile(term).FindAllIndex(res.Content, -1)
+					if term != "AND" && term != "OR" && term != "NOT" {
+						if i != 0 && SearchString[i-1] == "NOT" {
+							index := bytes.Index(res.Content, []byte(term[1:]))
 
-						fmt.Println(locations)
-
-						if index != -1 {
-							res.Score++
+							// If a negated term is found we bail out instantly
+							if index != -1 {
+								res.Score = 0
+								break
+							}
 						} else {
-							res.Score = 0
-							break
+							index := bytes.Index(res.Content, []byte(term))
+
+							locations := regexp.MustCompile(term).FindAllIndex(res.Content, -1)
+
+							//fmt.Println(locations)
+
+							if index != -1 {
+								res.Score += float64(len(locations))
+							} else {
+								res.Score = 0
+								break
+							}
 						}
 					}
 				}
