@@ -2,7 +2,7 @@ package processor
 
 import (
 	"fmt"
-	"github.com/alecthomas/chroma/quick"
+	"github.com/fatih/color"
 	"os"
 	"sort"
 	"time"
@@ -26,12 +26,12 @@ func fileSummarize(input chan *FileJob) string {
 	})
 
 	for _, res := range results {
-		fmt.Println(res.Filename, res.Score)
-		rel := extractRelevant(SearchString, string(res.Content), 300, 5, "…")
+		color.Magenta("%s (%.2f)", res.Filename, res.Score)
+		rel := extractRelevant(SearchString, string(res.Content), 200, 50, "…")
 
 		// NB the below does not work in the old CMD.exe on windows
-		_ = quick.Highlight(os.Stdout, rel, "go", "terminal16m", "monokai")
-		fmt.Println("")
+		//_ = quick.Highlight(os.Stdout, rel, "go", "terminal16m", "monokai")
+		fmt.Println(rel)
 		fmt.Println("")
 	}
 

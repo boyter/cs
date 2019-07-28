@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -108,7 +109,7 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
 	var wg sync.WaitGroup
 
-	queryConcordance := BuildConcordance(strings.ToLower(strings.Join(SearchString, " ")))
+	//m := ahocorasick.NewStringMatcher(SearchString)
 
 	for i := 0; i < FileProcessJobWorkers; i++ {
 		wg.Add(1)
@@ -118,8 +119,37 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 				processingStartTime := makeTimestampNano()
 
-				cleanCode := codeCleaner(string(res.Content))
-				res.Score = Relation(queryConcordance, BuildConcordance(cleanCode))
+				//cleanCode := codeCleaner(string(res.Content))
+				//res.Score = Relation(queryConcordance, BuildConcordance(cleanCode))
+
+				// what we need to do is check for each term if it exists, and then use that to determine if its a match
+
+				// https://blog.gopheracademy.com/advent-2014/string-matching/
+
+				for _, term := range SearchString {
+					if strings.HasPrefix(term, "-") {
+						index := bytes.Index(res.Content, []byte(term[1:]))
+
+						// If a negated term is found we bail out instantly
+						if index != -1 {
+							res.Score = 0
+							break
+						}
+					} else {
+						index := bytes.Index(res.Content, []byte(term))
+
+						locations := regexp.MustCompile(term).FindAllIndex(res.Content, -1)
+
+						fmt.Println(locations)
+
+						if index != -1 {
+							res.Score++
+						} else {
+							res.Score = 0
+							break
+						}
+					}
+				}
 
 				if Trace {
 					printTrace(fmt.Sprintf("nanoseconds process: %s: %d", res.Location, makeTimestampNano()-processingStartTime))

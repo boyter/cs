@@ -4,13 +4,12 @@ import (
 	"github.com/boyter/sc/processor"
 	"github.com/spf13/cobra"
 	"os"
-	"runtime/pprof"
 )
 
 func main() {
-	f, _ := os.Create("sc.pprof")
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
+	//f, _ := os.Create("sc.pprof")
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
 
 	rootCmd := &cobra.Command{
 		Use:     "sc",
