@@ -44,7 +44,6 @@ func Highlight(inputLanguage InputLanguage) (OutputLanguage, error) {
 	var cssBytes bytes.Buffer
 	var htmlBytes bytes.Buffer
 
-
 	formatter := html.New(html.WithLineNumbers(), html.WithClasses())
 	if formatter.WriteCSS(&cssBytes, style) != nil {
 		return OutputLanguage{}, err
@@ -59,4 +58,3 @@ func Highlight(inputLanguage InputLanguage) (OutputLanguage, error) {
 		Html: htmlBytes.String(),
 	}, nil
 }
-

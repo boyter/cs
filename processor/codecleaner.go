@@ -2,37 +2,36 @@ package processor
 
 import "strings"
 
-
-var firstReplacements = []string{"<", ">", ")", "(", "[", "]", "|", "=", ",", ":"};
+var firstReplacements = []string{"<", ">", ")", "(", "[", "]", "|", "=", ",", ":"}
 var secondReplacements = []string{";", "{", "}", "/"}
 var thirdReplacements = []string{"\"", "'"}
 var forthReplacements = []string{".", ";", "=", "_", ";", "@", "#", "-", "<", ">"}
 
-func codeCleaner(inputCode string) (string) {
+func codeCleaner(inputCode string) string {
 	var indexContents strings.Builder
 	modifiedContents := strings.ToLower(inputCode)
 	modifiedContents = replaceReplacer(modifiedContents)
 
 	for _, x := range firstReplacements {
-		modifiedContents = strings.Replace(modifiedContents, x, " ",-1)
+		modifiedContents = strings.Replace(modifiedContents, x, " ", -1)
 	}
 	indexContents.WriteString(modifiedContents)
 
-	modifiedContents = strings.Replace(modifiedContents, ".", " ",-1)
+	modifiedContents = strings.Replace(modifiedContents, ".", " ", -1)
 	indexContents.WriteString(modifiedContents)
 
 	for _, x := range secondReplacements {
-		modifiedContents = strings.Replace(modifiedContents, x, " ",-1)
+		modifiedContents = strings.Replace(modifiedContents, x, " ", -1)
 	}
 	indexContents.WriteString(modifiedContents)
 
 	for _, x := range thirdReplacements {
-		modifiedContents = strings.Replace(modifiedContents, x, " ",-1)
+		modifiedContents = strings.Replace(modifiedContents, x, " ", -1)
 	}
 	indexContents.WriteString(modifiedContents)
 
 	for _, x := range forthReplacements {
-		modifiedContents = strings.Replace(modifiedContents, x, " ",-1)
+		modifiedContents = strings.Replace(modifiedContents, x, " ", -1)
 	}
 	indexContents.WriteString(modifiedContents)
 
@@ -41,6 +40,7 @@ func codeCleaner(inputCode string) (string) {
 }
 
 const replacement = " "
+
 var replacer = strings.NewReplacer(
 	"\r\n", replacement,
 	"\r", replacement,

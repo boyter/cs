@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Flags set via the CLI which control how the output is displayed
@@ -66,8 +67,25 @@ var WhiteListExtensions = []string{}
 // Search string if set to anything is what we want to run the search for against the current directory
 var SearchString = []string{}
 
+// Clean up the input
+func cleanSearchString() {
+	tmp := []string{}
+
+	for _, s := range SearchString {
+		s = strings.Trim(s, " ")
+
+		if s != "" {
+			tmp = append(tmp, s)
+		}
+	}
+
+	SearchString = tmp
+}
+
 // Process is the main entry point of the command line it sets everything up and starts running
 func Process() {
+	cleanSearchString()
+
 	if Debug {
 		printDebug(fmt.Sprintf("White List: %v", WhiteListExtensions))
 		printDebug(fmt.Sprintf("File Output: %t", Files))
@@ -83,7 +101,6 @@ func Process() {
 	go walkDirectoryParallel(filepath.Clean("."), fileListQueue)
 	go fileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go fileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
-
 
 	result := fileSummarize(fileSummaryJobQueue)
 

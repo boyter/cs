@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-
 func fileSummarize(input chan *FileJob) string {
 	//switch {
 	//case strings.ToLower(Format) == "json":
@@ -33,6 +32,7 @@ func fileSummarize(input chan *FileJob) string {
 		//_ = quick.Highlight(os.Stdout, rel, "go", "terminal16m", "monokai")
 
 		// break up and highlight
+		// base the highligt off lower so we can ensure we match correctly
 
 		// find all of the matching sections so we can highlight them in the relevant part
 		fmt.Print(rel[:10])
@@ -47,7 +47,6 @@ func fileSummarize(input chan *FileJob) string {
 
 	return ""
 }
-
 
 // Get the time as standard UTC/Zulu format
 func getFormattedTime() string {

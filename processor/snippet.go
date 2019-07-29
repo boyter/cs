@@ -33,6 +33,36 @@ func extractLocations(words []string, fulltext string) []int {
 	return locs
 }
 
+func extractLocationsNoRegex(words []string, fulltext string) []int {
+	locs := []int{}
+
+	fulltext = strings.ToLower(fulltext)
+
+
+	for _, w := range words {
+		searchText := fulltext
+		offSet := 0
+		loc := strings.Index(searchText, w)
+
+		for loc != -1 {
+			searchText = searchText[loc+len(w):]
+			locs = append(locs, loc+offSet)
+			// trim off the start, and look from there and keep trimming
+			offSet += loc+len(w)
+			loc = strings.Index(searchText, w)
+		}
+	}
+
+	sort.Ints(locs)
+
+	// If not words found show beginning of the text NB should not happen
+	if len(locs) == 0 {
+		locs = append(locs, 0)
+	}
+
+	return locs
+}
+
 // Work out which is the most relevant portion to display
 // This is done by looping over each match and finding the smallest distance between two found
 // strings. The idea being that the closer the terms are the better match the snippet would be.
@@ -79,7 +109,7 @@ func extractRelevant(words []string, fulltext string, relLength int, prevCount i
 		return fulltext
 	}
 
-	locations := extractLocations(words, fulltext)
+	locations := extractLocationsNoRegex(words, fulltext)
 	startPos := determineSnipLocations(locations, prevCount)
 
 	// if we are going to snip too much...
