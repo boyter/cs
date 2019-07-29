@@ -7,14 +7,15 @@ import (
 
 // FileJob is a struct used to hold all of the results of processing internally before sent to the formatter
 type FileJob struct {
-	Filename           string
-	Extension          string
-	Location           string
-	Content            []byte
-	Bytes              int64
-	Hash               []byte
-	Binary             bool
-	Score float64
+	Filename  string
+	Extension string
+	Location  string
+	Content   []byte
+	Bytes     int64
+	Hash      []byte
+	Binary    bool
+	Score     float64
+	Locations [][]int
 }
 
 // CheckDuplicates is used to hold hashes if duplicate detection is enabled it comes with a mutex

@@ -27,11 +27,21 @@ func fileSummarize(input chan *FileJob) string {
 
 	for _, res := range results {
 		color.Magenta("%s (%.2f)", res.Filename, res.Score)
-		rel := extractRelevant(SearchString, string(res.Content), 200, 50, "…")
+		rel := extractRelevant(SearchString, string(res.Content), 300, 50, "…")
 
 		// NB the below does not work in the old CMD.exe on windows
 		//_ = quick.Highlight(os.Stdout, rel, "go", "terminal16m", "monokai")
-		fmt.Println(rel)
+
+		// break up and highlight
+
+		// find all of the matching sections so we can highlight them in the relevant part
+		fmt.Print(rel[:10])
+		color.Set(color.FgRed)
+		fmt.Print(rel[10:20])
+		color.Unset()
+		fmt.Print(rel[20:])
+
+		//fmt.Println(rel)
 		fmt.Println("")
 	}
 
