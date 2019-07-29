@@ -36,7 +36,7 @@ func fileSummarize(input chan *FileJob) string {
 
 		// find all of the matching sections so we can highlight them in the relevant part
 		fmt.Print(rel[:10])
-		color.Set(color.FgRed)
+		color.Set(color.FgHiRed)
 		fmt.Print(rel[10:20])
 		color.Unset()
 		fmt.Print(rel[20:])
