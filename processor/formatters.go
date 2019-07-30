@@ -50,7 +50,7 @@ func fileSummarize(input chan *FileJob) string {
 	})
 
 	for _, res := range results {
-		color.Magenta("%s (%.2f)", res.Filename, res.Score)
+		color.Magenta("%s (%.2f)", res.Location, res.Score)
 		rel := extractRelevant(SearchString, string(res.Content), 300, 50, "…")
 		fmt.Println(rel)
 		// NB the below does not work in the old CMD.exe on windows
