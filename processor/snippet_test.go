@@ -33,9 +33,21 @@ func TestExtractLocationsNoRegexMultiple(t *testing.T) {
 	sampleText := `testtest`
 	searchTerm := []string{"test"}
 
-	extractLocationsNoRegex(searchTerm, sampleText)
+	locs := extractLocationsNoRegex(searchTerm, sampleText)
 
-	t.Error("something")
+	if locs[0] != 0 || locs[1] != 4 {
+		t.Error(locs)
+	}
+}
+
+func TestExtractLocation(t *testing.T) {
+	sampleText := `testtest`
+
+	locs := extractLocation("test", sampleText)
+
+	if locs[0] != 0 || locs[1] != 4 {
+		t.Error(locs)
+	}
 }
 
 func TestExtractRelevant(t *testing.T) {

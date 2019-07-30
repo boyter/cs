@@ -15,7 +15,7 @@ type FileJob struct {
 	Hash      []byte
 	Binary    bool
 	Score     float64
-	Locations [][]int
+	Locations map[string][]int
 }
 
 // CheckDuplicates is used to hold hashes if duplicate detection is enabled it comes with a mutex

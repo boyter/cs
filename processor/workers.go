@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -81,6 +81,7 @@ func fileReaderWorker(input chan *FileJob, output chan *FileJob) {
 
 				if err == nil {
 					res.Content = content
+					res.Locations = map[string][]int{}
 					output <- res
 				} else {
 					if Verbose {
@@ -108,8 +109,6 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
 	var wg sync.WaitGroup
 
-	//m := ahocorasick.NewStringMatcher(SearchString)
-
 	for i := 0; i < FileProcessJobWorkers; i++ {
 		wg.Add(1)
 		go func() {
@@ -124,6 +123,8 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 					// what we need to do is check for each term if it exists, and then use that to determine if its a match
 
+					contentLower := strings.ToLower(string(res.Content))
+
 					// https://blog.gopheracademy.com/advent-2014/string-matching/
 					// TODO make this work as follows func AND main OR stuff NOT other
 					for i, term := range SearchString {
@@ -137,11 +138,10 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 									break
 								}
 							} else {
-								index := bytes.Index(res.Content, []byte(term))
-								res.Locations = regexp.MustCompile(term).FindAllIndex(res.Content, -1)
+								res.Locations[term] = extractLocation(term, contentLower)
 
-								if index != -1 {
-									res.Score += float64(len(res.Locations))
+								if res.Locations[term][0] != 0 {
+									res.Score += float64(len(res.Locations[term]))
 								} else {
 									res.Score = 0
 									break

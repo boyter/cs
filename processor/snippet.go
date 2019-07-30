@@ -33,23 +33,43 @@ func extractLocations(words []string, fulltext string) []int {
 	return locs
 }
 
+func extractLocation(word string, fulltext string) []int {
+	locs := []int{}
+
+	searchText := fulltext
+	offSet := 0
+	loc := strings.Index(searchText, word)
+
+	for loc != -1 {
+		searchText = searchText[loc+len(word):]
+		locs = append(locs, loc+offSet)
+
+		// trim off the start, and look from there and keep trimming
+		offSet += loc + len(word)
+		loc = strings.Index(searchText, word)
+	}
+
+	sort.Ints(locs)
+
+	// If not words found show beginning of the text NB should not happen
+	if len(locs) == 0 {
+		locs = append(locs, 0)
+	}
+
+	return locs
+}
+
+// This method is about 3x more efficient then using regex
+//BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
+//BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
 func extractLocationsNoRegex(words []string, fulltext string) []int {
 	locs := []int{}
 
 	fulltext = strings.ToLower(fulltext)
 
-
 	for _, w := range words {
-		searchText := fulltext
-		offSet := 0
-		loc := strings.Index(searchText, w)
-
-		for loc != -1 {
-			searchText = searchText[loc+len(w):]
-			locs = append(locs, loc+offSet)
-			// trim off the start, and look from there and keep trimming
-			offSet += loc+len(w)
-			loc = strings.Index(searchText, w)
+		for _, l := range extractLocation(w, fulltext) {
+			locs = append(locs, l)
 		}
 	}
 

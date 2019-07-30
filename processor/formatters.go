@@ -3,10 +3,33 @@ package processor
 import (
 	"fmt"
 	"github.com/fatih/color"
+	"math"
 	"os"
 	"sort"
 	"time"
 )
+
+// tf-idf ranking woo!
+func rankResults(results []*FileJob) []*FileJob {
+	idf := map[string]int{}
+	for _, r := range results {
+		for k := range r.Locations {
+			idf[k] = idf[k] + len(r.Locations[k])
+		}
+	}
+
+	for i := 0; i < len(results); i++ {
+		var weight float64
+		for k := range results[i].Locations {
+			tf := float64(len(results)) / float64(len(results[i].Locations[k]))
+			weight += math.Log(1 + tf) * float64(len(results[i].Locations[k]))
+		}
+
+		results[i].Score = weight
+	}
+
+	return results
+}
 
 func fileSummarize(input chan *FileJob) string {
 	//switch {
@@ -20,6 +43,8 @@ func fileSummarize(input chan *FileJob) string {
 		results = append(results, res)
 	}
 
+	rankResults(results)
+
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
@@ -27,7 +52,7 @@ func fileSummarize(input chan *FileJob) string {
 	for _, res := range results {
 		color.Magenta("%s (%.2f)", res.Filename, res.Score)
 		rel := extractRelevant(SearchString, string(res.Content), 300, 50, "…")
-
+		fmt.Println(rel)
 		// NB the below does not work in the old CMD.exe on windows
 		//_ = quick.Highlight(os.Stdout, rel, "go", "terminal16m", "monokai")
 
@@ -35,11 +60,11 @@ func fileSummarize(input chan *FileJob) string {
 		// base the highligt off lower so we can ensure we match correctly
 
 		// find all of the matching sections so we can highlight them in the relevant part
-		fmt.Print(rel[:10])
-		color.Set(color.FgHiRed)
-		fmt.Print(rel[10:20])
-		color.Unset()
-		fmt.Print(rel[20:])
+		//fmt.Print(rel[:10])
+		//color.Set(color.FgHiRed)
+		//fmt.Print(rel[10:20])
+		//color.Unset()
+		//fmt.Print(rel[20:])
 
 		//fmt.Println(rel)
 		fmt.Println("")
