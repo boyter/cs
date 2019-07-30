@@ -7,7 +7,9 @@ import (
 	"github.com/rivo/tview"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 func main() {
@@ -16,7 +18,7 @@ func main() {
 	grid := tview.NewGrid().
 		SetRows(0, 0).
 		SetColumns(2, 0).
-		SetBorders(false)
+		SetBorders(true)
 
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
@@ -25,15 +27,20 @@ func main() {
 			app.Draw()
 		})
 
+	var mutex sync.Mutex
 	inputField := tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorBlue).
 		SetFieldWidth(0).
 		SetChangedFunc(func(text string) {
-			if text == "" {
+			if strings.TrimSpace(text) == "" {
 				return
 			}
+
+			mutex.Lock()
+			defer mutex.Unlock()
+
 			// TODO hook into search here
 			textView.Clear()
 
@@ -58,7 +65,7 @@ func main() {
 
 			resultText := ""
 			for _, res := range results {
-				resultText += fmt.Sprintln("%s (%.3f)", res.Location, res.Score)
+				resultText += fmt.Sprintf("%s (%.3f)", res.Location, res.Score) + "\n"
 
 				locs := []int{}
 				for k := range res.Locations {
@@ -67,7 +74,12 @@ func main() {
 				locs = processor.RemoveIntDuplicates(locs)
 
 				rel := processor.ExtractRelevant(processor.SearchString, string(res.Content), locs, 300, 50, "…")
-				resultText += rel
+				resultText += rel + "\n"
+			}
+
+			resultText = ""
+			for i := 0; i< 100; i++ {
+				resultText += "" + strconv.Itoa(i) + "\n"
 			}
 
 			_, _ = fmt.Fprintf(textView, "%s", resultText)
