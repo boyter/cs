@@ -51,7 +51,7 @@ func getExtension(name string) string {
 // in the supplied directory. Tests using a single process showed no lack of performance
 // even when hitting older spinning platter disks for this way
 //func walkDirectoryParallel(root string, output *RingBuffer) {
-func walkDirectoryParallel(root string, output chan *FileJob) {
+func WalkDirectoryParallel(root string, output chan *FileJob) {
 	startTime := makeTimestampMilli()
 
 	var wg sync.WaitGroup

@@ -1,6 +1,6 @@
 package processor
 
-func removeStringDuplicates(elements []string) []string {
+func RemoveStringDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	result := []string{}
 
@@ -14,7 +14,7 @@ func removeStringDuplicates(elements []string) []string {
 	return result
 }
 
-func removeIntDuplicates(elements []int) []int {
+func RemoveIntDuplicates(elements []int) []int {
 	encountered := map[int]bool{}
 	result := []int{}
 

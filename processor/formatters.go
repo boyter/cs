@@ -10,7 +10,7 @@ import (
 )
 
 // tf-idf ranking woo!
-func rankResults(results []*FileJob) []*FileJob {
+func RankResults(results []*FileJob) []*FileJob {
 	idf := map[string]int{}
 	for _, r := range results {
 		for k := range r.Locations {
@@ -43,8 +43,7 @@ func fileSummarize(input chan *FileJob) string {
 		results = append(results, res)
 	}
 
-	rankResults(results)
-
+	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
@@ -56,9 +55,9 @@ func fileSummarize(input chan *FileJob) string {
 		for k := range res.Locations {
 			locs = append(locs, res.Locations[k]...)
 		}
-		locs = removeIntDuplicates(locs)
+		locs = RemoveIntDuplicates(locs)
 
-		rel := extractRelevant(SearchString, string(res.Content), locs, 300, 50, "…")
+		rel := ExtractRelevant(SearchString, string(res.Content), locs, 300, 50, "…")
 		fmt.Println(rel)
 
 		// break up and highlight

@@ -62,7 +62,7 @@ func checkBomSkip(fileJob *FileJob) int {
 }
 
 // Reads entire file into memory and then pushes it onto the next queue
-func fileReaderWorker(input chan *FileJob, output chan *FileJob) {
+func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
 	var wg sync.WaitGroup
 
@@ -105,7 +105,7 @@ func fileReaderWorker(input chan *FileJob, output chan *FileJob) {
 }
 
 // Does the actual processing of stats and as such contains the hot path CPU call
-func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
+func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
 	var wg sync.WaitGroup
 

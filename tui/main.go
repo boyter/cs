@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/boyter/sc/processor"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
+	"path/filepath"
+	"sort"
+	"strings"
 )
 
 func main() {
@@ -27,12 +31,46 @@ func main() {
 		SetLabelColor(tcell.ColorBlue).
 		SetFieldWidth(0).
 		SetChangedFunc(func(text string) {
+			if text == "" {
+				return
+			}
 			// TODO hook into search here
 			textView.Clear()
 
-			processor
+			processor.SearchString = strings.Split(text, " ")
+			fileListQueue := make(chan *processor.FileJob, 100)                     // Files ready to be read from disk
+			fileReadContentJobQueue := make(chan *processor.FileJob, 100) // Files ready to be processed
+			fileSummaryJobQueue := make(chan *processor.FileJob, 100)         // Files ready to be summarised
 
-			_, _ = fmt.Fprintf(textView, "%s ", text)
+			go processor.WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
+			go processor.FileReaderWorker(fileListQueue, fileReadContentJobQueue)
+			go processor.FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
+
+			results := []*processor.FileJob{}
+			for res := range fileSummaryJobQueue {
+				results = append(results, res)
+			}
+
+			processor.RankResults(results)
+			sort.Slice(results, func(i, j int) bool {
+				return results[i].Score > results[j].Score
+			})
+
+			resultText := ""
+			for _, res := range results {
+				resultText += fmt.Sprintln("%s (%.3f)", res.Location, res.Score)
+
+				locs := []int{}
+				for k := range res.Locations {
+					locs = append(locs, res.Locations[k]...)
+				}
+				locs = processor.RemoveIntDuplicates(locs)
+
+				rel := processor.ExtractRelevant(processor.SearchString, string(res.Content), locs, 300, 50, "…")
+				resultText += rel
+			}
+
+			_, _ = fmt.Fprintf(textView, "%s", resultText)
 		})
 
 	grid.AddItem(inputField, 0, 0, 1, 3, 0, 100, false)
