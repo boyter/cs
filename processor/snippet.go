@@ -122,14 +122,17 @@ func determineSnipLocations(locations []int, previousCount int) int {
 // 1/6 ratio on prevcount tends to work pretty well and puts the terms
 // in the middle of the extract
 // indicator is usually ellipsis or some such
-func extractRelevant(words []string, fulltext string, relLength int, prevCount int, indicator string) string {
+func extractRelevant(words []string, fulltext string, locations []int, relLength int, prevCount int, indicator string) string {
 	textLength := len(fulltext)
 
 	if textLength <= relLength {
 		return fulltext
 	}
 
-	locations := extractLocationsNoRegex(words, fulltext)
+	if len(locations) == 0 {
+		locations = extractLocationsNoRegex(words, fulltext)
+	}
+
 	startPos := determineSnipLocations(locations, prevCount)
 
 	// if we are going to snip too much...
@@ -140,6 +143,10 @@ func extractRelevant(words []string, fulltext string, relLength int, prevCount i
 	endPos := startPos + relLength
 	if endPos > textLength {
 		endPos = textLength
+	}
+
+	if startPos < 0 {
+		startPos = 0
 	}
 
 	relText := fulltext[startPos:endPos]

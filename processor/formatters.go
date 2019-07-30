@@ -50,11 +50,16 @@ func fileSummarize(input chan *FileJob) string {
 	})
 
 	for _, res := range results {
-		color.Magenta("%s (%.2f)", res.Location, res.Score)
-		rel := extractRelevant(SearchString, string(res.Content), 300, 50, "…")
+		color.Magenta("%s (%.3f)", res.Location, res.Score)
+
+		locs := []int{}
+		for k := range res.Locations {
+			locs = append(locs, res.Locations[k]...)
+		}
+		locs = removeIntDuplicates(locs)
+
+		rel := extractRelevant(SearchString, string(res.Content), locs, 300, 50, "…")
 		fmt.Println(rel)
-		// NB the below does not work in the old CMD.exe on windows
-		//_ = quick.Highlight(os.Stdout, rel, "go", "terminal16m", "monokai")
 
 		// break up and highlight
 		// base the highligt off lower so we can ensure we match correctly
