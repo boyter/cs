@@ -115,19 +115,17 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 		go func() {
 			for res := range input {
 				if atomic.LoadInt64(&totalCount) >= ResultLimit {
+					wg.Done()
 					return
 				}
 
 				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
-
 				processingStartTime := makeTimestampNano()
 
 				if bytes.IndexByte(res.Content, '\x00') != -1 {
 					res.Binary = true
 				} else {
-
 					// what we need to do is check for each term if it exists, and then use that to determine if its a match
-
 					contentLower := strings.ToLower(string(res.Content))
 
 					// https://blog.gopheracademy.com/advent-2014/string-matching/

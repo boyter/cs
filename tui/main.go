@@ -10,9 +10,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
-func updateText(view *tview.TextView) {
+func updateText(textView *tview.TextView) {
+	time.Sleep(100 * time.Millisecond)
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
 
@@ -25,7 +27,7 @@ func updateText(view *tview.TextView) {
 	searchSliceMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
-		view.Clear()
+		textView.Clear()
 		return
 	}
 
@@ -45,14 +47,14 @@ func updateText(view *tview.TextView) {
 		results = append(results, res)
 
 		if count % 20 == 0 {
-			drawResults(results, view, searchTerm)
+			drawResults(results, textView, searchTerm)
 		}
 	}
 
-	drawResults(results, view, searchTerm)
+	drawResults(results, textView, searchTerm)
 }
 
-func drawResults(results []*processor.FileJob, view *tview.TextView, searchTerm string) {
+func drawResults(results []*processor.FileJob, textView *tview.TextView, searchTerm string) {
 	processor.RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
@@ -78,9 +80,9 @@ func drawResults(results []*processor.FileJob, view *tview.TextView, searchTerm 
 		resultText += rel + "\n\n"
 	}
 
-	view.Clear()
-	_, _ = fmt.Fprintf(view, "%s", resultText)
-	view.ScrollToBeginning()
+	textView.Clear()
+	_, _ = fmt.Fprintf(textView, "%s", resultText)
+	textView.ScrollToBeginning()
 }
 
 var searchSlice = []string{}
@@ -106,11 +108,11 @@ func main() {
 	inputField := tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
 		SetLabel("> ").
-		//SetLabelColor(tcell.ColorBlue).
+		SetLabelColor(tcell.ColorBlue).
 		SetFieldWidth(0).
 		SetChangedFunc(func(text string) {
 			searchSliceMutex.Lock()
-			searchSlice = append(searchSlice, text)
+			searchSlice = append(searchSlice, strings.TrimSpace(text))
 			searchSliceMutex.Unlock()
 
 			go updateText(textView)

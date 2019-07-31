@@ -67,7 +67,7 @@ var WhiteListExtensions = []string{}
 // Search string if set to anything is what we want to run the search for against the current directory
 var SearchString = []string{}
 
-var ResultLimit int64 = 1000
+var ResultLimit int64 = 100
 
 // Clean up the input
 func cleanSearchString() {
