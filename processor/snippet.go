@@ -33,14 +33,21 @@ func extractLocations(words []string, fulltext string) []int {
 	return locs
 }
 
-func extractLocation(word string, fulltext string) []int {
+func extractLocation(word string, fulltext string, limit int) []int {
 	locs := []int{}
 
 	searchText := fulltext
 	offSet := 0
 	loc := strings.Index(searchText, word)
 
+	count := 0
 	for loc != -1 {
+		count++
+
+		if count == limit {
+			break
+		}
+
 		searchText = searchText[loc+len(word):]
 		locs = append(locs, loc+offSet)
 
@@ -68,7 +75,7 @@ func extractLocationsNoRegex(words []string, fulltext string) []int {
 	fulltext = strings.ToLower(fulltext)
 
 	for _, w := range words {
-		for _, l := range extractLocation(w, fulltext) {
+		for _, l := range extractLocation(w, fulltext, 20) {
 			locs = append(locs, l)
 		}
 	}
@@ -145,8 +152,12 @@ func ExtractRelevant(words []string, fulltext string, locations []int, relLength
 		endPos = textLength
 	}
 
+	if startPos >= endPos {
+		startPos = endPos - relLength
+	}
+
 	if startPos < 0 {
-		startPos = 0
+			startPos = 0
 	}
 
 	relText := fulltext[startPos:endPos]

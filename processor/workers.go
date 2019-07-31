@@ -138,7 +138,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 									break
 								}
 							} else {
-								res.Locations[term] = extractLocation(term, contentLower)
+								res.Locations[term] = extractLocation(term, contentLower, 10)
 
 								if res.Locations[term][0] != 0 {
 									res.Score += float64(len(res.Locations[term]))
