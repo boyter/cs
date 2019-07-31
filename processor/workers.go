@@ -108,11 +108,16 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
 	var wg sync.WaitGroup
+	var totalCount int64
 
 	for i := 0; i < FileProcessJobWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			for res := range input {
+				if atomic.LoadInt64(&totalCount) >= ResultLimit {
+					return
+				}
+
 				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
 
 				processingStartTime := makeTimestampNano()
@@ -156,6 +161,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 				}
 
 				if !res.Binary && res.Score != 0 {
+					atomic.AddInt64(&totalCount, 1)
 					output <- res
 				} else {
 					if Verbose {
