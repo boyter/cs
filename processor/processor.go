@@ -68,17 +68,17 @@ var WhiteListExtensions = []string{}
 var SearchString = []string{}
 
 // Number of results to process before bailing out
-var ResultLimit int64 = 100
+var ResultLimit int64 = 0
 
 // How many characters out of the file to display in snippets
-var SnippetLength int64 = 300
+var SnippetLength int64 = 0
 
 // Clean up the input
-func cleanSearchString() {
+func CleanSearchString() {
 	tmp := []string{}
 
 	for _, s := range SearchString {
-		s = strings.Trim(s, " ")
+		s = strings.ToLower(strings.Trim(s, " "))
 
 		if s != "" {
 			tmp = append(tmp, s)
@@ -90,7 +90,7 @@ func cleanSearchString() {
 
 // Process is the main entry point of the command line it sets everything up and starts running
 func Process() {
-	cleanSearchString()
+	CleanSearchString()
 
 	if Debug {
 		printDebug(fmt.Sprintf("White List: %v", WhiteListExtensions))

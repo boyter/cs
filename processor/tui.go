@@ -1,8 +1,7 @@
-package main
+package processor
 
 import (
 	"fmt"
-	"github.com/boyter/sc/processor"
 	"github.com/boyter/sc/processor/snippet"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
@@ -15,9 +14,9 @@ import (
 	"time"
 )
 
-func search(textView *tview.TextView) {
+func tuiSearch(textView *tview.TextView) {
 	// Kill off anything else that's processing
-	processor.StopProcessing = true
+	StopProcessing = true
 	// Wait a bit for everything to die and so the user can type a little more
 	time.Sleep(100 * time.Millisecond)
 
@@ -25,7 +24,7 @@ func search(textView *tview.TextView) {
 	defer searchMutex.Unlock()
 	shouldSpin = true
 	// Enable processing again
-	processor.StopProcessing = false
+	StopProcessing = false
 
 	searchSliceMutex.Lock()
 	var searchTerm string
@@ -46,17 +45,18 @@ func search(textView *tview.TextView) {
 		return
 	}
 
-	processor.SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
-	fileListQueue := make(chan *processor.FileJob, runtime.NumCPU())           // Files ready to be read from disk
-	fileReadContentJobQueue := make(chan *processor.FileJob, runtime.NumCPU()) // Files ready to be processed
-	fileSummaryJobQueue := make(chan *processor.FileJob, runtime.NumCPU())     // Files ready to be summarised
+	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
+	CleanSearchString()
+	fileListQueue := make(chan *FileJob, runtime.NumCPU())           // Files ready to be read from disk
+	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
+	fileSummaryJobQueue := make(chan *FileJob, runtime.NumCPU())     // Files ready to be summarised
 
-	processor.TotalCount = 0
-	go processor.WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
-	go processor.FileReaderWorker(fileListQueue, fileReadContentJobQueue)
-	go processor.FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
+	TotalCount = 0
+	go WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
+	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
+	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
-	results := []*processor.FileJob{}
+	results := []*FileJob{}
 	count := 0
 	for res := range fileSummaryJobQueue {
 		count++
@@ -71,14 +71,14 @@ func search(textView *tview.TextView) {
 	shouldSpin = false
 }
 
-func drawResults(results []*processor.FileJob, textView *tview.TextView, searchTerm string) {
-	processor.RankResults(results)
+func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string) {
+	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
 
-	if int64(len(results)) > processor.TotalCount {
-		results = results[:processor.TotalCount]
+	if int64(len(results)) > TotalCount {
+		results = results[:TotalCount]
 	}
 
 	pResults := results
@@ -95,9 +95,9 @@ func drawResults(results []*processor.FileJob, textView *tview.TextView, searchT
 		for k := range res.Locations {
 			locs = append(locs, res.Locations[k]...)
 		}
-		locs = processor.RemoveIntDuplicates(locs)
+		locs = RemoveIntDuplicates(locs)
 
-		rel := snippet.ExtractRelevant(processor.SearchString, string(res.Content), locs, int(processor.SnippetLength), 50, "…")
+		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), 50, "…")
 		resultText += rel + "\n\n"
 	}
 
@@ -137,7 +137,7 @@ func runningIndicator(app *tview.Application, inputField *tview.InputField) {
 	}
 }
 
-func main() {
+func ProcessTui() {
 	app := tview.NewApplication()
 
 	grid := tview.NewGrid().
@@ -163,7 +163,7 @@ func main() {
 			searchSlice = append(searchSlice, strings.TrimSpace(text))
 			searchSliceMutex.Unlock()
 
-			go search(textView)
+			go tuiSearch(textView)
 		})
 
 	grid.AddItem(inputField, 0, 0, 1, 3, 0, 1, false)

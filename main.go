@@ -18,7 +18,13 @@ func main() {
 		Version: "0.0.1",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
-			processor.Process()
+			processor.CleanSearchString()
+
+			if len(processor.SearchString) != 0 {
+				processor.Process()
+			} else {
+				processor.ProcessTui()
+			}
 		},
 	}
 
