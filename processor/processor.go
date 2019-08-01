@@ -68,7 +68,10 @@ var WhiteListExtensions = []string{}
 var SearchString = []string{}
 
 // Number of results to process before bailing out
-var ResultLimit int64
+var ResultLimit int64 = 100
+
+// How many characters out of the file to display in snippets
+var SnippetLength int64 = 300
 
 // Clean up the input
 func cleanSearchString() {

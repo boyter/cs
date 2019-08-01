@@ -56,26 +56,10 @@ func WalkDirectoryParallel(root string, output chan *FileJob) {
 
 	var wg sync.WaitGroup
 
-	isSoloFile := false
 	var all []os.FileInfo
 	// clean path including trailing slashes
 	root = filepath.Clean(root)
-	target, err := os.Lstat(root)
-
-	if err != nil {
-		// This error is non-recoverable due to user input so hard crash
-		printError(err.Error())
-		os.Exit(1)
-		return
-	}
-
-	if !target.IsDir() {
-		// create an array with a single FileInfo
-		all = append(all, target)
-		isSoloFile = true
-	} else {
-		all, _ = ioutil.ReadDir(root)
-	}
+	all, _ = ioutil.ReadDir(root)
 
 	var gitIgnore gitignore.IgnoreMatcher
 	gitIgnoreError := errors.New("")
@@ -164,11 +148,7 @@ func WalkDirectoryParallel(root string, output chan *FileJob) {
 				}(filepath.Join(root, f.Name()))
 			}
 		} else { // File processing starts here
-			if isSoloFile {
-				fpath = root
-			} else {
-				fpath = filepath.Join(root, f.Name())
-			}
+			fpath = filepath.Join(root, f.Name())
 
 			shouldSkip := false
 

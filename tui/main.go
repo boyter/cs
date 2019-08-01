@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/boyter/sc/processor"
+	"github.com/boyter/sc/processor/snippet"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,10 +15,17 @@ import (
 	"time"
 )
 
-func updateText(textView *tview.TextView) {
+func search(textView *tview.TextView) {
+	// Kill off anything else that's processing
+	processor.StopProcessing = true
+	// Wait a bit for everything to die and so the user can type a little more
 	time.Sleep(100 * time.Millisecond)
+
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
+	shouldSpin = true
+	// Enable processing again
+	processor.StopProcessing = false
 
 	searchSliceMutex.Lock()
 	var searchTerm string
@@ -26,19 +35,21 @@ func updateText(textView *tview.TextView) {
 	} else {
 		// If the slice is empty we want to bail out
 		searchSliceMutex.Unlock()
+		shouldSpin = false
 		return
 	}
 	searchSliceMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(textView, "")
+		shouldSpin = false
 		return
 	}
 
 	processor.SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
-	fileListQueue := make(chan *processor.FileJob, 100)           // Files ready to be read from disk
-	fileReadContentJobQueue := make(chan *processor.FileJob, 100) // Files ready to be processed
-	fileSummaryJobQueue := make(chan *processor.FileJob, 100)     // Files ready to be summarised
+	fileListQueue := make(chan *processor.FileJob, runtime.NumCPU())           // Files ready to be read from disk
+	fileReadContentJobQueue := make(chan *processor.FileJob, runtime.NumCPU()) // Files ready to be processed
+	fileSummaryJobQueue := make(chan *processor.FileJob, runtime.NumCPU())     // Files ready to be summarised
 
 	processor.TotalCount = 0
 	go processor.WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
@@ -57,6 +68,7 @@ func updateText(textView *tview.TextView) {
 	}
 
 	drawResults(results, textView, searchTerm)
+	shouldSpin = false
 }
 
 func drawResults(results []*processor.FileJob, textView *tview.TextView, searchTerm string) {
@@ -65,6 +77,10 @@ func drawResults(results []*processor.FileJob, textView *tview.TextView, searchT
 		return results[i].Score > results[j].Score
 	})
 
+	if int64(len(results)) > processor.TotalCount {
+		results = results[:processor.TotalCount]
+	}
+
 	pResults := results
 	if len(results) > 20 {
 		pResults = results[:20]
@@ -72,8 +88,8 @@ func drawResults(results []*processor.FileJob, textView *tview.TextView, searchT
 
 	var resultText string
 	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "'\n\n"
-	for _, res := range pResults {
-		resultText += fmt.Sprintf("%s (%.3f)", res.Location, res.Score) + "\n\n"
+	for i, res := range pResults {
+		resultText += fmt.Sprintf("%d. %s (%.3f)", i + 1, res.Location, res.Score) + "\n\n"
 
 		locs := []int{}
 		for k := range res.Locations {
@@ -81,11 +97,12 @@ func drawResults(results []*processor.FileJob, textView *tview.TextView, searchT
 		}
 		locs = processor.RemoveIntDuplicates(locs)
 
-		rel := processor.ExtractRelevant(processor.SearchString, string(res.Content), locs, 200, 50, "…")
+		rel := snippet.ExtractRelevant(processor.SearchString, string(res.Content), locs, int(processor.SnippetLength), 50, "…")
 		resultText += rel + "\n\n"
 	}
 
 	drawText(textView, resultText)
+	shouldSpin = false
 }
 
 func drawText(textView *tview.TextView, text string) {
@@ -97,6 +114,28 @@ func drawText(textView *tview.TextView, text string) {
 var searchSlice = []string{}
 var searchMutex sync.Mutex
 var searchSliceMutex sync.Mutex
+var spinnerString = `\|/-`
+var shouldSpin = false
+
+func runningIndicator(app *tview.Application, inputField *tview.InputField) {
+	for {
+		time.Sleep(100 * time.Millisecond)
+		var i int
+		for shouldSpin {
+			inputField.SetLabel(string(spinnerString[i]) + " ")
+			app.Draw()
+			time.Sleep(100 * time.Millisecond)
+
+			i++
+			if i >= len(spinnerString) {
+				i = 0
+			}
+		}
+
+		inputField.SetLabel("> ")
+		app.Draw()
+	}
+}
 
 func main() {
 	app := tview.NewApplication()
@@ -124,11 +163,13 @@ func main() {
 			searchSlice = append(searchSlice, strings.TrimSpace(text))
 			searchSliceMutex.Unlock()
 
-			go updateText(textView)
+			go search(textView)
 		})
 
 	grid.AddItem(inputField, 0, 0, 1, 3, 0, 1, false)
 	grid.AddItem(textView, 1, 0, 1, 3, 0, 0, false)
+
+	go runningIndicator(app, inputField)
 
 	if err := app.SetRoot(grid, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)

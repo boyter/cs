@@ -21,6 +21,10 @@ func fileSummarize(input chan *FileJob) string {
 		results = append(results, res)
 	}
 
+	if int64(len(results)) > ResultLimit {
+		results = results[:ResultLimit]
+	}
+
 	// Rank results then sort for display
 	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
@@ -36,7 +40,7 @@ func fileSummarize(input chan *FileJob) string {
 		}
 		locs = RemoveIntDuplicates(locs)
 
-		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, 300, 50, "…")
+		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), 50, "…")
 		fmt.Println(rel)
 
 		// break up and highlight

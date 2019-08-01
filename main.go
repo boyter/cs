@@ -55,6 +55,13 @@ func main() {
 		100,
 		"number of matching results to process",
 	)
+	flags.Int64VarP(
+		&processor.SnippetLength,
+		"snippet",
+		"s",
+		300,
+		"number of matching results to process",
+	)
 	flags.StringSliceVar(
 		&processor.PathBlacklist,
 		"exclude-dir",

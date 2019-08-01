@@ -11,9 +11,10 @@ import (
 )
 
 var TotalCount int64
+var StopProcessing bool
 
 func returnEarly() bool {
-	if atomic.LoadInt64(&TotalCount) >= ResultLimit {
+	if StopProcessing || atomic.LoadInt64(&TotalCount) >= ResultLimit {
 		return true
 	}
 
