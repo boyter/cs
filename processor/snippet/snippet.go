@@ -104,7 +104,17 @@ func determineSnipLocations(locations []int, previousCount int) int {
 
 // 1/6 ratio on prevcount tends to work pretty well and puts the terms
 // in the middle of the extract
-// indicator is usually ellipsis or some such
+func GetPrevCount(relLength int) int {
+	t := int(relLength / 6)
+
+	if t <= 0 {
+		t = 50
+	}
+
+	return t
+}
+
+
 func ExtractRelevant(words []string, fulltext string, locations []int, relLength int, prevCount int, indicator string) string {
 	textLength := len(fulltext)
 

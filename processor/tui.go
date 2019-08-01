@@ -97,7 +97,7 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 		}
 		locs = RemoveIntDuplicates(locs)
 
-		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), 50, "…")
+		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		resultText += rel + "\n\n"
 	}
 

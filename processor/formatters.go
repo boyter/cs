@@ -40,7 +40,7 @@ func fileSummarize(input chan *FileJob) string {
 		}
 		locs = RemoveIntDuplicates(locs)
 
-		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), 50, "…")
+		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		fmt.Println(rel)
 
 		// break up and highlight
