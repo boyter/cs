@@ -1,39 +1,15 @@
-package processor
+package snippet
 
 import (
 	"math"
-	"regexp"
 	"sort"
 	"strings"
 )
 
-// find the locations of each of the words
-// Nothing exciting here. The array_unique is required
-// unless you decide to make the words unique before passing in
-func extractLocations(words []string, fulltext string) []int {
-	locs := []int{}
 
-	fulltext = strings.ToLower(fulltext)
-
-	for _, w := range words {
-		t := regexp.MustCompile(w).FindAllIndex([]byte(fulltext), -1)
-
-		for _, x := range t {
-			locs = append(locs, x[0])
-		}
-	}
-
-	sort.Ints(locs)
-
-	// If not words found show beginning of the text NB should not happen
-	if len(locs) == 0 {
-		locs = append(locs, 0)
-	}
-
-	return locs
-}
-
-func extractLocation(word string, fulltext string, limit int) []int {
+// Extracts all of the locations of a string inside another string
+// upto the defined limit
+func ExtractLocation(word string, fulltext string, limit int) []int {
 	locs := []int{}
 
 	searchText := fulltext
@@ -67,15 +43,15 @@ func extractLocation(word string, fulltext string, limit int) []int {
 }
 
 // This method is about 3x more efficient then using regex
-//BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
-//BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
-func extractLocationsNoRegex(words []string, fulltext string) []int {
+// BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
+// BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
+func ExtractLocations(words []string, fulltext string) []int {
 	locs := []int{}
 
 	fulltext = strings.ToLower(fulltext)
 
 	for _, w := range words {
-		for _, l := range extractLocation(w, fulltext, 20) {
+		for _, l := range ExtractLocation(w, fulltext, 20) {
 			locs = append(locs, l)
 		}
 	}
@@ -137,7 +113,7 @@ func ExtractRelevant(words []string, fulltext string, locations []int, relLength
 	}
 
 	if len(locations) == 0 {
-		locations = extractLocationsNoRegex(words, fulltext)
+		locations = ExtractLocations(words, fulltext)
 	}
 
 	startPos := determineSnipLocations(locations, prevCount)
@@ -157,7 +133,7 @@ func ExtractRelevant(words []string, fulltext string, locations []int, relLength
 	}
 
 	if startPos < 0 {
-			startPos = 0
+		startPos = 0
 	}
 
 	relText := fulltext[startPos:endPos]

@@ -2,34 +2,12 @@ package processor
 
 import (
 	"fmt"
+	"github.com/boyter/sc/processor/snippet"
 	"github.com/fatih/color"
-	"math"
 	"os"
 	"sort"
 	"time"
 )
-
-// tf-idf ranking woo!
-func RankResults(results []*FileJob) []*FileJob {
-	idf := map[string]int{}
-	for _, r := range results {
-		for k := range r.Locations {
-			idf[k] = idf[k] + len(r.Locations[k])
-		}
-	}
-
-	for i := 0; i < len(results); i++ {
-		var weight float64
-		for k := range results[i].Locations {
-			tf := float64(len(results)) / float64(len(results[i].Locations[k]))
-			weight += math.Log(1 + tf) * float64(len(results[i].Locations[k]))
-		}
-
-		results[i].Score = weight
-	}
-
-	return results
-}
 
 func fileSummarize(input chan *FileJob) string {
 	//switch {
@@ -37,12 +15,13 @@ func fileSummarize(input chan *FileJob) string {
 	//	return toJSON(input)
 	//}
 
-	// Collect results
+	// Collect results so we can rank them
 	results := []*FileJob{}
 	for res := range input {
 		results = append(results, res)
 	}
 
+	// Rank results then sort for display
 	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
@@ -57,7 +36,7 @@ func fileSummarize(input chan *FileJob) string {
 		}
 		locs = RemoveIntDuplicates(locs)
 
-		rel := ExtractRelevant(SearchString, string(res.Content), locs, 300, 50, "…")
+		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, 300, 50, "…")
 		fmt.Println(rel)
 
 		// break up and highlight

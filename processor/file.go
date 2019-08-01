@@ -225,6 +225,10 @@ func walkDirectory(toWalk string, blackList []string) []FileJob {
 		Unsorted: true,
 		Callback: func(root string, info *godirwalk.Dirent) error {
 
+			if returnEarly() {
+				return nil
+			}
+
 			for _, exclude := range excludes {
 				if exclude.Match([]byte(info.Name())) {
 					if Verbose {

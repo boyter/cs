@@ -67,7 +67,8 @@ var WhiteListExtensions = []string{}
 // Search string if set to anything is what we want to run the search for against the current directory
 var SearchString = []string{}
 
-var ResultLimit int64 = 100
+// Number of results to process before bailing out
+var ResultLimit int64
 
 // Clean up the input
 func cleanSearchString() {
@@ -94,6 +95,7 @@ func Process() {
 		printDebug(fmt.Sprintf("Verbose: %t", Verbose))
 		printDebug(fmt.Sprintf("NumCPU: %d", runtime.NumCPU()))
 		printDebug(fmt.Sprintf("PathBlacklist: %v", PathBlacklist))
+		printDebug(fmt.Sprintf("ResultLimit: %d", ResultLimit))
 	}
 
 	fileListQueue := make(chan *FileJob, FileListQueueSize)                     // Files ready to be read from disk

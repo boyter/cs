@@ -23,19 +23,24 @@ func updateText(textView *tview.TextView) {
 	if len(searchSlice) != 0 {
 		searchTerm = searchSlice[len(searchSlice)-1]
 		searchSlice = []string{}
+	} else {
+		// If the slice is empty we want to bail out
+		searchSliceMutex.Unlock()
+		return
 	}
 	searchSliceMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
-		textView.Clear()
+		drawText(textView, "")
 		return
 	}
 
 	processor.SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
-	fileListQueue := make(chan *processor.FileJob, 100)                     // Files ready to be read from disk
+	fileListQueue := make(chan *processor.FileJob, 100)           // Files ready to be read from disk
 	fileReadContentJobQueue := make(chan *processor.FileJob, 100) // Files ready to be processed
-	fileSummaryJobQueue := make(chan *processor.FileJob, 100)         // Files ready to be summarised
+	fileSummaryJobQueue := make(chan *processor.FileJob, 100)     // Files ready to be summarised
 
+	processor.TotalCount = 0
 	go processor.WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
 	go processor.FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go processor.FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
@@ -46,7 +51,7 @@ func updateText(textView *tview.TextView) {
 		count++
 		results = append(results, res)
 
-		if count % 20 == 0 {
+		if count%20 == 0 {
 			drawResults(results, textView, searchTerm)
 		}
 	}
@@ -61,14 +66,14 @@ func drawResults(results []*processor.FileJob, textView *tview.TextView, searchT
 	})
 
 	pResults := results
-	if len(results) > 10 {
-		pResults = results[:10]
+	if len(results) > 20 {
+		pResults = results[:20]
 	}
 
 	var resultText string
 	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "'\n\n"
 	for _, res := range pResults {
-		resultText += fmt.Sprintf("%s (%.3f)", res.Location, res.Score) + "\n"
+		resultText += fmt.Sprintf("%s (%.3f)", res.Location, res.Score) + "\n\n"
 
 		locs := []int{}
 		for k := range res.Locations {
@@ -80,8 +85,12 @@ func drawResults(results []*processor.FileJob, textView *tview.TextView, searchT
 		resultText += rel + "\n\n"
 	}
 
+	drawText(textView, resultText)
+}
+
+func drawText(textView *tview.TextView, text string) {
 	textView.Clear()
-	_, _ = fmt.Fprintf(textView, "%s", resultText)
+	_, _ = fmt.Fprintf(textView, "%s", text)
 	textView.ScrollToBeginning()
 }
 
@@ -94,7 +103,7 @@ func main() {
 
 	grid := tview.NewGrid().
 		SetRows(2).
-		SetColumns(0).
+		SetColumns(1).
 		SetBorders(false)
 
 	textView := tview.NewTextView().
@@ -108,7 +117,7 @@ func main() {
 	inputField := tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
 		SetLabel("> ").
-		SetLabelColor(tcell.ColorBlue).
+		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
 		SetChangedFunc(func(text string) {
 			searchSliceMutex.Lock()
@@ -118,7 +127,7 @@ func main() {
 			go updateText(textView)
 		})
 
-	grid.AddItem(inputField, 0, 0, 1, 3, 0, 0, false)
+	grid.AddItem(inputField, 0, 0, 1, 3, 0, 1, false)
 	grid.AddItem(textView, 1, 0, 1, 3, 0, 0, false)
 
 	if err := app.SetRoot(grid, true).SetFocus(inputField).Run(); err != nil {

@@ -48,6 +48,13 @@ func main() {
 		false,
 		"enable debug output",
 	)
+	flags.Int64VarP(
+		&processor.ResultLimit,
+		"limit",
+		"l",
+		100,
+		"number of matching results to process",
+	)
 	flags.StringSliceVar(
 		&processor.PathBlacklist,
 		"exclude-dir",
