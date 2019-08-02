@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-
 // Extracts all of the locations of a string inside another string
 // upto the defined limit
 func ExtractLocation(word string, fulltext string, limit int) []int {
@@ -113,7 +112,6 @@ func GetPrevCount(relLength int) int {
 
 	return t
 }
-
 
 func ExtractRelevant(words []string, fulltext string, locations []int, relLength int, prevCount int, indicator string) string {
 	textLength := len(fulltext)

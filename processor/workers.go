@@ -39,7 +39,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 
 				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
 
-				fi, err := os.Stat(res.Location);
+				fi, err := os.Stat(res.Location)
 				if err != nil {
 					continue
 				}
@@ -61,7 +61,6 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 					var tmp [1024000]byte
 					io.ReadFull(r, tmp[:])
 				}
-
 
 				if Trace {
 					printTrace(fmt.Sprintf("nanoseconds read into memory: %s: %d", res.Location, makeTimestampNano()-fileStartTime))

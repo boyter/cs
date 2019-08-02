@@ -61,7 +61,7 @@ func tuiSearch(textView *tview.TextView) {
 	for res := range fileSummaryJobQueue {
 		results = append(results, res)
 
-		if makeTimestampMilli() - reset >= 100 {
+		if makeTimestampMilli()-reset >= 100 {
 			drawResults(results, textView, searchTerm)
 			reset = makeTimestampMilli()
 		}
@@ -91,7 +91,7 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "'\n\n"
 
 	for i, res := range pResults {
-		resultText += fmt.Sprintf("%d. %s (%.3f)", i + 1, res.Location, res.Score) + "\n\n"
+		resultText += fmt.Sprintf("%d. %s (%.3f)", i+1, res.Location, res.Score) + "\n\n"
 
 		locs := []int{}
 		for k := range res.Locations {
