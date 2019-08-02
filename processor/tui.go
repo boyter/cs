@@ -57,18 +57,19 @@ func tuiSearch(textView *tview.TextView) {
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
 	results := []*FileJob{}
-	count := 0
+	reset := makeTimestampMilli()
 	for res := range fileSummaryJobQueue {
-		count++
 		results = append(results, res)
 
-		if count%20 == 0 {
+		if makeTimestampMilli() - reset >= 100 {
 			drawResults(results, textView, searchTerm)
+			reset = makeTimestampMilli()
 		}
 	}
 
 	drawResults(results, textView, searchTerm)
 	shouldSpin = false
+	StopProcessing = true
 }
 
 func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string) {
@@ -77,7 +78,7 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 		return results[i].Score > results[j].Score
 	})
 
-	if int64(len(results)) > TotalCount {
+	if int64(len(results)) >= TotalCount {
 		results = results[:TotalCount]
 	}
 
@@ -88,6 +89,7 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 
 	var resultText string
 	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "'\n\n"
+
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("%d. %s (%.3f)", i + 1, res.Location, res.Score) + "\n\n"
 
@@ -124,7 +126,7 @@ func runningIndicator(app *tview.Application, inputField *tview.InputField) {
 		for shouldSpin {
 			inputField.SetLabel(string(spinnerString[i]) + " ")
 			app.Draw()
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(150 * time.Millisecond)
 
 			i++
 			if i >= len(spinnerString) {

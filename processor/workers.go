@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/boyter/sc/processor/snippet"
+	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -37,8 +39,29 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 
 				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
 
+				fi, err := os.Stat(res.Location);
+				if err != nil {
+					continue
+				}
+
+				var content []byte
 				fileStartTime := makeTimestampNano()
-				content, err := ioutil.ReadFile(res.Location)
+
+				var s int64 = 1024000
+
+				if fi.Size() < s {
+					content, err = ioutil.ReadFile(res.Location)
+				} else {
+					r, err := os.Open(res.Location)
+					if err != nil {
+						continue
+					}
+					defer r.Close()
+
+					var tmp [1024000]byte
+					io.ReadFull(r, tmp[:])
+				}
+
 
 				if Trace {
 					printTrace(fmt.Sprintf("nanoseconds read into memory: %s: %d", res.Location, makeTimestampNano()-fileStartTime))
