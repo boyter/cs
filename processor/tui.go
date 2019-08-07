@@ -42,6 +42,7 @@ func tuiSearch(textView *tview.TextView) {
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(textView, "")
 		shouldSpin = false
+		StopProcessing = true
 		return
 	}
 
