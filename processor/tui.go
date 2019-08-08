@@ -42,7 +42,6 @@ func tuiSearch(textView *tview.TextView) {
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(textView, "")
 		shouldSpin = false
-		StopProcessing = true
 		return
 	}
 
@@ -121,9 +120,10 @@ var spinnerString = `\|/-`
 var shouldSpin = false
 
 func runningIndicator(app *tview.Application, inputField *tview.InputField) {
+	var i int
 	for {
 		time.Sleep(100 * time.Millisecond)
-		var i int
+
 		for shouldSpin {
 			inputField.SetLabel(string(spinnerString[i]) + " ")
 			app.Draw()
