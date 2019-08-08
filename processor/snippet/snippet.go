@@ -33,11 +33,6 @@ func ExtractLocation(word string, fulltext string, limit int) []int {
 
 	sort.Ints(locs)
 
-	// If not words found show beginning of the text NB should not happen
-	if len(locs) == 0 {
-		locs = append(locs, -1)
-	}
-
 	return locs
 }
 

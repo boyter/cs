@@ -129,7 +129,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 							} else {
 								res.Locations[term] = snippet.ExtractLocation(term, contentLower, 100)
 
-								if res.Locations[term][0] != -1 {
+								if len(res.Locations[term]) != 0 {
 									res.Score += float64(len(res.Locations[term]))
 								} else {
 									res.Score = 0
