@@ -56,7 +56,7 @@ var FileReadJobWorkers = runtime.NumCPU() * 4
 var FileReadContentJobQueueSize = runtime.NumCPU()
 
 // FileProcessJobWorkers is the number of workers that process the file collecting stats
-var FileProcessJobWorkers = runtime.NumCPU() * 4
+var FileProcessJobWorkers = runtime.NumCPU()
 
 // FileSummaryJobQueueSize is the queue used to hold processed file statistics before formatting
 var FileSummaryJobQueueSize = runtime.NumCPU()

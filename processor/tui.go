@@ -153,7 +153,7 @@ func ProcessTui() {
 		SetRegions(true).
 		ScrollToBeginning().
 		SetChangedFunc(func() {
-			app.Draw()
+			//app.Draw()
 		})
 
 	inputField := tview.NewInputField().

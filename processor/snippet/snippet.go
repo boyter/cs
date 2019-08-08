@@ -35,7 +35,7 @@ func ExtractLocation(word string, fulltext string, limit int) []int {
 
 	// If not words found show beginning of the text NB should not happen
 	if len(locs) == 0 {
-		locs = append(locs, 0)
+		locs = append(locs, -1)
 	}
 
 	return locs
@@ -71,6 +71,11 @@ func ExtractLocations(words []string, fulltext string) []int {
 // When checking for matches we only change the location if there is a better match.
 // The only exception is where we have only two matches in which case we just take the
 // first as will be equally distant.
+//
+// NB issues with this is that it does not take into account locations
+// of different terms, EG a bonus would not find the text in this file because a would be found first
+// resulting in it being considered the best match
+// this could be fixed with a multiplier which if the term is different to the previous gives a bonus
 func determineSnipLocations(locations []int, previousCount int) int {
 	startPos := locations[0]
 	locCount := len(locations)
