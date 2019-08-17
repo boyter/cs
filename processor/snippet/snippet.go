@@ -124,7 +124,7 @@ func determineSnipLocations2(locations []LocationType, previousCount int) int {
 			if i != locCount-1 {
 				// If the term after this one is different reduce the weight so its considered more relevant
 				if locations[i].Term != locations[i+1].Term {
-					diff = diff / 2
+					diff = (diff / 2) - len(locations[i].Term) - len(locations[i+1].Term)
 				}
 			}
 
