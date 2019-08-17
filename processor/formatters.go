@@ -1,19 +1,21 @@
 package processor
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/boyter/sc/processor/snippet"
 	"github.com/fatih/color"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
 func fileSummarize(input chan *FileJob) string {
-	//switch {
-	//case strings.ToLower(Format) == "json":
-	//	return toJSON(input)
-	//}
+	switch {
+	case strings.ToLower(Format) == "json":
+		return toJSON(input)
+	}
 
 	// Collect results so we can rank them
 	results := []*FileJob{}
@@ -58,6 +60,48 @@ func fileSummarize(input chan *FileJob) string {
 	}
 
 	return ""
+}
+
+func toJSON(input chan *FileJob) string {
+	// Collect results so we can rank them
+	results := []*FileJob{}
+	for res := range input {
+		results = append(results, res)
+	}
+
+	if int64(len(results)) > ResultLimit {
+		results = results[:ResultLimit]
+	}
+
+	// Rank results then sort for display
+	RankResults(results)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	r := []JsonResult{}
+
+	for _, res := range results {
+		locs := []int{}
+		for k := range res.Locations {
+			locs = append(locs, res.Locations[k]...)
+		}
+		locs = RemoveIntDuplicates(locs)
+
+		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+
+		r = append(r, JsonResult{
+			Filename:  res.Filename,
+			Extension: res.Extension,
+			Location:  res.Location,
+			Bytes:     res.Bytes,
+			Score:     res.Score,
+			Snippet:   rel,
+		})
+	}
+
+	data, _ := json.Marshal(r)
+	return string(data)
 }
 
 // Get the time as standard UTC/Zulu format
