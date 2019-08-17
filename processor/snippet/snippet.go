@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+type LocationType struct {
+	Term     string
+	Location int
+}
+
 // Extracts all of the locations of a string inside another string
 // upto the defined limit
 func ExtractLocation(word string, fulltext string, limit int) []int {
@@ -101,6 +106,44 @@ func determineSnipLocations(locations []int, previousCount int) int {
 	return startPos
 }
 
+// NB makes the assumption that the locations are already sorted
+func determineSnipLocations2(locations []LocationType, previousCount int) int {
+	startPos := locations[0].Location
+	locCount := len(locations)
+	smallestDiff := math.MaxInt32
+
+	var diff int
+	if locCount > 2 {
+		for i := 0; i < locCount; i++ {
+			if i == locCount-1 { // at the end
+				diff = locations[i].Location - locations[i-1].Location
+			} else {
+				diff = locations[i+1].Location - locations[i].Location
+			}
+
+			if i != locCount-1 {
+				// If the term after this one is different reduce the weight so its considered more relevant
+				if locations[i].Term != locations[i+1].Term {
+					diff = diff / 2
+				}
+			}
+
+			if smallestDiff > diff {
+				smallestDiff = diff
+				startPos = locations[i].Location
+			}
+		}
+	}
+
+	if startPos > previousCount {
+		startPos = startPos - previousCount
+	} else {
+		startPos = 0
+	}
+
+	return startPos
+}
+
 // 1/6 ratio on prevcount tends to work pretty well and puts the terms
 // in the middle of the extract
 func GetPrevCount(relLength int) int {
@@ -125,6 +168,50 @@ func ExtractRelevant(words []string, fulltext string, locations []int, relLength
 	}
 
 	startPos := determineSnipLocations(locations, prevCount)
+
+	// if we are going to snip too much...
+	if textLength-startPos < relLength {
+		startPos = startPos - (textLength-startPos)/2
+	}
+
+	endPos := startPos + relLength
+	if endPos > textLength {
+		endPos = textLength
+	}
+
+	if startPos >= endPos {
+		startPos = endPos - relLength
+	}
+
+	if startPos < 0 {
+		startPos = 0
+	}
+
+	relText := fulltext[startPos:endPos]
+
+	if startPos+relLength < textLength {
+		t := strings.LastIndex(relText, " ")
+		if t != -1 {
+			relText = relText[0:]
+		}
+		relText += indicator
+	}
+
+	if startPos != 0 {
+		relText = indicator + relText[strings.Index(relText, " ")+1:]
+	}
+
+	return relText
+}
+
+func ExtractRelevant2(fulltext string, locations []LocationType, relLength int, prevCount int, indicator string) string {
+	textLength := len(fulltext)
+
+	if textLength <= relLength {
+		return fulltext
+	}
+
+	startPos := determineSnipLocations2(locations, prevCount)
 
 	// if we are going to snip too much...
 	if textLength-startPos < relLength {

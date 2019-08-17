@@ -93,13 +93,21 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("%d. %s (%.3f)", i+1, res.Location, res.Score) + "\n\n"
 
-		locs := []int{}
-		for k := range res.Locations {
-			locs = append(locs, res.Locations[k]...)
+		locations := []snippet.LocationType{}
+		for k, v := range res.Locations {
+			for _, i := range v {
+				locations = append(locations, snippet.LocationType{
+					Term:     k,
+					Location: i,
+				})
+			}
 		}
-		locs = RemoveIntDuplicates(locs)
 
-		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		sort.Slice(locations, func(i, j int) bool {
+			return locations[i].Location > locations[j].Location
+		})
+
+		rel := snippet.ExtractRelevant2(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		resultText += rel + "\n\n"
 	}
 
