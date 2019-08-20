@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func tuiSearch(textView *tview.TextView) {
+func tuiSearch(app *tview.Application, textView *tview.TextView) {
 	// Kill off anything else that's processing
 	StopProcessing = true
 	// Wait a bit for everything to die and so the user can type a little more
@@ -22,7 +22,7 @@ func tuiSearch(textView *tview.TextView) {
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
-	shouldSpin = true
+
 	// Enable processing again
 	StopProcessing = false
 
@@ -34,24 +34,23 @@ func tuiSearch(textView *tview.TextView) {
 	} else {
 		// If the slice is empty we want to bail out
 		searchSliceMutex.Unlock()
-		shouldSpin = false
 		return
 	}
 	searchSliceMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(textView, "")
-		shouldSpin = false
 		return
 	}
 
 	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
 	CleanSearchString()
+	TotalCount = 0
+
 	fileListQueue := make(chan *FileJob, runtime.NumCPU())           // Files ready to be read from disk
 	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, runtime.NumCPU())     // Files ready to be summarised
 
-	TotalCount = 0
 	go WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
@@ -61,18 +60,19 @@ func tuiSearch(textView *tview.TextView) {
 	for res := range fileSummaryJobQueue {
 		results = append(results, res)
 
+		// Every 100 ms redraw
 		if makeTimestampMilli()-reset >= 100 {
-			drawResults(results, textView, searchTerm)
+			drawResults(results, textView, searchTerm, true)
 			reset = makeTimestampMilli()
 		}
 	}
 
-	drawResults(results, textView, searchTerm)
-	shouldSpin = false
+	drawResults(results, textView, searchTerm, false)
+
 	StopProcessing = true
 }
 
-func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string) {
+func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string, inProgress bool) {
 	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
@@ -88,7 +88,11 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 	}
 
 	var resultText string
-	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "'\n\n"
+	if inProgress {
+		resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "' searching...\n\n"
+	} else {
+		resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "'\n\n"
+	}
 
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("%d. %s (%.3f)", i+1, res.Location, res.Score) + "\n\n"
@@ -124,7 +128,6 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 	}
 
 	drawText(textView, resultText)
-	shouldSpin = false
 }
 
 func drawText(textView *tview.TextView, text string) {
@@ -136,29 +139,6 @@ func drawText(textView *tview.TextView, text string) {
 var searchSlice = []string{}
 var searchMutex sync.Mutex
 var searchSliceMutex sync.Mutex
-var spinnerString = `\|/-`
-var shouldSpin = false
-
-func runningIndicator(app *tview.Application, inputField *tview.InputField) {
-	var i int
-	for {
-		time.Sleep(100 * time.Millisecond)
-
-		for shouldSpin {
-			inputField.SetLabel(string(spinnerString[i]) + " ")
-			app.Draw()
-			time.Sleep(150 * time.Millisecond)
-
-			i++
-			if i >= len(spinnerString) {
-				i = 0
-			}
-		}
-
-		inputField.SetLabel("> ")
-		app.Draw()
-	}
-}
 
 func ProcessTui() {
 	app := tview.NewApplication()
@@ -173,8 +153,10 @@ func ProcessTui() {
 		SetRegions(true).
 		ScrollToBeginning().
 		SetChangedFunc(func() {
-			//app.Draw()
+			app.Draw()
 		})
+
+	//app.QueueUpdateDraw()
 
 	inputField := tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
@@ -186,13 +168,11 @@ func ProcessTui() {
 			searchSlice = append(searchSlice, strings.TrimSpace(text))
 			searchSliceMutex.Unlock()
 
-			go tuiSearch(textView)
+			go tuiSearch(app, textView)
 		})
 
 	grid.AddItem(inputField, 0, 0, 1, 3, 0, 1, false)
 	grid.AddItem(textView, 1, 0, 1, 3, 0, 0, false)
-
-	go runningIndicator(app, inputField)
 
 	if err := app.SetRoot(grid, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
