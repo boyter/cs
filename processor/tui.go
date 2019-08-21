@@ -110,8 +110,9 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "' " + inProgress + "\n\n"
 
 	for i, res := range pResults {
-		resultText += fmt.Sprintf("%d. %s (%.3f)", i+1, res.Location, res.Score) + "\n\n"
+		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
+		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		var rel string
 		if SnippetVersion == 1 {
 			locations := []snippet.LocationType{}
