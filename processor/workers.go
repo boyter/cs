@@ -117,6 +117,11 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 					// https://blog.gopheracademy.com/advent-2014/string-matching/
 					// TODO make this work as follows func AND main OR stuff NOT other
 					for i, term := range SearchString {
+						if returnEarly() {
+							wg.Done()
+							return
+						}
+
 						if term != "AND" && term != "OR" && term != "NOT" {
 							if i != 0 && SearchString[i-1] == "NOT" {
 								index := bytes.Index(res.Content, []byte(term[1:]))
@@ -127,7 +132,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 									break
 								}
 							} else {
-								res.Locations[term] = snippet.ExtractLocation(term, contentLower, 100)
+								res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
 
 								if len(res.Locations[term]) != 0 {
 									res.Score += float64(len(res.Locations[term]))
