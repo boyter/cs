@@ -61,13 +61,6 @@ func main() {
 		100,
 		"number of matching results to process",
 	)
-	flags.Int64VarP( // TODO this should be a string
-		&processor.SnippetVersion,
-		"snippet-version",
-		"n",
-		1,
-		"which snippet version to use [0, 1]",
-	)
 	flags.Int64VarP(
 		&processor.SnippetLength,
 		"snippet",

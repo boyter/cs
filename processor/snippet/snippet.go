@@ -72,42 +72,8 @@ func ExtractLocations(words []string, fulltext string) []int {
 // The only exception is where we have only two matches in which case we just take the
 // first as will be equally distant.
 //
-// NB issues with this is that it does not take into account locations
-// of different terms, EG a bonus would not find the text in this file because a would be found first
-// resulting in it being considered the best match
-// this could be fixed with a multiplier which if the term is different to the previous gives a bonus
-func determineSnipLocations(locations []int, previousCount int) int {
-	startPos := locations[0]
-	locCount := len(locations)
-	smallestDiff := math.MaxInt32
-
-	var diff int
-	if locCount > 2 {
-		for i := 0; i < locCount; i++ {
-			if i == locCount-1 { // at the end
-				diff = locations[i] - locations[i-1]
-			} else {
-				diff = locations[i+1] - locations[i]
-			}
-
-			if smallestDiff > diff {
-				smallestDiff = diff
-				startPos = locations[i]
-			}
-		}
-	}
-
-	if startPos > previousCount {
-		startPos = startPos - previousCount
-	} else {
-		startPos = 0
-	}
-
-	return startPos
-}
-
 // NB makes the assumption that the locations are already sorted
-func determineSnipLocations2(locations []LocationType, previousCount int) int {
+func determineSnipLocations(locations []LocationType, previousCount int) int {
 	startPos := locations[0].Location
 	locCount := len(locations)
 	smallestDiff := math.MaxInt32
@@ -156,62 +122,14 @@ func GetPrevCount(relLength int) int {
 	return t
 }
 
-func ExtractRelevant(words []string, fulltext string, locations []int, relLength int, prevCount int, indicator string) string {
+func ExtractRelevant(fulltext string, locations []LocationType, relLength int, prevCount int, indicator string) string {
 	textLength := len(fulltext)
 
 	if textLength <= relLength {
 		return fulltext
-	}
-
-	if len(locations) == 0 {
-		locations = ExtractLocations(words, fulltext)
 	}
 
 	startPos := determineSnipLocations(locations, prevCount)
-
-	// if we are going to snip too much...
-	if textLength-startPos < relLength {
-		startPos = startPos - (textLength-startPos)/2
-	}
-
-	endPos := startPos + relLength
-	if endPos > textLength {
-		endPos = textLength
-	}
-
-	if startPos >= endPos {
-		startPos = endPos - relLength
-	}
-
-	if startPos < 0 {
-		startPos = 0
-	}
-
-	relText := fulltext[startPos:endPos]
-
-	if startPos+relLength < textLength {
-		t := strings.LastIndex(relText, " ")
-		if t != -1 {
-			relText = relText[0:]
-		}
-		relText += indicator
-	}
-
-	if startPos != 0 {
-		relText = indicator + relText[strings.Index(relText, " ")+1:]
-	}
-
-	return relText
-}
-
-func ExtractRelevant2(fulltext string, locations []LocationType, relLength int, prevCount int, indicator string) string {
-	textLength := len(fulltext)
-
-	if textLength <= relLength {
-		return fulltext
-	}
-
-	startPos := determineSnipLocations2(locations, prevCount)
 
 	// if we are going to snip too much...
 	if textLength-startPos < relLength {

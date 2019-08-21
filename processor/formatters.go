@@ -36,33 +36,22 @@ func fileSummarize(input chan *FileJob) string {
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
-		var rel string
-		if SnippetVersion == 1 {
-
-			locations := []snippet.LocationType{}
-			for k, v := range res.Locations {
-				for _, i := range v {
-					locations = append(locations, snippet.LocationType{
-						Term:     k,
-						Location: i,
-					})
-				}
+		locations := []snippet.LocationType{}
+		for k, v := range res.Locations {
+			for _, i := range v {
+				locations = append(locations, snippet.LocationType{
+					Term:     k,
+					Location: i,
+				})
 			}
-
-			sort.Slice(locations, func(i, j int) bool {
-				return locations[i].Location < locations[j].Location
-			})
-
-			rel = snippet.ExtractRelevant2(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
-		} else {
-			locs := []int{}
-			for k := range res.Locations {
-				locs = append(locs, res.Locations[k]...)
-			}
-			locs = RemoveIntDuplicates(locs)
-
-			rel = snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		}
+
+		sort.Slice(locations, func(i, j int) bool {
+			return locations[i].Location < locations[j].Location
+		})
+
+		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+
 
 		fmt.Println(rel)
 
@@ -103,13 +92,21 @@ func toJSON(input chan *FileJob) string {
 	r := []JsonResult{}
 
 	for _, res := range results {
-		locs := []int{}
-		for k := range res.Locations {
-			locs = append(locs, res.Locations[k]...)
+		locations := []snippet.LocationType{}
+		for k, v := range res.Locations {
+			for _, i := range v {
+				locations = append(locations, snippet.LocationType{
+					Term:     k,
+					Location: i,
+				})
+			}
 		}
-		locs = RemoveIntDuplicates(locs)
 
-		rel := snippet.ExtractRelevant(SearchString, string(res.Content), locs, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		sort.Slice(locations, func(i, j int) bool {
+			return locations[i].Location < locations[j].Location
+		})
+
+		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		r = append(r, JsonResult{
 			Filename:  res.Filename,

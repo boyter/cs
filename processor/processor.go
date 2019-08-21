@@ -73,9 +73,6 @@ var ResultLimit int64 = 0
 // How many characters out of the file to display in snippets
 var SnippetLength int64 = 0
 
-// Which snippet extractor should be used
-var SnippetVersion int64 = 0
-
 // Clean up the input
 func CleanSearchString() {
 	tmp := []string{}
