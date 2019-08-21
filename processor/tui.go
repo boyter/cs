@@ -113,22 +113,8 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
-		locations := []snippet.LocationType{}
-		for k, v := range res.Locations {
-			for _, i := range v {
-				locations = append(locations, snippet.LocationType{
-					Term:     k,
-					Location: i,
-				})
-			}
-		}
-
-		sort.Slice(locations, func(i, j int) bool {
-			return locations[i].Location < locations[j].Location
-		})
-
+		locations := getResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
-
 		resultText += rel + "\n\n"
 	}
 

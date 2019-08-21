@@ -36,22 +36,8 @@ func fileSummarize(input chan *FileJob) string {
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
-		locations := []snippet.LocationType{}
-		for k, v := range res.Locations {
-			for _, i := range v {
-				locations = append(locations, snippet.LocationType{
-					Term:     k,
-					Location: i,
-				})
-			}
-		}
-
-		sort.Slice(locations, func(i, j int) bool {
-			return locations[i].Location < locations[j].Location
-		})
-
+		locations := getResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
-
 
 		fmt.Println(rel)
 
@@ -92,20 +78,7 @@ func toJSON(input chan *FileJob) string {
 	r := []JsonResult{}
 
 	for _, res := range results {
-		locations := []snippet.LocationType{}
-		for k, v := range res.Locations {
-			for _, i := range v {
-				locations = append(locations, snippet.LocationType{
-					Term:     k,
-					Location: i,
-				})
-			}
-		}
-
-		sort.Slice(locations, func(i, j int) bool {
-			return locations[i].Location < locations[j].Location
-		})
-
+		locations := getResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		r = append(r, JsonResult{
