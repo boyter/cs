@@ -33,14 +33,14 @@ func fileSummarize(input chan *FileJob) string {
 		if results[i].Score == results[j].Score {
 			return strings.Compare(results[i].Location, results[j].Location) < 0
 		}
-		
+
 		return results[i].Score > results[j].Score
 	})
 
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
-		locations := getResultLocations(res)
+		locations := GetResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		fmt.Println(rel)
@@ -86,7 +86,7 @@ func toJSON(input chan *FileJob) string {
 	r := []JsonResult{}
 
 	for _, res := range results {
-		locations := getResultLocations(res)
+		locations := GetResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		r = append(r, JsonResult{

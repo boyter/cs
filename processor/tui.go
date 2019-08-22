@@ -118,7 +118,7 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
-		locations := getResultLocations(res)
+		locations := GetResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		resultText += rel + "\n\n"
 	}
@@ -128,7 +128,12 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 
 func drawText(textView *tview.TextView, text string) {
 	textView.Clear()
-	_, _ = fmt.Fprintf(textView, "%s", text)
+	_, err := fmt.Fprintf(textView, "%s", text)
+
+	if err != nil {
+		return
+	}
+
 	textView.ScrollToBeginning()
 }
 
@@ -144,12 +149,16 @@ func ProcessTui() {
 		SetColumns(1).
 		SetBorders(false)
 
+	var drawMutex sync.Mutex
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
 		ScrollToBeginning().
 		SetChangedFunc(func() {
-			app.QueueUpdateDraw(func() {})
+			drawMutex.Lock()
+			//app.QueueUpdateDraw(func() {})
+			app.Draw()
+			drawMutex.Unlock()
 		})
 
 	inputField := tview.NewInputField().

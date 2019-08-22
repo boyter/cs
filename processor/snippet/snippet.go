@@ -1,6 +1,7 @@
 package snippet
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -149,6 +150,7 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		startPos = 0
 	}
 
+	fmt.Println("len=", len(fulltext), "runelen=", len([]rune(fulltext)), "startpos=", startPos, "endpos=", endPos)
 	relText := string([]rune(fulltext)[startPos:endPos])
 
 	if startPos+relLength < textLength {
