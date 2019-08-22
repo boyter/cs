@@ -60,6 +60,8 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 
 	var spinLoc int
 	update := true
+	spinString := `\|/-`
+
 	// NB this is not safe because results has no lock
 	go func() {
 		for update {
@@ -89,11 +91,14 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 	drawResults(results, textView, searchTerm, "")
 }
 
-var spinString = `\|/-`
 
 func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
 	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Score == results[j].Score {
+			return strings.Compare(results[i].Location, results[j].Location) < 0
+		}
+
 		return results[i].Score > results[j].Score
 	})
 

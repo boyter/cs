@@ -149,7 +149,7 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		startPos = 0
 	}
 
-	relText := fulltext[startPos:endPos]
+	relText := string([]rune(fulltext)[startPos:endPos])
 
 	if startPos+relLength < textLength {
 		t := strings.LastIndex(relText, " ")
