@@ -59,7 +59,7 @@ func TestFuzzy(t *testing.T) {
 	}
 }
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+`1234567890-=[]\\{}|;':\",./<>?"
 
 func RandStringBytes(n int) string {
 	b := make([]byte, n)

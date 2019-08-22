@@ -17,9 +17,10 @@ type LocationType struct {
 func ExtractLocation(word string, fulltext string, limit int) []int {
 	locs := []int{}
 
-	searchText := fulltext
+	searchText := []rune(fulltext)
 	offSet := 0
 	loc := strings.Index(searchText, word)
+	
 
 	count := 0
 	for loc != -1 {
