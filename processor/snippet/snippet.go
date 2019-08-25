@@ -12,7 +12,8 @@ type LocationType struct {
 }
 
 // Extracts all of the locations of a string inside another string
-// upto the defined limit
+// upto the defined limit and does so without regular expressions
+// which  makes it about 3x more efficient
 func ExtractLocation(word string, fulltext string, limit int) []int {
 	locs := []int{}
 
@@ -150,7 +151,6 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		startPos = 0
 	}
 
-	//fmt.Println("len=", len(fulltext), "runelen=", len([]rune(fulltext)), "startpos=", startPos, "endpos=", endPos)
 	relText := fulltext[startPos:endPos]
 
 	if startPos+relLength < textLength {
