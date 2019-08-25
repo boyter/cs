@@ -4,18 +4,96 @@ import (
 	"testing"
 )
 
-func TestIsBinaryTrue(t *testing.T) {
-	DisableCheckBinary = false
+func TestProcessMatchesSingleMatch(t *testing.T) {
+	StopProcessing = false
+	ResultLimit = 100
+	SearchString = []string{
+		"match",
+	}
 
-	if !isBinary(0, 0) {
-		t.Errorf("Expected to be true")
+	res := FileJob{
+		Locations: map[string][]int{},
+	}
+
+	matches := processMatches(&res, "this is a match")
+
+	if matches {
+		t.Errorf("Response should be false")
+	}
+
+	if res.Score != 1 {
+		t.Errorf("Score should be 1")
 	}
 }
 
-func TestIsBinaryDisableCheck(t *testing.T) {
-	DisableCheckBinary = true
+func TestProcessMatchesTwoMatch(t *testing.T) {
+	StopProcessing = false
+	ResultLimit = 100
+	SearchString = []string{
+		"match",
+		"this",
+	}
 
-	if isBinary(0, 0) {
-		t.Errorf("Expected to be false")
+	res := FileJob{
+		Locations: map[string][]int{},
+	}
+
+	matches := processMatches(&res, "this is a match")
+
+	if matches {
+		t.Errorf("Response should be false")
+	}
+
+	if res.Score != 2 {
+		t.Errorf("Score should be 1")
+	}
+}
+
+func TestProcessMatchesTwoAndMatch(t *testing.T) {
+	StopProcessing = false
+	ResultLimit = 100
+	SearchString = []string{
+		"match",
+		"AND",
+		"this",
+	}
+
+	res := FileJob{
+		Locations: map[string][]int{},
+	}
+
+	matches := processMatches(&res, "this is a match")
+
+	if matches {
+		t.Errorf("Response should be false")
+	}
+
+	if res.Score != 2 {
+		t.Errorf("Score should be 1")
+	}
+}
+
+
+func TestProcessMatchesTwoNotMatch(t *testing.T) {
+	StopProcessing = false
+	ResultLimit = 100
+	SearchString = []string{
+		"match",
+		"NOT",
+		"this",
+	}
+
+	res := FileJob{
+		Locations: map[string][]int{},
+	}
+
+	matches := processMatches(&res, "this is a match")
+
+	if matches {
+		t.Errorf("Response should be false")
+	}
+
+	if res.Score != 0 {
+		t.Error("Score should be 0 got", res.Score)
 	}
 }

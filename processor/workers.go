@@ -116,32 +116,9 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 					// https://blog.gopheracademy.com/advent-2014/string-matching/
 					// TODO make this work as follows func AND main OR stuff NOT other
-					for i, term := range SearchString {
-						if returnEarly() {
-							wg.Done()
-							return
-						}
-
-						if term != "AND" && term != "OR" && term != "NOT" {
-							if i != 0 && SearchString[i-1] == "NOT" {
-								index := bytes.Index(res.Content, []byte(term[1:]))
-
-								// If a negated term is found we bail out instantly
-								if index != -1 {
-									res.Score = 0
-									break
-								}
-							} else {
-								res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
-
-								if len(res.Locations[term]) != 0 {
-									res.Score += float64(len(res.Locations[term]))
-								} else {
-									res.Score = 0
-									break
-								}
-							}
-						}
+					if processMatches(res, contentLower) {
+						wg.Done()
+						return
 					}
 				}
 
@@ -175,4 +152,37 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	if Debug {
 		printDebug(fmt.Sprintf("milliseconds processing files: %d", makeTimestampMilli()-startTime))
 	}
+}
+
+func processMatches(res *FileJob, contentLower string) bool {
+	for i, term := range SearchString {
+		if returnEarly() {
+			return true
+		}
+
+		if term == "AND" || term == "OR" || term == "NOT" {
+			continue
+		}
+
+		if i != 0 && SearchString[i-1] == "NOT" {
+			index := bytes.Index([]byte(contentLower), []byte(term))
+
+			// If a negated term is found we bail out instantly
+			if index != -1 {
+				res.Score = 0
+				return false
+			}
+		} else {
+			res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
+
+			if len(res.Locations[term]) != 0 {
+				res.Score += float64(len(res.Locations[term]))
+			} else {
+				res.Score = 0
+				return false
+			}
+		}
+	}
+
+	return false
 }

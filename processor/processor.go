@@ -78,7 +78,11 @@ func CleanSearchString() {
 	tmp := []string{}
 
 	for _, s := range SearchString {
-		s = strings.ToLower(strings.Trim(s, " "))
+		s = strings.Trim(s, " ")
+
+		if s != "AND" && s != "OR" && s != "NOT" {
+			s = strings.ToLower(s)
+		}
 
 		if s != "" {
 			tmp = append(tmp, s)
