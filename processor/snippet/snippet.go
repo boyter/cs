@@ -1,7 +1,6 @@
 package snippet
 
 import (
-	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -17,7 +16,7 @@ type LocationType struct {
 func ExtractLocation(word string, fulltext string, limit int) []int {
 	locs := []int{}
 
-	searchText := []rune(fulltext)
+	searchText := fulltext
 	offSet := 0
 	loc := strings.Index(searchText, word)
 	
@@ -151,8 +150,8 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		startPos = 0
 	}
 
-	fmt.Println("len=", len(fulltext), "runelen=", len([]rune(fulltext)), "startpos=", startPos, "endpos=", endPos)
-	relText := string([]rune(fulltext)[startPos:endPos])
+	//fmt.Println("len=", len(fulltext), "runelen=", len([]rune(fulltext)), "startpos=", startPos, "endpos=", endPos)
+	relText := fulltext[startPos:endPos]
 
 	if startPos+relLength < textLength {
 		t := strings.LastIndex(relText, " ")
