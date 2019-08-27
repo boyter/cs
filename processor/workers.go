@@ -67,7 +67,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 				}
 
 				if err == nil {
-					res.Content = convertToUtf8(content)
+					res.Content = content
 					res.Locations = map[string][]int{}
 					output <- res
 				} else {
@@ -173,17 +173,23 @@ func processMatches(res *FileJob, contentLower string) bool {
 				return false
 			}
 		} else {
-			if strings.HasSuffix(term, "~1") {
-				terms := makeFuzzy(strings.TrimRight(term , "~1"))
+			if strings.HasSuffix(term, "~1") || strings.HasSuffix(term, "~2") {
+				terms := makeFuzzyDistanceOne(strings.TrimRight(term, "~1"))
+				if strings.HasSuffix(term, "~2") {
+					terms = makeFuzzyDistanceTwo(strings.TrimRight(term, "~2"))
+				}
 
 				m := []int{}
 				for _, t := range terms {
-					 m = append(m, snippet.ExtractLocation(t, contentLower, 50)...)
+					m = append(m, snippet.ExtractLocation(t, contentLower, 50)...)
 				}
 
 				if len(m) != 0 {
 					res.Locations[term] = m
 					res.Score = float64(len(m))
+				} else {
+					res.Score = 0
+					return false
 				}
 			} else {
 				res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
@@ -199,23 +205,4 @@ func processMatches(res *FileJob, contentLower string) bool {
 	}
 
 	return false
-}
-
-func convertToUtf8(content []byte) []byte {
-	//detector := chardet.NewTextDetector()
-	//result, err := detector.DetectBest(content)
-	//if err == nil {
-	//	//fmt.Println(fmt.Sprintf(
-	//	//	"Detected charset is %s, language is %s",
-	//	//	result.Charset,
-	//	//	result.Language))
-	//
-	//	output := make([]byte, len(content))
-	//
-	//	_, _, _ = iconv.Convert(content, output, result.Charset, "utf-8")
-	//
-	//	return output
-	//}
-
-	return content
 }

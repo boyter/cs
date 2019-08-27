@@ -24,7 +24,15 @@ func TestMakeTimestampMilli(t *testing.T) {
 }
 
 func TestMakeFuzzy(t *testing.T) {
-	fuzzy := makeFuzzy("test")
+	fuzzy := makeFuzzyDistanceOne("test")
+
+	if len(fuzzy) == 0 {
+		t.Error("Should get back non empty slice")
+	}
+}
+
+func TestMakeFuzzyTwo(t *testing.T) {
+	fuzzy := makeFuzzyDistanceTwo("test")
 
 	if len(fuzzy) == 0 {
 		t.Error("Should get back non empty slice")
