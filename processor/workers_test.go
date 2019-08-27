@@ -96,7 +96,3 @@ func TestProcessMatchesTwoNotMatch(t *testing.T) {
 		t.Error("Score should be 0 got", res.Score)
 	}
 }
-
-func TestChar(t *testing.T) {
-	temp([]byte("this is some text something about somethere here"))
-}

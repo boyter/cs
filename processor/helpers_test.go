@@ -22,3 +22,11 @@ func TestMakeTimestampMilli(t *testing.T) {
 		t.Error("Should not match")
 	}
 }
+
+func TestMakeFuzzy(t *testing.T) {
+	fuzzy := makeFuzzy("test")
+
+	if len(fuzzy) == 0 {
+		t.Error("Should get back non empty slice")
+	}
+}

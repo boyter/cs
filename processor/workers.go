@@ -173,13 +173,27 @@ func processMatches(res *FileJob, contentLower string) bool {
 				return false
 			}
 		} else {
-			res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
+			if strings.HasSuffix(term, "~1") {
+				terms := makeFuzzy(strings.TrimRight(term , "~1"))
 
-			if len(res.Locations[term]) != 0 {
-				res.Score += float64(len(res.Locations[term]))
+				m := []int{}
+				for _, t := range terms {
+					 m = append(m, snippet.ExtractLocation(t, contentLower, 50)...)
+				}
+
+				if len(m) != 0 {
+					res.Locations[term] = m
+					res.Score = float64(len(m))
+				}
 			} else {
-				res.Score = 0
-				return false
+				res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
+
+				if len(res.Locations[term]) != 0 {
+					res.Score += float64(len(res.Locations[term]))
+				} else {
+					res.Score = 0
+					return false
+				}
 			}
 		}
 	}

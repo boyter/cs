@@ -14,3 +14,17 @@ func makeTimestampMilli() int64 {
 func makeTimestampNano() int64 {
 	return time.Now().UnixNano()
 }
+
+const letterDigitFuzzyBytes = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+func makeFuzzy(term string) []string {
+	vals := []string{}
+
+	for i := 1; i < len(term); i++ {
+		for _, b := range letterDigitFuzzyBytes {
+			vals = append(vals, term[:i] + string(b) + term[i+1:])
+		}
+	}
+
+	return vals
+}
