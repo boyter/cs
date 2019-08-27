@@ -36,7 +36,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 	searchSliceMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
-		drawText(textView, "")
+		drawText(app, textView, "")
 		return
 	}
 
@@ -67,7 +67,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 		for update {
 			// Every 100 ms redraw
 			if makeTimestampMilli()-reset >= 100 {
-				drawResults(results, textView, searchTerm, string(spinString[spinLoc]))
+				drawResults(app, results, textView, searchTerm, string(spinString[spinLoc]))
 				reset = makeTimestampMilli()
 				spinLoc++
 
@@ -88,10 +88,10 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 
 	update = false
 	StopProcessing = true
-	drawResults(results, textView, searchTerm, "")
+	drawResults(app, results, textView, searchTerm, "")
 }
 
-func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
+func drawResults(app *tview.Application, results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
 	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Score == results[j].Score {
@@ -122,18 +122,20 @@ func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string
 		resultText += rel + "\n\n"
 	}
 
-	drawText(textView, resultText)
+	drawText(app, textView, resultText)
 }
 
-func drawText(textView *tview.TextView, text string) {
-	textView.Clear()
-	_, err := fmt.Fprintf(textView, "%s", text)
+func drawText(app *tview.Application, textView *tview.TextView, text string) {
+	app.QueueUpdateDraw(func() {
+		textView.Clear()
+		_, err := fmt.Fprintf(textView, "%s", text)
 
-	if err != nil {
-		return
-	}
+		if err != nil {
+			return
+		}
 
-	textView.ScrollToBeginning()
+		textView.ScrollToBeginning()
+	})
 }
 
 var searchSlice = []string{}
@@ -148,16 +150,16 @@ func ProcessTui() {
 		SetColumns(1).
 		SetBorders(false)
 
-	var drawMutex sync.Mutex
+	//var drawMutex sync.Mutex
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
 		ScrollToBeginning().
 		SetChangedFunc(func() {
-			drawMutex.Lock()
+			//drawMutex.Lock()
 			//app.QueueUpdateDraw(func() {})
-			app.Draw()
-			drawMutex.Unlock()
+			//app.Draw()
+			//drawMutex.Unlock()
 		})
 
 	inputField := tview.NewInputField().
