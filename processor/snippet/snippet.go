@@ -20,7 +20,6 @@ func ExtractLocation(word string, fulltext string, limit int) []int {
 	searchText := fulltext
 	offSet := 0
 	loc := strings.Index(searchText, word)
-	
 
 	count := 0
 	for loc != -1 {

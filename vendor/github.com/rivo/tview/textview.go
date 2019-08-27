@@ -834,6 +834,12 @@ func (t *TextView) Draw(screen tcell.Screen) {
 
 		// Get the text for this line.
 		index := t.index[line]
+
+		// Its possible that the buffer is cleared before we use it
+		if len(t.buffer) == 0 {
+			continue
+		}
+
 		text := t.buffer[index.Line][index.Pos:index.NextPos]
 		foregroundColor := index.ForegroundColor
 		backgroundColor := index.BackgroundColor

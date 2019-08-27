@@ -91,7 +91,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 	drawResults(results, textView, searchTerm, "")
 }
 
-
 func drawResults(results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
 	RankResults(results)
 	sort.Slice(results, func(i, j int) bool {

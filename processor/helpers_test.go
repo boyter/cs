@@ -22,4 +22,3 @@ func TestMakeTimestampMilli(t *testing.T) {
 		t.Error("Should not match")
 	}
 }
-

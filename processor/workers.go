@@ -59,7 +59,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 					defer r.Close()
 
 					var tmp [1024000]byte
-					io.ReadFull(r, tmp[:])
+					_, _ = io.ReadFull(r, tmp[:])
 				}
 
 				if Trace {
@@ -67,7 +67,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 				}
 
 				if err == nil {
-					res.Content = content
+					res.Content = convertToUtf8(content)
 					res.Locations = map[string][]int{}
 					output <- res
 				} else {
@@ -185,4 +185,23 @@ func processMatches(res *FileJob, contentLower string) bool {
 	}
 
 	return false
+}
+
+func convertToUtf8(content []byte) []byte {
+	//detector := chardet.NewTextDetector()
+	//result, err := detector.DetectBest(content)
+	//if err == nil {
+	//	//fmt.Println(fmt.Sprintf(
+	//	//	"Detected charset is %s, language is %s",
+	//	//	result.Charset,
+	//	//	result.Language))
+	//
+	//	output := make([]byte, len(content))
+	//
+	//	_, _, _ = iconv.Convert(content, output, result.Charset, "utf-8")
+	//
+	//	return output
+	//}
+
+	return content
 }

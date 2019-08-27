@@ -73,7 +73,6 @@ func TestProcessMatchesTwoAndMatch(t *testing.T) {
 	}
 }
 
-
 func TestProcessMatchesTwoNotMatch(t *testing.T) {
 	StopProcessing = false
 	ResultLimit = 100
@@ -96,4 +95,8 @@ func TestProcessMatchesTwoNotMatch(t *testing.T) {
 	if res.Score != 0 {
 		t.Error("Score should be 0 got", res.Score)
 	}
+}
+
+func TestChar(t *testing.T) {
+	temp([]byte("this is some text something about somethere here"))
 }
