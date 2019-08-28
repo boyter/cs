@@ -149,18 +149,11 @@ func ProcessTui() {
 		SetRows(2).
 		SetColumns(1).
 		SetBorders(false)
-
-	//var drawMutex sync.Mutex
+	
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
-		ScrollToBeginning().
-		SetChangedFunc(func() {
-			//drawMutex.Lock()
-			//app.QueueUpdateDraw(func() {})
-			//app.Draw()
-			//drawMutex.Unlock()
-		})
+		ScrollToBeginning()
 
 	inputField := tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
