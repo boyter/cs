@@ -25,9 +25,9 @@ func makeFuzzyDistanceOne(term string) []string {
 	for i := 1; i < len(term); i++ {
 		for _, b := range letterDigitFuzzyBytes {
 			if string(b) == " " {
-				vals = append(vals, term[:i] + term[i+1:])
+				vals = append(vals, term[:i]+term[i+1:])
 			} else {
-				vals = append(vals, term[:i] + string(b) + term[i+1:])
+				vals = append(vals, term[:i]+string(b)+term[i+1:])
 			}
 		}
 	}
@@ -39,10 +39,10 @@ func makeFuzzyDistanceTwo(term string) []string {
 	vals := makeFuzzyDistanceOne(term)
 
 	// Maybe they forgot to type a letter? Try adding one
-	for i := 0; i < len(term) + 1; i++ {
+	for i := 0; i < len(term)+1; i++ {
 		for _, b := range letterDigitFuzzyBytes {
 			if string(b) != " " {
-				vals = append(vals, term[:i] + string(b) + term[i:])
+				vals = append(vals, term[:i]+string(b)+term[i:])
 			}
 		}
 	}
