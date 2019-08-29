@@ -145,17 +145,40 @@ var searchSliceMutex sync.Mutex
 func ProcessTui() {
 	app := tview.NewApplication()
 
-	grid := tview.NewGrid().
-		SetRows(2).
-		SetColumns(1).
-		SetBorders(false)
-	
-	textView := tview.NewTextView().
+	var textView *tview.TextView
+	var dropdown *tview.DropDown
+	var inputField *tview.InputField
+	var lastSearch string
+
+	textView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
 		ScrollToBeginning()
 
-	inputField := tview.NewInputField().
+	dropdown = tview.NewDropDown().
+		SetOptions([]string{"50", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, nil).
+		SetCurrentOption(3).
+		SetLabelColor(tcell.ColorWhite).
+		SetFieldBackgroundColor(tcell.Color16).
+		SetSelectedFunc(func(text string, index int) {
+			app.SetFocus(inputField)
+			t, _ := strconv.Atoi(text)
+			SnippetLength = int64(t)
+
+			searchSliceMutex.Lock()
+			searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
+			searchSliceMutex.Unlock()
+
+			go tuiSearch(app, textView)
+		}).
+		SetDoneFunc(func(key tcell.Key){
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(inputField)
+			}
+		})
+
+	inputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
@@ -163,16 +186,27 @@ func ProcessTui() {
 		SetChangedFunc(func(text string) {
 			searchSliceMutex.Lock()
 			searchSlice = append(searchSlice, strings.TrimSpace(text))
+			lastSearch = text
 			searchSliceMutex.Unlock()
 
 			go tuiSearch(app, textView)
+		}).
+		SetDoneFunc(func(key tcell.Key){
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(dropdown)
+			}
 		})
 
-	grid.AddItem(inputField, 0, 0, 1, 3, 0, 1, false)
-	grid.AddItem(textView, 1, 0, 1, 3, 0, 0, false)
+	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(inputField, 0, 8, false).
+		AddItem(dropdown, 4, 1, false)
 
-	app.Draw()
-	if err := app.SetRoot(grid, true).SetFocus(inputField).Run(); err != nil {
+	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(queryFlex, 2, 0, false).
+		AddItem(textView, 0, 3, false)
+
+	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
 	}
 }

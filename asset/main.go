@@ -20,11 +20,18 @@ func main() {
 	    SetTitle("something")
 
 	dropdown = tview.NewDropDown().
-		SetLabel("").
-		SetOptions([]string{"100", "200", "300", "400", "500"}, nil).
-		SetCurrentOption(2).
+		SetOptions([]string{"50", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, nil).
+		SetCurrentOption(3).
+		SetLabelColor(tcell.ColorWhite).
+		SetFieldBackgroundColor(tcell.Color16).
 		SetSelectedFunc(func(text string, index int) {
 			app.SetFocus(inputField)
+		}).
+		SetDoneFunc(func(key tcell.Key){
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(inputField)
+			}
 		})
 
 	inputField = tview.NewInputField().
@@ -33,15 +40,21 @@ func main() {
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
 		SetChangedFunc(func(text string){
-			app.SetFocus(dropdown)
+
+		}).
+		SetDoneFunc(func(key tcell.Key){
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(dropdown)
+			}
 		})
 
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputField, 0, 1, false).
-		AddItem(dropdown, 0, 1, false)
+		AddItem(inputField, 0, 8, false).
+		AddItem(dropdown, 4, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(queryFlex, 0, 2, false).
+		AddItem(queryFlex, 1, 0, false).
 		AddItem(textView, 0, 3, false)
 
 	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
