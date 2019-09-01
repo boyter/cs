@@ -196,6 +196,12 @@ func ProcessTui() {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(dropdown)
+			case tcell.KeyEnter:
+				searchSliceMutex.Lock()
+				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
+				searchSliceMutex.Unlock()
+
+				go tuiSearch(app, textView)
 			}
 		})
 
