@@ -121,6 +121,10 @@ func (dw *DirectoryWalker) Readdir(handle *cuba.Handle) {
 	}
 
 	for _, dirent := range dirents {
+		if returnEarly() {
+			return
+		}
+
 		name := dirent.Name()
 
 		if (!GitIgnore && name == ".gitignore") || (!Ignore && name == ".ignore") {
@@ -136,6 +140,10 @@ func (dw *DirectoryWalker) Readdir(handle *cuba.Handle) {
 
 DIRENTS:
 	for _, dirent := range dirents {
+		if returnEarly() {
+			return
+		}
+
 		name := dirent.Name()
 		path := filepath.Join(job.path, name)
 		isDir := dirent.IsDir()
@@ -185,6 +193,10 @@ DIRENTS:
 }
 
 func newFileJob(path, name string) *FileJob {
+	if returnEarly() {
+		return nil
+	}
+
 	extension := getExtension(name)
 
 	if len(WhiteListExtensions) != 0 {
