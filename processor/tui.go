@@ -5,7 +5,6 @@ import (
 	"github.com/boyter/sc/processor/snippet"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
@@ -51,7 +50,9 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, runtime.NumCPU())     // Files ready to be summarised
 
-	go WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
+	directoryWalker := NewDirectoryWalker(fileListQueue)
+	_ = directoryWalker.Walk(".")
+	go directoryWalker.Run()
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 

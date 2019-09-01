@@ -3,7 +3,6 @@ package processor
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -109,7 +108,9 @@ func Process() {
 	fileReadContentJobQueue := make(chan *FileJob, FileReadContentJobQueueSize) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
 
-	go WalkDirectoryParallel(filepath.Clean("."), fileListQueue)
+	directoryWalker := NewDirectoryWalker(fileListQueue)
+	_ = directoryWalker.Walk(".")
+	go directoryWalker.Run()
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 

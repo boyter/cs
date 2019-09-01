@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/dbaggerman/cuba"
+  packages = ["."]
+  revision = "28ed7f38430bad0643e20fed1bd875e3ddf2da30"
+  version = "v0.2.0"
+
+[[projects]]
   name = "github.com/fatih/color"
   packages = ["."]
   revision = "5b77d2a35fb0ede96d138fc9a99f5c9b6aef11b4"
@@ -36,12 +42,6 @@
   version = "v1.0"
 
 [[projects]]
-  name = "github.com/karrick/godirwalk"
-  packages = ["."]
-  revision = "2de2192f9e35ce981c152a873ed943b93b79ced4"
-  version = "v1.7.5"
-
-[[projects]]
   name = "github.com/lucasb-eyer/go-colorful"
   packages = ["."]
   revision = "30298f24079860c4dee452fdef6519b362a4a026"
@@ -70,12 +70,6 @@
   name = "github.com/monochromegane/go-gitignore"
   packages = ["."]
   revision = "38717d0a108ca0e5af632cd6845ca77d45b50729"
-
-[[projects]]
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
 
 [[projects]]
   branch = "master"
@@ -122,6 +116,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c4e6d16c77e233c04a89d64aa32898370438ce7ae7d654d1f6c48b022be4356a"
+  inputs-digest = "d5c2b5ea182e7801aeb9b1281eba5e22348154c72f34182519a2b1f272a29216"
   solver-name = "gps-cdcl"
   solver-version = 1

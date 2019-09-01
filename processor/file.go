@@ -1,16 +1,15 @@
 package processor
 
 import (
-	"errors"
 	"fmt"
-	"github.com/karrick/godirwalk"
-	"github.com/monochromegane/go-gitignore"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/dbaggerman/cuba"
+	"github.com/monochromegane/go-gitignore"
 )
 
 // Used as quick lookup for files with the same name to avoid some processing
@@ -45,211 +44,167 @@ func getExtension(name string) string {
 	return extension.(string)
 }
 
-// Iterate over the supplied directory in parallel and each file that is not
-// excluded by the .gitignore and we know the extension of add to the supplied
-// channel. This attempts to span out in parallel based on the number of directories
-// in the supplied directory. Tests using a single process showed no lack of performance
-// even when hitting older spinning platter disks for this way
-//func walkDirectoryParallel(root string, output *RingBuffer) {
-func WalkDirectoryParallel(root string, output chan *FileJob) {
-	startTime := makeTimestampMilli()
+type DirectoryJob struct {
+	root    string
+	path    string
+	ignores []gitignore.IgnoreMatcher
+}
 
-	var wg sync.WaitGroup
+type DirectoryWalker struct {
+	buffer   *cuba.Pool
+	output   chan<- *FileJob
+	excludes []*regexp.Regexp
+}
 
-	var all []os.FileInfo
-	// clean path including trailing slashes
-	root = filepath.Clean(root)
-	all, _ = ioutil.ReadDir(root)
-
-	var gitIgnore gitignore.IgnoreMatcher
-	gitIgnoreError := errors.New("")
-
-	if !GitIgnore {
-		// TODO the gitIgnore should check for further gitignores deeper in the tree
-		gitIgnore, gitIgnoreError = gitignore.NewGitIgnore(filepath.Join(root, ".gitignore"))
-		if Verbose {
-			if gitIgnoreError == nil {
-				printWarn(fmt.Sprintf("found and loaded gitignore file: %s", filepath.Join(root, ".gitignore")))
-			} else {
-				printWarn(fmt.Sprintf("no gitignore found: %s", filepath.Join(root, ".gitignore")))
-			}
-		}
+func NewDirectoryWalker(output chan<- *FileJob) *DirectoryWalker {
+	directoryWalker := &DirectoryWalker{
+		output: output,
 	}
-
-	var ignore gitignore.IgnoreMatcher
-	ignoreError := errors.New("")
-
-	if !Ignore {
-		ignore, ignoreError = gitignore.NewGitIgnore(filepath.Join(root, ".ignore"))
-		if Verbose {
-			if ignoreError == nil {
-				printWarn(fmt.Sprintf("found and loaded ignore file: %s", filepath.Join(root, ".ignore")))
-			} else {
-				printWarn(fmt.Sprintf("no ignore found: %s", filepath.Join(root, ".ignore")))
-			}
-		}
-	}
-
-	var excludes []*regexp.Regexp
-
 	for _, exclude := range Exclude {
-		excludes = append(excludes, regexp.MustCompile(exclude))
+		directoryWalker.excludes = append(directoryWalker.excludes, regexp.MustCompile(exclude))
 	}
 
-	var fpath string
-	for _, f := range all {
-		// Godirwalk despite being faster than the default walk is still too slow to feed the
-		// CPU's and so we need to walk in parallel to keep up as much as possible
-		if f.IsDir() {
-			// Need to check if the directory is in the blacklist and if so don't bother adding a goroutine to process it
-			shouldSkip := false
-			for _, black := range PathBlacklist {
-				if strings.HasPrefix(filepath.Join(root, f.Name()), filepath.Join(root, black)) {
-					shouldSkip = true
-					if Verbose {
-						printWarn(fmt.Sprintf("skipping directory due to being in blacklist: %s", filepath.Join(root, f.Name())))
-					}
-					break
-				}
-			}
+	directoryWalker.buffer = cuba.New(directoryWalker.Readdir, cuba.NewStack())
 
-			for _, exclude := range excludes {
-				if exclude.Match([]byte(f.Name())) {
-					if Verbose {
-						printWarn("skipping directory due to match exclude: " + f.Name())
-					}
-					shouldSkip = true
-					break
-				}
-			}
+	return directoryWalker
+}
 
-			if gitIgnoreError == nil && gitIgnore.Match(filepath.Join(root, f.Name()), true) {
-				if Verbose {
-					printWarn("skipping directory due to git ignore: " + filepath.Join(root, f.Name()))
-				}
-				shouldSkip = true
-			}
+func (dw *DirectoryWalker) Walk(root string) error {
+	root = filepath.Clean(root)
 
-			if ignoreError == nil && ignore.Match(filepath.Join(root, f.Name()), true) {
-				if Verbose {
-					printWarn("skipping directory due to ignore: " + filepath.Join(root, f.Name()))
-				}
-				shouldSkip = true
-			}
+	fileInfo, err := os.Stat(root)
+	if err != nil {
+		return err
+	}
 
-			if !shouldSkip {
-				wg.Add(1)
-				go func(toWalk string) {
-					filejobs := walkDirectory(toWalk, PathBlacklist)
-					for i := 0; i < len(filejobs); i++ {
-						output <- &filejobs[i]
-					}
-					wg.Done()
-				}(filepath.Join(root, f.Name()))
-			}
-		} else { // File processing starts here
-			fpath = filepath.Join(root, f.Name())
+	if !fileInfo.IsDir() {
+		fileJob := newFileJob(root, root)
+		if fileJob != nil {
+			dw.output <- fileJob
+		}
 
-			shouldSkip := false
+		return nil
+	}
 
-			if gitIgnoreError == nil && gitIgnore.Match(fpath, false) {
-				if Verbose {
-					printWarn("skipping file due to git ignore: " + f.Name())
-				}
-				shouldSkip = true
-			}
+	dw.buffer.Push(
+		&DirectoryJob{
+			root:    root,
+			path:    root,
+			ignores: nil,
+		},
+	)
 
-			if ignoreError == nil && ignore.Match(fpath, false) {
-				if Verbose {
-					printWarn("skipping file due to ignore: " + f.Name())
-				}
-				shouldSkip = true
-			}
+	return nil
+}
 
-			for _, exclude := range excludes {
-				if exclude.Match([]byte(f.Name())) {
-					if Verbose {
-						printWarn("skipping file due to match exclude: " + f.Name())
-					}
-					shouldSkip = true
-					break
-				}
-			}
+func (dw *DirectoryWalker) Run() {
+	dw.buffer.Finish()
+	close(dw.output)
+}
 
-			if !shouldSkip {
-				extension := getExtension(f.Name())
-				output <- &FileJob{Location: fpath, Filename: f.Name(), Extension: extension}
+func (dw *DirectoryWalker) Readdir(handle *cuba.Handle) {
+	job := handle.Item().(*DirectoryJob)
+
+	ignores := job.ignores
+
+	file, err := os.Open(job.path)
+	if err != nil {
+		printError(fmt.Sprintf("failed to open %s: %v", job.path, err))
+		return
+	}
+	defer file.Close()
+
+	dirents, err := file.Readdir(-1)
+	if err != nil {
+		printError(fmt.Sprintf("failed to read %s: %v", job.path, err))
+		return
+	}
+
+	for _, dirent := range dirents {
+		name := dirent.Name()
+
+		if (!GitIgnore && name == ".gitignore") || (!Ignore && name == ".ignore") {
+			path := filepath.Join(job.path, name)
+
+			ignore, err := gitignore.NewGitIgnore(path)
+			if err != nil {
+				printError(fmt.Sprintf("failed to load gitignore %s: %v", job.path, err))
 			}
+			ignores = append(ignores, ignore)
 		}
 	}
 
-	wg.Wait()
-	close(output)
-	if Debug {
-		printDebug(fmt.Sprintf("milliseconds to walk directory: %d", makeTimestampMilli()-startTime))
+DIRENTS:
+	for _, dirent := range dirents {
+		name := dirent.Name()
+		path := filepath.Join(job.path, name)
+		isDir := dirent.IsDir()
+
+		for _, black := range PathBlacklist {
+			if strings.HasPrefix(path, filepath.Join(job.root, black)) {
+				if Verbose {
+					printWarn(fmt.Sprintf("skipping directory due to being in blacklist: %s", path))
+				}
+				continue DIRENTS
+			}
+		}
+
+		for _, exclude := range dw.excludes {
+			if exclude.Match([]byte(name)) {
+				if Verbose {
+					printWarn("skipping directory due to match exclude: " + name)
+				}
+				continue DIRENTS
+			}
+		}
+
+		for _, ignore := range ignores {
+			if ignore.Match(path, isDir) {
+				if Verbose {
+					printWarn("skipping directory due to ignore: " + path)
+				}
+				continue DIRENTS
+			}
+		}
+
+		if isDir {
+			handle.Push(
+				&DirectoryJob{
+					root:    job.root,
+					path:    path,
+					ignores: ignores,
+				},
+			)
+		} else {
+			fileJob := newFileJob(path, name)
+			if fileJob != nil {
+				dw.output <- fileJob
+			}
+		}
 	}
 }
 
-func walkDirectory(toWalk string, blackList []string) []FileJob {
-	extension := ""
-	var filejobs []FileJob
+func newFileJob(path, name string) *FileJob {
+	extension := getExtension(name)
 
-	var excludes []*regexp.Regexp
+	if len(WhiteListExtensions) != 0 {
+		ok := false
+		for _, x := range WhiteListExtensions {
+			if x == extension {
+				ok = true
+			}
+		}
 
-	for _, exclude := range Exclude {
-		excludes = append(excludes, regexp.MustCompile(exclude))
+		if !ok {
+			if Verbose {
+				printWarn(fmt.Sprintf("skipping file as not whitelisted: %s", name))
+			}
+			return nil
+		}
 	}
 
-	_ = godirwalk.Walk(toWalk, &godirwalk.Options{
-		// Unsorted is meant to make the walk faster and we need to sort after processing anyway
-		Unsorted: true,
-		Callback: func(root string, info *godirwalk.Dirent) error {
-
-			if returnEarly() {
-				return nil
-			}
-
-			for _, exclude := range excludes {
-				if exclude.Match([]byte(info.Name())) {
-					if Verbose {
-						if info.IsDir() {
-							printWarn("skipping directory due to match exclude: " + root)
-						} else {
-							printWarn("skipping file due to match exclude: " + root)
-						}
-					}
-					if info.IsDir() {
-						return filepath.SkipDir
-					}
-					return nil
-				}
-			}
-
-			if info.IsDir() {
-				for _, black := range blackList {
-					if strings.HasPrefix(root, filepath.Join(toWalk, black)) {
-						if Verbose {
-							printWarn(fmt.Sprintf("skipping directory due to being in blacklist: %s", root))
-						}
-						return filepath.SkipDir
-					}
-				}
-			}
-
-			if !info.IsDir() {
-				extension = getExtension(info.Name())
-				filejobs = append(filejobs, FileJob{Location: root, Filename: info.Name(), Extension: extension})
-			}
-
-			return nil
-		},
-		ErrorCallback: func(osPathname string, err error) godirwalk.ErrorAction {
-			if Verbose {
-				printWarn(fmt.Sprintf("error walking: %s %s", osPathname, err))
-			}
-			return godirwalk.SkipNode
-		},
-	})
-
-	return filejobs
+	return &FileJob{
+		Location:          path,
+		Filename:          name,
+	}
 }
