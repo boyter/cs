@@ -149,6 +149,7 @@ func ProcessTui() {
 	var textView *tview.TextView
 	var dropdown *tview.DropDown
 	var inputField *tview.InputField
+	var extInputField *tview.InputField
 	var lastSearch string
 
 	textView = tview.NewTextView().
@@ -179,15 +180,20 @@ func ProcessTui() {
 			}
 		})
 
-	inputField = tview.NewInputField().
+	extInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
-		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
-		SetFieldWidth(0).
+		SetText(strings.Join(WhiteListExtensions, ",")).
+		SetFieldWidth(10).
 		SetChangedFunc(func(text string) {
+			if strings.TrimSpace(text) == "" {
+				WhiteListExtensions = []string{}
+			} else {
+				WhiteListExtensions = strings.Split(text, ",")
+			}
+
 			searchSliceMutex.Lock()
-			searchSlice = append(searchSlice, strings.TrimSpace(text))
-			lastSearch = text
+			searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
 			searchSliceMutex.Unlock()
 
 			go tuiSearch(app, textView)
@@ -205,8 +211,35 @@ func ProcessTui() {
 			}
 		})
 
+	inputField = tview.NewInputField().
+		SetFieldBackgroundColor(tcell.Color16).
+		SetLabel("> ").
+		SetLabelColor(tcell.ColorWhite).
+		SetFieldWidth(0).
+		SetChangedFunc(func(text string) {
+			searchSliceMutex.Lock()
+			searchSlice = append(searchSlice, strings.TrimSpace(text))
+			lastSearch = text
+			searchSliceMutex.Unlock()
+
+			go tuiSearch(app, textView)
+		}).
+		SetDoneFunc(func(key tcell.Key){
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(extInputField)
+			case tcell.KeyEnter:
+				searchSliceMutex.Lock()
+				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
+				searchSliceMutex.Unlock()
+
+				go tuiSearch(app, textView)
+			}
+		})
+
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputField, 0, 8, false).
+		AddItem(extInputField, 10, 0, false).
 		AddItem(dropdown, 4, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
