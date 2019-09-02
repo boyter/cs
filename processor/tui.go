@@ -177,6 +177,8 @@ func ProcessTui() {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(inputField)
+			case tcell.KeyBacktab:
+				app.SetFocus(extInputField)
 			}
 		})
 
@@ -202,6 +204,8 @@ func ProcessTui() {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(dropdown)
+			case tcell.KeyBacktab:
+				app.SetFocus(inputField)
 			case tcell.KeyEnter:
 				searchSliceMutex.Lock()
 				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
@@ -228,6 +232,8 @@ func ProcessTui() {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(extInputField)
+			case tcell.KeyBacktab:
+				app.SetFocus(dropdown)
 			case tcell.KeyEnter:
 				searchSliceMutex.Lock()
 				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
