@@ -147,9 +147,9 @@ func ProcessTui() {
 	app := tview.NewApplication()
 
 	var textView *tview.TextView
-	var dropdown *tview.DropDown
 	var inputField *tview.InputField
 	var extInputField *tview.InputField
+	var snippetInputField *tview.InputField
 	var lastSearch string
 
 	textView = tview.NewTextView().
@@ -157,15 +157,22 @@ func ProcessTui() {
 		SetRegions(true).
 		ScrollToBeginning()
 
-	dropdown = tview.NewDropDown().
-		SetOptions([]string{"50", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, nil).
-		SetCurrentOption(3).
-		SetLabelColor(tcell.ColorWhite).
+	snippetInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
-		SetSelectedFunc(func(text string, index int) {
-			app.SetFocus(inputField)
-			t, _ := strconv.Atoi(text)
-			SnippetLength = int64(t)
+		SetAcceptanceFunc(tview.InputFieldInteger).
+		SetText(strconv.Itoa(int(SnippetLength))).
+		SetFieldWidth(4).
+		SetChangedFunc(func(text string) {
+			if strings.TrimSpace(text) == "" {
+				SnippetLength = 300 // default
+			} else {
+				t, _ := strconv.Atoi(text)
+				if t == 0 {
+					SnippetLength = 300
+				} else {
+					SnippetLength = int64(t)
+				}
+			}
 
 			searchSliceMutex.Lock()
 			searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
@@ -179,6 +186,12 @@ func ProcessTui() {
 				app.SetFocus(inputField)
 			case tcell.KeyBacktab:
 				app.SetFocus(extInputField)
+			case tcell.KeyEnter:
+				searchSliceMutex.Lock()
+				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
+				searchSliceMutex.Unlock()
+
+				go tuiSearch(app, textView)
 			}
 		})
 
@@ -203,7 +216,7 @@ func ProcessTui() {
 		SetDoneFunc(func(key tcell.Key){
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(dropdown)
+				app.SetFocus(snippetInputField)
 			case tcell.KeyBacktab:
 				app.SetFocus(inputField)
 			case tcell.KeyEnter:
@@ -233,7 +246,7 @@ func ProcessTui() {
 			case tcell.KeyTab:
 				app.SetFocus(extInputField)
 			case tcell.KeyBacktab:
-				app.SetFocus(dropdown)
+				app.SetFocus(snippetInputField)
 			case tcell.KeyEnter:
 				searchSliceMutex.Lock()
 				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
@@ -246,7 +259,7 @@ func ProcessTui() {
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputField, 0, 8, false).
 		AddItem(extInputField, 10, 0, false).
-		AddItem(dropdown, 4, 1, false)
+		AddItem(snippetInputField, 4, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
