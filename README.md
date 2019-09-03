@@ -1,7 +1,7 @@
-searchcode client (sc)
+codesearch (cs)
 ----------------------
 
-<img alt="scc" src=https://github.com/boyter/sc/raw/master/sc.gif>
+<img alt="scc" src=https://github.com/boyter/cs/raw/master/sc.gif>
 
 
 example, vendor/github.com/rivo/
