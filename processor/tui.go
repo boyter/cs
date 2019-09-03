@@ -32,7 +32,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// Kill off anything else that's potentially still processing
 	StopProcessing = true
 	// Wait a bit for everything to die
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
@@ -226,6 +226,12 @@ func ProcessTui() {
 			lastSearch = text
 			textMutex.Unlock()
 			eventChan <- text
+
+			if strings.TrimSpace(text) == "" {
+				drawText(app, textView, "")
+			} else {
+				app.QueueUpdateDraw(func(){})
+			}
 		}).
 		SetDoneFunc(func(key tcell.Key){
 			switch key {
