@@ -248,7 +248,7 @@ func ProcessTui() {
 		AddItem(textView, 0, 3, false)
 
 	// Start the debounce after everything else is setup
-	go debounce(time.Millisecond * 100, eventChan, app, textView, tuiSearch)
+	go debounce(time.Millisecond * 50, eventChan, app, textView, tuiSearch)
 
 	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
