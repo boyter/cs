@@ -57,7 +57,6 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 						continue
 					}
 
-
 					var tmp [1024000]byte
 					_, _ = io.ReadFull(r, tmp[:])
 					_ = r.Close()

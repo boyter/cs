@@ -15,7 +15,7 @@ GREEN='\033[1;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-if ./sc --not-a-real-option > /dev/null ; then
+if ./cs --not-a-real-option > /dev/null ; then
     echo -e "${RED}================================================="
     echo -e "FAILED Invalid option should produce error code "
     echo -e "=======================================================${NC}"
@@ -25,7 +25,7 @@ else
 fi
 
 echo -e "${NC}Cleaning up..."
-rm ./sc
+rm ./cs
 
 echo -e "${GREEN}================================================="
 echo -e "ALL TESTS PASSED"

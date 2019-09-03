@@ -220,7 +220,7 @@ func newFileJob(path, name string) *FileJob {
 	}
 
 	return &FileJob{
-		Location:          path,
-		Filename:          name,
+		Location: path,
+		Filename: name,
 	}
 }

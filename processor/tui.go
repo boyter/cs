@@ -86,7 +86,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		}
 	}()
 
-		for res := range fileSummaryJobQueue {
+	for res := range fileSummaryJobQueue {
 		results = append(results, res)
 	}
 
@@ -180,7 +180,7 @@ func ProcessTui() {
 
 			eventChan <- lastSearch
 		}).
-		SetDoneFunc(func(key tcell.Key){
+		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(inputField)
@@ -189,19 +189,19 @@ func ProcessTui() {
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			case tcell.KeyUp:
-				SnippetLength = min(SnippetLength + 50, 2000)
+				SnippetLength = min(SnippetLength+50, 2000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			case tcell.KeyPgUp:
-				SnippetLength = min(SnippetLength + 200, 2000)
+				SnippetLength = min(SnippetLength+200, 2000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			case tcell.KeyDown:
-				SnippetLength = max(50, SnippetLength - 50)
+				SnippetLength = max(50, SnippetLength-50)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			case tcell.KeyPgDn:
-				SnippetLength = max(50, SnippetLength - 200)
+				SnippetLength = max(50, SnippetLength-200)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			}
@@ -228,7 +228,7 @@ func ProcessTui() {
 
 			eventChan <- lastSearch
 		}).
-		SetDoneFunc(func(key tcell.Key){
+		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(snippetInputField)
@@ -253,10 +253,10 @@ func ProcessTui() {
 			if strings.TrimSpace(text) == "" {
 				drawText(app, textView, "")
 			} else {
-				app.QueueUpdateDraw(func(){})
+				app.QueueUpdateDraw(func() {})
 			}
 		}).
-		SetDoneFunc(func(key tcell.Key){
+		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(extInputField)
@@ -277,7 +277,7 @@ func ProcessTui() {
 		AddItem(textView, 0, 3, false)
 
 	// Start the debounce after everything else is setup
-	go debounce(time.Millisecond * 100, eventChan, app, textView, tuiSearch)
+	go debounce(time.Millisecond*100, eventChan, app, textView, tuiSearch)
 
 	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)

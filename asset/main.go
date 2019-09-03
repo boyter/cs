@@ -18,7 +18,7 @@ func main() {
 		SetRegions(true).
 		ScrollToBeginning().
 		SetBorder(true).
-	    SetTitle("something")
+		SetTitle("something")
 
 	dropdown = tview.NewDropDown().
 		SetOptions([]string{"50", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, nil).
@@ -28,7 +28,7 @@ func main() {
 		SetSelectedFunc(func(text string, index int) {
 			app.SetFocus(inputField)
 		}).
-		SetDoneFunc(func(key tcell.Key){
+		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(inputField)
@@ -40,10 +40,10 @@ func main() {
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(10).
-		SetChangedFunc(func(text string){
+		SetChangedFunc(func(text string) {
 
 		}).
-		SetDoneFunc(func(key tcell.Key){
+		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(dropdown)
@@ -55,10 +55,10 @@ func main() {
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
-		SetChangedFunc(func(text string){
+		SetChangedFunc(func(text string) {
 
 		}).
-		SetDoneFunc(func(key tcell.Key){
+		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(extInputField)
