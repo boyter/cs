@@ -13,26 +13,29 @@ import (
 	"time"
 )
 
-func tuiSearch(app *tview.Application, textView *tview.TextView) {
-	// Kill off anything else that's processing
+func debounce(interval time.Duration, input chan string, app *tview.Application, textView *tview.TextView, cb func(app *tview.Application, textView *tview.TextView, arg string)) {
+	var item string
+	timer := time.NewTimer(interval)
+	for {
+		select {
+		case item = <-input:
+			timer.Reset(interval)
+		case <-timer.C:
+			if item != "" {
+				cb(app, textView, item)
+			}
+		}
+	}
+}
+
+func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
+	// Kill off anything else that's potentially still processing
 	StopProcessing = true
-	// Wait a bit for everything to die and so the user can type a little more
+	// Wait a bit for everything to die
 	time.Sleep(100 * time.Millisecond)
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
-
-	searchSliceMutex.Lock()
-	var searchTerm string
-	if len(searchSlice) != 0 {
-		searchTerm = searchSlice[len(searchSlice)-1]
-		searchSlice = []string{}
-	} else {
-		// If the slice is empty we want to bail out
-		searchSliceMutex.Unlock()
-		return
-	}
-	searchSliceMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(app, textView, "")
@@ -83,7 +86,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView) {
 		}
 	}()
 
-	for res := range fileSummaryJobQueue {
+		for res := range fileSummaryJobQueue {
 		results = append(results, res)
 	}
 
@@ -139,9 +142,8 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	})
 }
 
-var searchSlice = []string{}
 var searchMutex sync.Mutex
-var searchSliceMutex sync.Mutex
+var textMutex sync.Mutex
 
 func ProcessTui() {
 	app := tview.NewApplication()
@@ -151,6 +153,8 @@ func ProcessTui() {
 	var extInputField *tview.InputField
 	var snippetInputField *tview.InputField
 	var lastSearch string
+
+	eventChan := make(chan string)
 
 	textView = tview.NewTextView().
 		SetDynamicColors(true).
@@ -174,11 +178,7 @@ func ProcessTui() {
 				}
 			}
 
-			searchSliceMutex.Lock()
-			searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
-			searchSliceMutex.Unlock()
-
-			go tuiSearch(app, textView)
+			eventChan <- lastSearch
 		}).
 		SetDoneFunc(func(key tcell.Key){
 			switch key {
@@ -187,11 +187,7 @@ func ProcessTui() {
 			case tcell.KeyBacktab:
 				app.SetFocus(extInputField)
 			case tcell.KeyEnter:
-				searchSliceMutex.Lock()
-				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
-				searchSliceMutex.Unlock()
-
-				go tuiSearch(app, textView)
+				eventChan <- lastSearch
 			}
 		})
 
@@ -207,11 +203,7 @@ func ProcessTui() {
 				WhiteListExtensions = strings.Split(text, ",")
 			}
 
-			searchSliceMutex.Lock()
-			searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
-			searchSliceMutex.Unlock()
-
-			go tuiSearch(app, textView)
+			eventChan <- lastSearch
 		}).
 		SetDoneFunc(func(key tcell.Key){
 			switch key {
@@ -220,11 +212,7 @@ func ProcessTui() {
 			case tcell.KeyBacktab:
 				app.SetFocus(inputField)
 			case tcell.KeyEnter:
-				searchSliceMutex.Lock()
-				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
-				searchSliceMutex.Unlock()
-
-				go tuiSearch(app, textView)
+				eventChan <- lastSearch
 			}
 		})
 
@@ -234,12 +222,10 @@ func ProcessTui() {
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
 		SetChangedFunc(func(text string) {
-			searchSliceMutex.Lock()
-			searchSlice = append(searchSlice, strings.TrimSpace(text))
+			textMutex.Lock()
 			lastSearch = text
-			searchSliceMutex.Unlock()
-
-			go tuiSearch(app, textView)
+			textMutex.Unlock()
+			eventChan <- text
 		}).
 		SetDoneFunc(func(key tcell.Key){
 			switch key {
@@ -248,11 +234,7 @@ func ProcessTui() {
 			case tcell.KeyBacktab:
 				app.SetFocus(snippetInputField)
 			case tcell.KeyEnter:
-				searchSliceMutex.Lock()
-				searchSlice = append(searchSlice, strings.TrimSpace(lastSearch))
-				searchSliceMutex.Unlock()
-
-				go tuiSearch(app, textView)
+				eventChan <- lastSearch
 			}
 		})
 
@@ -264,6 +246,9 @@ func ProcessTui() {
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
 		AddItem(textView, 0, 3, false)
+
+	// Start the debounce after everything else is setup
+	go debounce(time.Millisecond * 100, eventChan, app, textView, tuiSearch)
 
 	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)

@@ -167,6 +167,10 @@ DIRENTS:
 		}
 
 		for _, ignore := range ignores {
+			if returnEarly() {
+				return
+			}
+
 			if ignore.Match(path, isDir) {
 				if Verbose {
 					printWarn("skipping directory due to ignore: " + path)
