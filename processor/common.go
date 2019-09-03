@@ -1,7 +1,7 @@
 package processor
 
 import (
-	"github.com/boyter/sc/processor/snippet"
+	"github.com/boyter/cs/processor/snippet"
 	"sort"
 )
 

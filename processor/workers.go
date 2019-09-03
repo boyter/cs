@@ -3,7 +3,7 @@ package processor
 import (
 	"bytes"
 	"fmt"
-	"github.com/boyter/sc/processor/snippet"
+	"github.com/boyter/cs/processor/snippet"
 	"io"
 	"io/ioutil"
 	"os"

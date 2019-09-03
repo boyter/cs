@@ -3,7 +3,7 @@ package processor
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/boyter/sc/processor/snippet"
+	"github.com/boyter/cs/processor/snippet"
 	"github.com/fatih/color"
 	"os"
 	"sort"

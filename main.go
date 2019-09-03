@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/boyter/sc/processor"
+	"github.com/boyter/cs/processor"
 	"github.com/spf13/cobra"
 	"os"
 )

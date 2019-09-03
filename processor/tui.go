@@ -2,7 +2,7 @@ package processor
 
 import (
 	"fmt"
-	"github.com/boyter/sc/processor/snippet"
+	"github.com/boyter/cs/processor/snippet"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"runtime"
