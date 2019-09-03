@@ -204,6 +204,13 @@ func ProcessTui() {
 		SetLabelColor(tcell.ColorWhite).
 		SetText(strings.Join(WhiteListExtensions, ",")).
 		SetFieldWidth(10).
+		SetAcceptanceFunc(func(text string, c rune) bool {
+			if c == ' ' {
+				return false
+			}
+			
+			return true
+		}).
 		SetChangedFunc(func(text string) {
 			if strings.TrimSpace(text) == "" {
 				WhiteListExtensions = []string{}
