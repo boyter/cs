@@ -22,7 +22,7 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 			timer.Reset(interval)
 		case <-timer.C:
 			if item != "" {
-				cb(app, textView, item)
+				go cb(app, textView, item)
 			}
 		}
 	}
@@ -188,6 +188,14 @@ func ProcessTui() {
 				app.SetFocus(extInputField)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
+			case tcell.KeyUp:
+				SnippetLength = min(SnippetLength + 50, 1000)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				eventChan <- lastSearch
+			case tcell.KeyDown:
+				SnippetLength = max(50, SnippetLength - 50)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				eventChan <- lastSearch
 			}
 		})
 
@@ -254,7 +262,7 @@ func ProcessTui() {
 		AddItem(textView, 0, 3, false)
 
 	// Start the debounce after everything else is setup
-	go debounce(time.Millisecond * 50, eventChan, app, textView, tuiSearch)
+	go debounce(time.Millisecond * 100, eventChan, app, textView, tuiSearch)
 
 	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
