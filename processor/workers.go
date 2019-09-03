@@ -56,10 +56,11 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 					if err != nil {
 						continue
 					}
-					defer r.Close()
+
 
 					var tmp [1024000]byte
 					_, _ = io.ReadFull(r, tmp[:])
+					_ = r.Close()
 				}
 
 				if Trace {
@@ -115,7 +116,6 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 					contentLower := strings.ToLower(string(res.Content))
 
 					// https://blog.gopheracademy.com/advent-2014/string-matching/
-					// TODO make this work as follows func AND main OR stuff NOT other
 					if processMatches(res, contentLower) {
 						wg.Done()
 						return
