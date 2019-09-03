@@ -270,7 +270,7 @@ func ProcessTui() {
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputField, 0, 8, false).
 		AddItem(extInputField, 10, 0, false).
-		AddItem(snippetInputField, 4, 1, false)
+		AddItem(snippetInputField, 5, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
