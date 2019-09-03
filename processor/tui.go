@@ -192,8 +192,16 @@ func ProcessTui() {
 				SnippetLength = min(SnippetLength + 50, 2000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
+			case tcell.KeyPgUp:
+				SnippetLength = min(SnippetLength + 200, 2000)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				eventChan <- lastSearch
 			case tcell.KeyDown:
 				SnippetLength = max(50, SnippetLength - 50)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				eventChan <- lastSearch
+			case tcell.KeyPgDn:
+				SnippetLength = max(50, SnippetLength - 200)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			}
@@ -208,7 +216,7 @@ func ProcessTui() {
 			if c == ' ' {
 				return false
 			}
-			
+
 			return true
 		}).
 		SetChangedFunc(func(text string) {
