@@ -49,6 +49,11 @@ func TestMin(t *testing.T) {
 	if got != -1 {
 		t.Error("Expected -1 got", got)
 	}
+
+	got = min(1, -1)
+	if got != -1 {
+		t.Error("Expected -1 got", got)
+	}
 }
 
 func TestMax(t *testing.T) {
@@ -58,6 +63,11 @@ func TestMax(t *testing.T) {
 	}
 
 	got = max(-1, 1)
+	if got != 1 {
+		t.Error("Expected 1 got", got)
+	}
+
+	got = max(1, -1)
 	if got != 1 {
 		t.Error("Expected 1 got", got)
 	}
