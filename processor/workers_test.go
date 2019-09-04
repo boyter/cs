@@ -171,3 +171,34 @@ func TestFileReaderWorker(t *testing.T) {
 		t.Error("Expected at least one")
 	}
 }
+
+func TestFileProcessorWorker(t *testing.T) {
+	ResultLimit = 100
+
+	input := make(chan *FileJob, 10)
+	output := make(chan *FileJob, 10)
+
+	input <- &FileJob{
+		Filename:  "workers.go",
+		Extension: "go",
+		Location:  "./workers.go",
+		Content:   []byte("this is some content of stuff"),
+		Bytes:     0,
+		Hash:      nil,
+		Binary:    false,
+		Score:     100,
+		Locations: map[string][]int{},
+	}
+	close(input)
+
+	FileProcessorWorker(input, output)
+
+	out := []*FileJob{}
+	for o := range output {
+		out = append(out, o)
+	}
+
+	if len(out) == 0 {
+		t.Error("Expected at least one")
+	}
+}
