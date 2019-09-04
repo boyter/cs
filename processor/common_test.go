@@ -12,7 +12,8 @@ func TestRemoveIntDuplicates(t *testing.T) {
 	}
 }
 
-func TestGetResultLocations(t *testing.T) {
+func TestGetResultLocationsZeroLocations(t *testing.T) {
+
 	locations := GetResultLocations(&FileJob{
 		Filename:  "test",
 		Extension: "test",
@@ -26,6 +27,27 @@ func TestGetResultLocations(t *testing.T) {
 	})
 
 	if len(locations) != 0 {
-		t.Error("Should get no results")
+		t.Error("Should get no results got", len(locations))
+	}
+}
+
+func TestGetResultLocationsThreeResults(t *testing.T) {
+	loc := map[string][]int{}
+	loc["test"] = []int{1, 2, 3}
+
+	locations := GetResultLocations(&FileJob{
+		Filename:  "test",
+		Extension: "test",
+		Location:  "test",
+		Content:   []byte("test"),
+		Bytes:     0,
+		Hash:      nil,
+		Binary:    false,
+		Score:     0,
+		Locations: loc,
+	})
+
+	if len(locations) != 3 {
+		t.Error("Should get 3 results got", len(locations))
 	}
 }
