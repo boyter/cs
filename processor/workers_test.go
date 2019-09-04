@@ -96,3 +96,47 @@ func TestProcessMatchesTwoNotMatch(t *testing.T) {
 		t.Error("Score should be 0 got", res.Score)
 	}
 }
+
+func TestProcessMatchesFuzzyOne(t *testing.T) {
+	StopProcessing = false
+	ResultLimit = 100
+	SearchString = []string{
+		"this~1",
+	}
+
+	res := FileJob{
+		Locations: map[string][]int{},
+	}
+
+	matches := processMatches(&res, "this is a match")
+
+	if matches {
+		t.Errorf("Response should be false")
+	}
+
+	if res.Score != 4 {
+		t.Error("Score should be 4 got", res.Score)
+	}
+}
+
+func TestProcessMatchesFuzzyTwo(t *testing.T) {
+	StopProcessing = false
+	ResultLimit = 100
+	SearchString = []string{
+		"this~2",
+	}
+
+	res := FileJob{
+		Locations: map[string][]int{},
+	}
+
+	matches := processMatches(&res, "this is a match")
+
+	if matches {
+		t.Errorf("Response should be false")
+	}
+
+	if res.Score != 2 {
+		t.Error("Score should be 2 got", res.Score)
+	}
+}
