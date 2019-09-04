@@ -140,3 +140,34 @@ func TestProcessMatchesFuzzyTwo(t *testing.T) {
 		t.Error("Score should be 2 got", res.Score)
 	}
 }
+
+func TestFileReaderWorker(t *testing.T) {
+	ResultLimit = 100
+
+	input := make(chan *FileJob, 10)
+	output := make(chan *FileJob, 10)
+
+	input <- &FileJob{
+		Filename:  "workers.go",
+		Extension: "go",
+		Location:  "./workers.go",
+		Content:   nil,
+		Bytes:     0,
+		Hash:      nil,
+		Binary:    false,
+		Score:     0,
+		Locations: nil,
+	}
+	close(input)
+
+	FileReaderWorker(input, output)
+
+	out := []*FileJob{}
+	for o := range output {
+		out = append(out, o)
+	}
+
+	if len(out) == 0 {
+		t.Error("Expected at least one")
+	}
+}
