@@ -139,8 +139,6 @@ func colorSearchString(res *FileJob) string {
 		var offset int
 		for _, loc := range locs {
 			coloredContent += content[offset:loc]
-			//red := color.New(color.FgRed).SprintFunc()
-			//red(k)
 			coloredContent += fmt.Sprintf("[red]%s", k) + "[white]"
 			counter++
 			offset = loc + len(k)
