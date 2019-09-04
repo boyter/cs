@@ -8,12 +8,16 @@ import (
 )
 
 func TestExtractRelevant(t *testing.T) {
-	ExtractRelevant("this is some text (╯°□°）╯︵ ┻━┻) the thing we want is here", []LocationType{
+	relevant := ExtractRelevant("this is some text (╯°□°）╯︵ ┻━┻) the thing we want is here", []LocationType{
 		{
 			Term:     "the",
 			Location: 31,
 		},
 	}, 30, 20, "...")
+
+	if len(relevant) == 0 {
+		t.Error("Expected some value")
+	}
 }
 
 func TestExtractLocation(t *testing.T) {
@@ -27,6 +31,24 @@ func TestExtractLocation(t *testing.T) {
 				t.Error("Should not be longer")
 			}
 		}
+	}
+}
+
+func TestExtractLocations(t *testing.T) {
+	content, _ := ioutil.ReadFile("blns.json")
+
+	locations := ExtractLocations([]string{"test", "something", "other"}, string(content))
+
+	if len(locations) == 0 {
+		t.Error("Expected at least one location")
+	}
+}
+
+func TestGetPrevCount(t *testing.T) {
+	got := GetPrevCount(300)
+
+	if got != 50 {
+		t.Error("Expected 50 got", got)
 	}
 }
 
