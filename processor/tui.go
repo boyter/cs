@@ -2,15 +2,16 @@ package processor
 
 import (
 	"fmt"
-	"github.com/boyter/cs/processor/snippet"
-	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/boyter/cs/processor/snippet"
+	"github.com/gdamore/tcell"
+	"github.com/rivo/tview"
 )
 
 func debounce(interval time.Duration, input chan string, app *tview.Application, textView *tview.TextView, cb func(app *tview.Application, textView *tview.TextView, arg string)) {
@@ -122,11 +123,32 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		locations := GetResultLocations(res)
-		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		coloredContent := colorSearchString(res)
+		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		resultText += rel + "\n\n"
 	}
 
 	drawText(app, textView, resultText)
+}
+
+func colorSearchString(res *FileJob) string {
+	var coloredContent string
+	content := string(res.Content)
+	var counter int
+	for k, locs := range res.Locations {
+		var offset int
+		for _, loc := range locs {
+			coloredContent += content[offset:loc]
+			//red := color.New(color.FgRed).SprintFunc()
+			//red(k)
+			coloredContent += fmt.Sprintf("[red]%s", k) + "[white]"
+			counter++
+			offset = loc + len(k)
+		}
+		coloredContent += content[offset:]
+	}
+
+	return coloredContent
 }
 
 func drawText(app *tview.Application, textView *tview.TextView, text string) {
