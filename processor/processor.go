@@ -24,6 +24,9 @@ var Debug = false
 // Trace enables trace logging output which is extremely verbose
 var Trace = false
 
+// Trace enables error logging output
+var Error = true
+
 // Disables .gitignore checks
 var GitIgnore = false
 

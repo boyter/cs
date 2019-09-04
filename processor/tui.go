@@ -33,7 +33,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// Kill off anything else that's potentially still processing
 	StopProcessing = true
 	// Wait a bit for everything to die
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()

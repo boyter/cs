@@ -23,6 +23,7 @@ func main() {
 			if len(processor.SearchString) != 0 {
 				processor.Process()
 			} else {
+				processor.Error = false // suppress writing errors
 				processor.ProcessTui()
 			}
 		},
