@@ -31,6 +31,7 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// Kill off anything else that's potentially still processing
+	// TODO change to runner https://medium.com/@matryer/stopping-goroutines-golang-1bf28799c1cb
 	StopProcessing = true
 	// Wait a bit for everything to die
 	time.Sleep(150 * time.Millisecond)
