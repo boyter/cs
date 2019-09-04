@@ -7,7 +7,7 @@ import (
 func TestRanker(t *testing.T) {
 
 	locations := map[string][]int{}
-	locations["test"] = []int{1,2,3}
+	locations["test"] = []int{1, 2, 3}
 
 	results := []*FileJob{
 		{
