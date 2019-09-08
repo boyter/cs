@@ -34,8 +34,39 @@ func TestColourSearchStringContentWithMatch(t *testing.T) {
 	})
 
 	if content != "[red]this[white] is some content" {
-		t.Error("Expected empty content")
+		t.Error("Expected highlighted content")
 	}
+}
+
+func TestColourSearchStringContentWithMatchMulti(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0, 5}
+
+	content := colorSearchString(&FileJob{
+		Content:   []byte("this this"),
+		Locations: loc,
+	})
+
+	if content != "[red]this[white] [red]this[white]" {
+		t.Error("Expected highlighted content")
+	}
+}
+
+// TODO fix this
+func TestColourSearchStringContentWithMatchMultiWords(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0, 5}
+	loc["t"] = []int{0}
+
+	content := colorSearchString(&FileJob{
+		Content:   []byte("this this"),
+		Locations: loc,
+	})
+
+	// TODO this should return [red]this[white] [red]this[white]
+	//if content != "[red]this[white] [red]this[white]" {
+	//	t.Error("Expected highlighted content got=", content)
+	//}
 }
 
 func TestProcessTui(t *testing.T) {
