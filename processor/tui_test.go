@@ -34,3 +34,7 @@ func TestColourSearchStringContentWithMatch(t *testing.T) {
 		t.Error("Expected empty content")
 	}
 }
+
+func TestProcessTui(t *testing.T) {
+	ProcessTui(false)
+}

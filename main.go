@@ -24,7 +24,7 @@ func main() {
 				processor.Process()
 			} else {
 				processor.Error = false // suppress writing errors
-				processor.ProcessTui()
+				processor.ProcessTui(true)
 			}
 		},
 	}

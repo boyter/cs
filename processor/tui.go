@@ -167,7 +167,8 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 var searchMutex sync.Mutex
 var textMutex sync.Mutex
 
-func ProcessTui() {
+// Param actually runs things which is only used for getting test coverage
+func ProcessTui(run bool) {
 	app := tview.NewApplication()
 
 	var textView *tview.TextView
@@ -299,7 +300,9 @@ func ProcessTui() {
 	// Start the debounce after everything else is setup
 	go debounce(time.Millisecond*100, eventChan, app, textView, tuiSearch)
 
-	if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
-		panic(err)
+	if run {
+		if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
+			panic(err)
+		}
 	}
 }
