@@ -67,6 +67,9 @@ func TestColourSearchStringContentWithMatchMultiWords(t *testing.T) {
 	//if content != "[red]this[white] [red]this[white]" {
 	//	t.Error("Expected highlighted content got=", content)
 	//}
+	if len(content) == 0 {
+		t.Error("Expected a return")
+	}
 }
 
 func TestProcessTui(t *testing.T) {
