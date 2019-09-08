@@ -44,6 +44,7 @@ func TestGetFormattedTime(t *testing.T) {
 }
 
 func TestToJson(t *testing.T) {
+	ResultLimit = 100
 	fileListQueue := make(chan *FileJob, 100)
 
 	fileListQueue <- &FileJob{
@@ -67,6 +68,7 @@ func TestToJson(t *testing.T) {
 }
 
 func TestToJsonMultiple(t *testing.T) {
+	ResultLimit = 100
 	fileListQueue := make(chan *FileJob, 100)
 
 	fileListQueue <- &FileJob{
