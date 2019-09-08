@@ -104,3 +104,42 @@ func TestToJsonMultiple(t *testing.T) {
 		t.Error("Expected something")
 	}
 }
+
+func TestFileSummerize(t *testing.T) {
+	ResultLimit = 100
+	Format = "text"
+	fileListQueue := make(chan *FileJob, 100)
+
+	fileListQueue <- &FileJob{
+		Filename:  "Something",
+		Extension: "",
+		Location:  "",
+		Content:   nil,
+		Bytes:     0,
+		Hash:      nil,
+		Binary:    false,
+		Score:     100,
+		Locations: nil,
+	}
+
+	for i := 0; i < 10; i++ {
+		fileListQueue <- &FileJob{
+			Filename:  strconv.Itoa(i),
+			Extension: "",
+			Location:  "",
+			Content:   nil,
+			Bytes:     0,
+			Hash:      nil,
+			Binary:    false,
+			Score:     10,
+			Locations: nil,
+		}
+	}
+	close(fileListQueue)
+
+	res := fileSummarize(fileListQueue)
+
+	if res != "" {
+		t.Error("Expected something")
+	}
+}
