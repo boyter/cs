@@ -41,3 +41,26 @@ func TestGetFormattedTime(t *testing.T) {
 		t.Error("String does not contain expected Z", res)
 	}
 }
+
+func TestToJson(t *testing.T) {
+	fileListQueue := make(chan *FileJob, 100)
+
+	fileListQueue <- &FileJob{
+		Filename:  "",
+		Extension: "",
+		Location:  "",
+		Content:   nil,
+		Bytes:     0,
+		Hash:      nil,
+		Binary:    false,
+		Score:     0,
+		Locations: nil,
+	}
+	close(fileListQueue)
+
+	json := toJSON(fileListQueue)
+
+	if json == "" {
+		t.Error("Expected something")
+	}
+}
