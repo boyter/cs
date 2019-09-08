@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -55,6 +56,43 @@ func TestToJson(t *testing.T) {
 		Binary:    false,
 		Score:     0,
 		Locations: nil,
+	}
+	close(fileListQueue)
+
+	json := toJSON(fileListQueue)
+
+	if json == "" {
+		t.Error("Expected something")
+	}
+}
+
+func TestToJsonMultiple(t *testing.T) {
+	fileListQueue := make(chan *FileJob, 100)
+
+	fileListQueue <- &FileJob{
+		Filename:  "Something",
+		Extension: "",
+		Location:  "",
+		Content:   nil,
+		Bytes:     0,
+		Hash:      nil,
+		Binary:    false,
+		Score:     100,
+		Locations: nil,
+	}
+
+	for i := 0; i < 10; i++ {
+		fileListQueue <- &FileJob{
+			Filename:  strconv.Itoa(i),
+			Extension: "",
+			Location:  "",
+			Content:   nil,
+			Bytes:     0,
+			Hash:      nil,
+			Binary:    false,
+			Score:     10,
+			Locations: nil,
+		}
 	}
 	close(fileListQueue)
 
