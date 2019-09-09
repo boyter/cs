@@ -28,7 +28,9 @@ func TestPrintWarn(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
+	Error = true
 	printError("Testing print error")
+	Error = false
 }
 
 func TestGetFormattedTime(t *testing.T) {
