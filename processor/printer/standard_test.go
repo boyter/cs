@@ -3,5 +3,5 @@ package printer
 import "testing"
 
 func TestWriteColored(t *testing.T) {
-	WriteColored()
+	WriteColored("", map[string][]int{}, "", "")
 }
