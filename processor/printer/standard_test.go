@@ -49,3 +49,16 @@ func TestWriteColoredCheckTwoWords(t *testing.T) {
 		t.Error("Expected", expected, "got", got)
 	}
 }
+
+func TestWriteColoredCheckMixedWords(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0, 5}
+	loc["something"] = []int{10}
+
+	got := WriteColored([]byte("this this something"), loc, "__", "__")
+
+	expected := "__this__ __this__ __something__"
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
