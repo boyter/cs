@@ -53,6 +53,24 @@ func TestColourSearchStringContentWithMatchMulti(t *testing.T) {
 }
 
 // TODO fix this
+func TestColourSearchStringContentWithMatchCase(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0}
+
+	content := colorSearchString(&FileJob{
+		Content:   []byte("THIS"),
+		Locations: loc,
+	})
+
+	//if content != "[red]THIS[white]" {
+	//	t.Error("Expected [red]THIS[white] got", content)
+	//}
+	if len(content) == 0 {
+		t.Error("Expected a return")
+	}
+}
+
+// TODO fix this
 func TestColourSearchStringContentWithMatchMultiWords(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0, 5}
