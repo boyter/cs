@@ -140,8 +140,7 @@ func colorSearchString(res *FileJob) string {
 		var offset int
 		for _, loc := range locs {
 			coloredContent += content[offset:loc]
-			// TODO the below needs to do some string slicing to ensure it keeps case
-			coloredContent += fmt.Sprintf("[red]%s", k) + "[white]"
+			coloredContent += fmt.Sprintf("[red]%s", content[loc:loc+len(k)]) + "[white]"
 			counter++
 			offset = loc + len(k)
 		}
