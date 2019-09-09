@@ -23,14 +23,13 @@ func WriteColored(content []byte, locations map[string][]int, in string, out str
 					}
 
 					// Go for the greatest value of end
-					y :=  v + len(key) -1
+					y := v + len(key) - 1
 					if y > end {
 						end = y
 					}
 				}
 			}
 		}
-
 
 		str.WriteByte(x)
 

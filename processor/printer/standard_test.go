@@ -75,3 +75,16 @@ func TestWriteColoredOverlapStart(t *testing.T) {
 		t.Error("Expected", expected, "got", got)
 	}
 }
+
+func TestWriteColoredCaseCheck(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0}
+	loc["t"] = []int{0}
+
+	got := WriteColored([]byte("THIS"), loc, "__", "__")
+
+	expected := "__THIS__"
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
