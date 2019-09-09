@@ -8,15 +8,25 @@ func WriteColored(content []byte, locations map[string][]int, in string, out str
 	var str strings.Builder
 
 	end := 0
+	found := false
 
 	for i, x := range content {
+
 
 		// Check if any of the locations match
 		for key, value := range locations {
 			for _, v := range value {
 				if i == v {
-					str.WriteString(in)
-					end = v + len(key) -1
+					if !found {
+						str.WriteString(in)
+						found = true
+					}
+
+					// Go for the greatest value of end
+					y :=  v + len(key) -1
+					if y > end {
+						end = y
+					}
 				}
 			}
 		}
@@ -25,6 +35,7 @@ func WriteColored(content []byte, locations map[string][]int, in string, out str
 
 		if i == end {
 			str.WriteString(out)
+			end = 0
 		}
 	}
 
