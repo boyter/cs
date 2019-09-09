@@ -1,0 +1,5 @@
+package printer
+
+func WriteColored() {
+
+}
