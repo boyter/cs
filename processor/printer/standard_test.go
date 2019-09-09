@@ -63,6 +63,19 @@ func TestWriteColoredCheckMixedWords(t *testing.T) {
 	}
 }
 
+func TestWriteColoredCaseCheck(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0}
+	loc["t"] = []int{0}
+
+	got := WriteColored([]byte("THIS"), loc, "__", "__")
+
+	expected := "__THIS__"
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
+
 func TestWriteColoredOverlapStart(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0}
@@ -76,14 +89,14 @@ func TestWriteColoredOverlapStart(t *testing.T) {
 	}
 }
 
-func TestWriteColoredCaseCheck(t *testing.T) {
+func TestWriteColoredOverlapMiddle(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0}
-	loc["t"] = []int{0}
+	loc["h"] = []int{1}
 
-	got := WriteColored([]byte("THIS"), loc, "__", "__")
+	got := WriteColored([]byte("this"), loc, "__", "__")
 
-	expected := "__THIS__"
+	expected := "__this__"
 	if got != expected {
 		t.Error("Expected", expected, "got", got)
 	}
