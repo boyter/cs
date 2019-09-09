@@ -12,7 +12,7 @@ func WriteColored(content []byte, locations map[string][]int, in string, out str
 
 	for i, x := range content {
 
-
+		found = false
 		// Check if any of the locations match
 		for key, value := range locations {
 			for _, v := range value {
@@ -30,6 +30,7 @@ func WriteColored(content []byte, locations map[string][]int, in string, out str
 				}
 			}
 		}
+
 
 		str.WriteByte(x)
 
