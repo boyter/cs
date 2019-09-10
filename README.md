@@ -4,9 +4,9 @@ codesearch (cs)
 [![Build Status](https://travis-ci.org/boyter/cs.svg?branch=master)](https://travis-ci.org/boyter/cs)
 [![Go Report Card](https://goreportcard.com/badge/github.com/boyter/cs)](https://goreportcard.com/report/github.com/boyter/cs)
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)
-[![Scc Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
+[![Cs Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
 
-<img alt="scc" src=https://github.com/boyter/cs/raw/master/sc.gif>
+<img alt="cs" src=https://github.com/boyter/cs/raw/master/sc.gif>
 
 example, vendor/github.com/rivo/
 
