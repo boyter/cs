@@ -12,9 +12,9 @@ func main() {
 	//defer pprof.StopCPUProfile()
 
 	rootCmd := &cobra.Command{
-		Use:     "sc",
-		Short:   "sc [DIRECTORY]",
-		Long:    "sc searchcode command line search.\nBen Boyter <ben@boyter.org>",
+		Use:     "cs",
+		Short:   "cs [DIRECTORY]",
+		Long:    "cs searchcode command line search.\nBen Boyter <ben@boyter.org>",
 		Version: "0.0.1",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
