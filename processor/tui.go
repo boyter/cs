@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"github.com/boyter/cs/processor/printer"
 	"runtime"
 	"sort"
 	"strconv"
@@ -124,30 +125,12 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		locations := GetResultLocations(res)
-		coloredContent := colorSearchString(res)
+		coloredContent := printer.WriteColored(res.Content, res.Locations, "[red]", "[white]")
 		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 		resultText += rel + "\n\n"
 	}
 
 	drawText(app, textView, resultText)
-}
-
-func colorSearchString(res *FileJob) string {
-	var coloredContent string
-	content := string(res.Content)
-	var counter int
-	for k, locs := range res.Locations {
-		var offset int
-		for _, loc := range locs {
-			coloredContent += content[offset:loc]
-			coloredContent += fmt.Sprintf("[red]%s", content[loc:loc+len(k)]) + "[white]"
-			counter++
-			offset = loc + len(k)
-		}
-		coloredContent += content[offset:]
-	}
-
-	return coloredContent
 }
 
 func drawText(app *tview.Application, textView *tview.TextView, text string) {
