@@ -101,3 +101,16 @@ func TestWriteColoredOverlapMiddle(t *testing.T) {
 		t.Error("Expected", expected, "got", got)
 	}
 }
+
+func TestWriteColoredOverlapMiddleLonger(t *testing.T) {
+	loc := map[string][]int{}
+	loc["th"] = []int{0}
+	loc["his"] = []int{1}
+
+	got := WriteColored([]byte("this"), loc, "__", "__")
+
+	expected := "__this__"
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
