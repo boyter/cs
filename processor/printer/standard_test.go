@@ -139,3 +139,16 @@ func TestBugTwo(t *testing.T) {
 		t.Error("Expected", expected, "got", got)
 	}
 }
+
+func TestBugThree(t *testing.T) {
+	loc := map[string][]int{}
+	loc[`"`] = []int{5, 8}
+	loc[`",`] = []int{8}
+
+	got := WriteColored([]byte(`Use: "cs",`), loc, "[red]", "[white]")
+
+	expected := `Use: [red]"[white]cs[red]",[white]`
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
