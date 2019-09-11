@@ -14,6 +14,18 @@ func TestWriteColoredSimple(t *testing.T) {
 	}
 }
 
+func TestWriteColoredTermSimple(t *testing.T) {
+	loc := map[string][]int{}
+	loc["this"] = []int{0}
+
+	got := WriteColored([]byte("this"), loc, "\033[1;31m", "\033[0m")
+
+	expected := "\033[1;31mthis\033[0m"
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
+
 func TestWriteColoredCheckInOut(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0}

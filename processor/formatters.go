@@ -3,12 +3,14 @@ package processor
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/boyter/cs/processor/snippet"
-	"github.com/fatih/color"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/boyter/cs/processor/printer"
+	"github.com/boyter/cs/processor/snippet"
+	"github.com/fatih/color"
 )
 
 func fileSummarize(input chan *FileJob) string {
@@ -38,10 +40,13 @@ func fileSummarize(input chan *FileJob) string {
 	})
 
 	for _, res := range results {
+		fmtBegin := "\033[1;31m"
+		fmtEnd := "\033[0m"
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
 		locations := GetResultLocations(res)
-		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		coloredContent := printer.WriteColored(res.Content, res.Locations, fmtBegin, fmtEnd)
+		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		fmt.Println(rel)
 
