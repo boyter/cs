@@ -10,7 +10,7 @@ import (
 func WriteColored(content []byte, locations map[string][]int, in string, out string) string {
 	var str strings.Builder
 
-	end := 0
+	end := -1
 	found := false
 
 	for i, x := range content {
@@ -20,7 +20,7 @@ func WriteColored(content []byte, locations map[string][]int, in string, out str
 		for key, value := range locations {
 			for _, v := range value {
 				if i == v {
-					if !found && end == 0 {
+					if !found && end <= 0  {
 						str.WriteString(in)
 						found = true
 					}

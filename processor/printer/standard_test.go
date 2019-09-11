@@ -115,13 +115,26 @@ func TestWriteColoredOverlapMiddleLonger(t *testing.T) {
 	}
 }
 
-func TestBug(t *testing.T) {
+func TestBugOne(t *testing.T) {
 	loc := map[string][]int{}
-	loc["expected"] = []int{9}
+	loc["expected"] = []int{10}
 
 	got := WriteColored([]byte("this is unexpected"), loc, "__", "__")
 
 	expected := "this is un__expected__"
+	if got != expected {
+		t.Error("Expected", expected, "got", got)
+	}
+}
+
+func TestBugTwo(t *testing.T) {
+	loc := map[string][]int{}
+	loc["got"] = []int{22, 71, 77}
+	loc["expected"] = []int{0, 29}
+
+	got := WriteColored([]byte(`expected := "this" if got != expected { t.Error("Expected", expected, "got", got)}`), loc, "[red]", "[white]")
+
+	expected := `[red]expected[white] := "this" if [red]got[white] != [red]expected[white] { t.Error("Expected", expected, "[red]got[white]", [red]got[white])}`
 	if got != expected {
 		t.Error("Expected", expected, "got", got)
 	}
