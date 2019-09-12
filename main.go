@@ -13,8 +13,7 @@ func main() {
 
 	rootCmd := &cobra.Command{
 		Use:     "cs",
-		Short:   "cs [DIRECTORY]",
-		Long:    "cs searchcode command line search.\nBen Boyter <ben@boyter.org>",
+		Long:    "cs code search command line.\nBen Boyter <ben@boyter.org>",
 		Version: "0.0.1",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
@@ -23,7 +22,7 @@ func main() {
 			if len(processor.SearchString) != 0 {
 				processor.Process()
 			} else {
-				processor.Error = false // suppress writing errors
+				processor.Error = false // suppress writing errors in TUI mode
 				processor.ProcessTui(true)
 			}
 		},

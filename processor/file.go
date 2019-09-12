@@ -98,6 +98,9 @@ func (dw *DirectoryWalker) Walk(root string) error {
 }
 
 func (dw *DirectoryWalker) Run() {
+	routineWaitGroup.Add(1)
+	defer routineWaitGroup.Done()
+
 	dw.buffer.Finish()
 	close(dw.output)
 }

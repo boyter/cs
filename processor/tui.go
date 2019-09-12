@@ -32,10 +32,12 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// Kill off anything else that's potentially still processing
-	// TODO change to runner https://medium.com/@matryer/stopping-goroutines-golang-1bf28799c1cb
-	StopProcessing = true
-	// Wait a bit for everything to die
-	time.Sleep(150 * time.Millisecond)
+	//StopProcessing = true
+	// Wait for background processes to die off
+	//routineWaitGroup.Wait()
+
+	routineWaitGroup.Add(1)
+	defer routineWaitGroup.Done()
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
@@ -71,6 +73,9 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	// NB this is not safe because results has no lock
 	go func() {
+		routineWaitGroup.Add(1)
+		defer routineWaitGroup.Done()
+
 		for update {
 			// Every 100 ms redraw
 			if makeTimestampMilli()-reset >= 100 {
@@ -136,7 +141,7 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	app.QueueUpdateDraw(func() {
 		textView.Clear()
-		_, err := fmt.Fprintf(textView, "%s", text)
+		_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine()) + " %s", text)
 
 		if err != nil {
 			return
@@ -279,7 +284,8 @@ func ProcessTui(run bool) {
 		AddItem(queryFlex, 2, 0, false).
 		AddItem(textView, 0, 3, false)
 
-	// Start the debounce after everything else is setup
+	// Start the debounce after everything else is setup and leave it running
+	// forever in the background
 	go debounce(time.Millisecond*100, eventChan, app, textView, tuiSearch)
 
 	if run {

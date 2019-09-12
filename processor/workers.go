@@ -25,15 +25,21 @@ func returnEarly() bool {
 
 // Reads entire file into memory and then pushes it onto the next queue
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
+	routineWaitGroup.Add(1)
+	defer routineWaitGroup.Done()
+
 	var startTime int64
 	var wg sync.WaitGroup
 
 	for i := 0; i < FileReadJobWorkers; i++ {
 		wg.Add(1)
 		go func() {
+			routineWaitGroup.Add(1)
+			defer routineWaitGroup.Done()
+			defer wg.Done()
+
 			for res := range input {
 				if returnEarly() {
-					wg.Done()
 					return
 				}
 
@@ -76,12 +82,13 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 					}
 				}
 			}
-
-			wg.Done()
 		}()
 	}
 
 	go func() {
+		routineWaitGroup.Add(1)
+		defer routineWaitGroup.Done()
+
 		wg.Wait()
 		close(output)
 
@@ -93,15 +100,21 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 
 // Does the actual processing of stats and as such contains the hot path CPU call
 func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
+	routineWaitGroup.Add(1)
+	defer routineWaitGroup.Done()
+
 	var startTime int64
 	var wg sync.WaitGroup
 
 	for i := 0; i < FileProcessJobWorkers; i++ {
 		wg.Add(1)
 		go func() {
+			routineWaitGroup.Add(1)
+			defer routineWaitGroup.Done()
+			defer wg.Done()
+
 			for res := range input {
 				if returnEarly() {
-					wg.Done()
 					return
 				}
 
@@ -116,7 +129,6 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 					// https://blog.gopheracademy.com/advent-2014/string-matching/
 					if processMatches(res, contentLower) {
-						wg.Done()
 						return
 					}
 				}
@@ -138,12 +150,13 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 					}
 				}
 			}
-
-			wg.Done()
 		}()
 	}
 
 	go func() {
+		routineWaitGroup.Add(1)
+		defer routineWaitGroup.Done()
+
 		wg.Wait()
 		close(output)
 	}()

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Flags set via the CLI which control how the output is displayed
@@ -74,6 +75,9 @@ var ResultLimit int64 = 0
 
 // How many characters out of the file to display in snippets
 var SnippetLength int64 = 0
+
+// Used to keep an eye on how many processes are running in the background
+var routineWaitGroup sync.WaitGroup
 
 // Clean up the input
 func CleanSearchString() {
