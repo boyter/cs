@@ -9,14 +9,15 @@ import (
 type Task func(*Handle)
 
 type Pool struct {
-	mutex      *sync.Mutex
-	bucket     Bucket
-	cond       *sync.Cond
-	numWorkers int32
-	maxWorkers int32
-	closed     bool
-	task       Task
-	wg         *sync.WaitGroup
+	mutex       *sync.Mutex
+	bucket      Bucket
+	cond        *sync.Cond
+	numWorkers  int32
+	maxWorkers  int32
+	closed      bool
+	task        Task
+	wg          *sync.WaitGroup
+	returnEarly bool
 }
 
 // Constructs a new Cuba thread pool.
@@ -29,12 +30,13 @@ type Pool struct {
 func New(task Task, bucket Bucket) *Pool {
 	m := &sync.Mutex{}
 	return &Pool{
-		mutex:      m,
-		bucket:     bucket,
-		cond:       sync.NewCond(m),
-		task:       task,
-		maxWorkers: int32(runtime.NumCPU()),
-		wg:         &sync.WaitGroup{},
+		mutex:       m,
+		bucket:      bucket,
+		cond:        sync.NewCond(m),
+		task:        task,
+		maxWorkers:  int32(runtime.NumCPU()),
+		wg:          &sync.WaitGroup{},
+		returnEarly: false,
 	}
 }
 
@@ -43,6 +45,10 @@ func New(task Task, bucket Bucket) *Pool {
 // Default: runtime.NumCPU() (i.e. the number of CPU cores available)
 func (pool *Pool) SetMaxWorkers(n int32) {
 	pool.maxWorkers = n
+}
+
+func (pool *Pool) SetReturnEarly(n bool) {
+	pool.returnEarly = n
 }
 
 // Push an item into the worker pool. This will be scheduled to run on a worker
@@ -122,7 +128,7 @@ func (pool *Pool) runWorker() {
 	}
 	for {
 		item, ok := pool.next()
-		if !ok {
+		if !ok || pool.returnEarly {
 			break
 		}
 		handle.item = item

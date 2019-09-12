@@ -125,6 +125,7 @@ func (dw *DirectoryWalker) Readdir(handle *cuba.Handle) {
 
 	for _, dirent := range dirents {
 		if returnEarly() {
+			dw.buffer.SetReturnEarly(true)
 			return
 		}
 
@@ -144,6 +145,7 @@ func (dw *DirectoryWalker) Readdir(handle *cuba.Handle) {
 DIRENTS:
 	for _, dirent := range dirents {
 		if returnEarly() {
+			dw.buffer.SetReturnEarly(true)
 			return
 		}
 
@@ -171,6 +173,7 @@ DIRENTS:
 
 		for _, ignore := range ignores {
 			if returnEarly() {
+				dw.buffer.SetReturnEarly(true)
 				return
 			}
 

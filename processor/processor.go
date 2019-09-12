@@ -99,6 +99,7 @@ func CleanSearchString() {
 }
 
 // Process is the main entry point of the command line it sets everything up and starts running
+// TODO this should be created using the usual struct new pattern so we can ensure its all clean and encapsulated
 func Process() {
 	CleanSearchString()
 
