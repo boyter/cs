@@ -141,7 +141,7 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	app.QueueUpdateDraw(func() {
 		textView.Clear()
-		_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine()) + " %s", text)
+		_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine())+" %s", text)
 
 		if err != nil {
 			return
