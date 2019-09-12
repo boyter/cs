@@ -17,7 +17,6 @@ type Pool struct {
 	closed      bool
 	task        Task
 	wg          *sync.WaitGroup
-	returnEarly bool
 }
 
 // Constructs a new Cuba thread pool.
@@ -36,7 +35,6 @@ func New(task Task, bucket Bucket) *Pool {
 		task:        task,
 		maxWorkers:  int32(runtime.NumCPU()),
 		wg:          &sync.WaitGroup{},
-		returnEarly: false,
 	}
 }
 
@@ -47,8 +45,9 @@ func (pool *Pool) SetMaxWorkers(n int32) {
 	pool.maxWorkers = n
 }
 
-func (pool *Pool) SetReturnEarly(n bool) {
-	pool.returnEarly = n
+func (pool *Pool) EmptyPool() {
+	pool.bucket.Empty()
+	pool.wg.Wait()
 }
 
 // Push an item into the worker pool. This will be scheduled to run on a worker
@@ -128,7 +127,7 @@ func (pool *Pool) runWorker() {
 	}
 	for {
 		item, ok := pool.next()
-		if !ok || pool.returnEarly {
+		if !ok {
 			break
 		}
 		handle.item = item

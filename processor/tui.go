@@ -32,7 +32,7 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// Kill off anything else that's potentially still processing
-	//StopProcessing = true
+	StopProcessing = true
 	// Wait for background processes to die off
 	//routineWaitGroup.Wait()
 
