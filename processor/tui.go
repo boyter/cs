@@ -34,7 +34,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// Kill off anything else that's potentially still processing
 	StopProcessing = true
 	// Wait for background processes to die off
-	//routineWaitGroup.Wait()
+	routineWaitGroup.Wait() // TODO this never finishes for large diretories
 
 	routineWaitGroup.Add(1)
 	defer routineWaitGroup.Done()
@@ -99,7 +99,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	}
 
 	update = false
-	StopProcessing = true
 	drawResults(app, results, textView, searchTerm, "")
 }
 

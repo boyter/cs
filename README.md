@@ -12,3 +12,8 @@ example, vendor/github.com/rivo/
 
 searching for tab key usage with shift modifier, searched for keytab using ag/rg/ack and nothing useful
 try using sc and its right at the top 
+
+1. The runaway goroutines
+2. the highlight snippet issue
+3. a help for tui
+4. filter on filename
