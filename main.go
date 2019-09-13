@@ -13,7 +13,7 @@ func main() {
 
 	rootCmd := &cobra.Command{
 		Use:     "cs",
-		Long:    "cs code search command line.\nBen Boyter <ben@boyter.org>",
+		Long:    "cs code search command line.\nBen Boyter <ben@boyter.org> and Pamela Gangopadhyay <pamela.gangopadhyay@gmail.com>",
 		Version: "0.0.1",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
