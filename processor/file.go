@@ -174,12 +174,6 @@ DIRENTS:
 		}
 
 		for _, ignore := range ignores {
-			if returnEarly() {
-				dw.buffer.Abort()
-				close(dw.output)
-				return
-			}
-
 			if ignore.Match(path, isDir) {
 				if Verbose {
 					printWarn("skipping directory due to ignore: " + path)
