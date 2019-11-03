@@ -1,6 +1,7 @@
 package cuba
 
 import (
+	"errors"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -8,15 +9,23 @@ import (
 
 type Task func(*Handle)
 
+var PoolAbortedErr = errors.New("pool has been aborted")
+
+const (
+	POOL_RUN = iota
+	POOL_FINISH
+	POOL_ABORT
+)
+
 type Pool struct {
-	mutex       *sync.Mutex
-	bucket      Bucket
-	cond        *sync.Cond
-	numWorkers  int32
-	maxWorkers  int32
-	closed      bool
-	task        Task
-	wg          *sync.WaitGroup
+	mutex      *sync.Mutex
+	bucket     Bucket
+	cond       *sync.Cond
+	numWorkers int32
+	maxWorkers int32
+	state      int
+	task       Task
+	wg         *sync.WaitGroup
 }
 
 // Constructs a new Cuba thread pool.
@@ -29,12 +38,13 @@ type Pool struct {
 func New(task Task, bucket Bucket) *Pool {
 	m := &sync.Mutex{}
 	return &Pool{
-		mutex:       m,
-		bucket:      bucket,
-		cond:        sync.NewCond(m),
-		task:        task,
-		maxWorkers:  int32(runtime.NumCPU()),
-		wg:          &sync.WaitGroup{},
+		mutex:      m,
+		bucket:     bucket,
+		cond:       sync.NewCond(m),
+		task:       task,
+		maxWorkers: int32(runtime.NumCPU()),
+		wg:         &sync.WaitGroup{},
+		state:      POOL_RUN,
 	}
 }
 
@@ -45,16 +55,15 @@ func (pool *Pool) SetMaxWorkers(n int32) {
 	pool.maxWorkers = n
 }
 
-func (pool *Pool) EmptyPool() {
-	pool.bucket.Empty()
-	pool.wg.Wait()
-}
-
 // Push an item into the worker pool. This will be scheduled to run on a worker
 // immediately.
-func (pool *Pool) Push(item interface{}) {
+func (pool *Pool) Push(item interface{}) error {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
+
+	if pool.state == POOL_ABORT {
+		return PoolAbortedErr
+	}
 
 	// The ideal might be to have a fixed pool of worker goroutines which all
 	// close down when the work is done.
@@ -63,25 +72,33 @@ func (pool *Pool) Push(item interface{}) {
 	// Having a floating pool means we can restart workers as we discover more
 	// work to be done, which solves this problem at the cost of a little
 	// inefficiency.
-	if pool.numWorkers < pool.maxWorkers {
+	numWorkers := atomic.LoadInt32(&pool.numWorkers)
+	if numWorkers < pool.maxWorkers {
 		pool.wg.Add(1)
 		go pool.runWorker()
 	}
 
 	pool.bucket.Push(item)
 	pool.cond.Signal()
+
+	return nil
 }
 
 // Push multiple items into the worker pool.
 //
 // Compared to Push() this only aquires the lock once, so may reduce lock
 // contention.
-func (pool *Pool) PushAll(items []interface{}) {
+func (pool *Pool) PushAll(items []interface{}) error {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
+	if pool.state == POOL_ABORT {
+		return PoolAbortedErr
+	}
+
+	numWorkers := atomic.LoadInt32(&pool.numWorkers)
 	for i := 0; i < len(items); i++ {
-		if pool.numWorkers >= pool.maxWorkers {
+		if numWorkers >= pool.maxWorkers {
 			break
 		}
 		pool.wg.Add(1)
@@ -90,6 +107,8 @@ func (pool *Pool) PushAll(items []interface{}) {
 
 	pool.bucket.PushAll(items)
 	pool.cond.Broadcast()
+
+	return nil
 }
 
 // Calling Finish() waits for all work to complete, and allows goroutines to shut
@@ -97,7 +116,17 @@ func (pool *Pool) PushAll(items []interface{}) {
 func (pool *Pool) Finish() {
 	pool.mutex.Lock()
 
-	pool.closed = true
+	pool.state = POOL_FINISH
+	pool.cond.Broadcast()
+
+	pool.mutex.Unlock()
+	pool.wg.Wait()
+}
+
+func (pool *Pool) Abort() {
+	pool.mutex.Lock()
+
+	pool.state = POOL_ABORT
 	pool.cond.Broadcast()
 
 	pool.mutex.Unlock()
@@ -108,8 +137,8 @@ func (pool *Pool) next() (interface{}, bool) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	for pool.bucket.Empty() {
-		if pool.closed {
+	for pool.bucket.IsEmpty() {
+		if pool.state == POOL_FINISH || pool.state == POOL_ABORT {
 			return nil, false
 		}
 		pool.cond.Wait()
