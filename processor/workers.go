@@ -55,6 +55,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 
 				var s int64 = 1024000
 
+				// Only read up to ~1MB of a file because anything beyond that is probably pointless
 				if fi.Size() < s {
 					content, err = ioutil.ReadFile(res.Location)
 				} else {
@@ -98,73 +99,78 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 	}()
 }
 
-// Does the actual processing of stats and as such contains the hot path CPU call
+// Just to work out where the goroutine leak exists
 func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
-	routineWaitGroup.Add(1)
-	defer routineWaitGroup.Done()
-
-	var startTime int64
-	var wg sync.WaitGroup
-
-	for i := 0; i < FileProcessJobWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			routineWaitGroup.Add(1)
-			defer routineWaitGroup.Done()
-			defer wg.Done()
-
-			for res := range input {
-				if returnEarly() {
-					return
-				}
-
-				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
-				processingStartTime := makeTimestampNano()
-
-				if bytes.IndexByte(res.Content, '\x00') != -1 {
-					res.Binary = true
-				} else {
-					// what we need to do is check for each term if it exists, and then use that to determine if its a match
-					contentLower := strings.ToLower(string(res.Content))
-
-					// https://blog.gopheracademy.com/advent-2014/string-matching/
-					if processMatches(res, contentLower) {
-						return
-					}
-				}
-
-				if Trace {
-					printTrace(fmt.Sprintf("nanoseconds process: %s: %d", res.Location, makeTimestampNano()-processingStartTime))
-				}
-
-				if !res.Binary && res.Score != 0 {
-					atomic.AddInt64(&TotalCount, 1)
-					output <- res
-				} else {
-					if Verbose {
-						if res.Binary {
-							printWarn(fmt.Sprintf("skipping file identified as binary: %s", res.Location))
-						} else {
-							printWarn(fmt.Sprintf("skipping file due to no match: %s", res.Location))
-						}
-					}
-				}
-			}
-		}()
-	}
-
-	go func() {
-		routineWaitGroup.Add(1)
-		defer routineWaitGroup.Done()
-
-		wg.Wait()
-		close(output)
-	}()
-
-	if Debug {
-		printDebug(fmt.Sprintf("milliseconds processing files: %d", makeTimestampMilli()-startTime))
-	}
+	close(output)
 }
+
+// Does the actual processing of stats and as such contains the hot path CPU call
+//func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
+//	routineWaitGroup.Add(1)
+//	defer routineWaitGroup.Done()
+//
+//	var startTime int64
+//	var wg sync.WaitGroup
+//
+//	for i := 0; i < FileProcessJobWorkers; i++ {
+//		wg.Add(1)
+//		go func() {
+//			routineWaitGroup.Add(1)
+//			defer routineWaitGroup.Done()
+//			defer wg.Done()
+//
+//			for res := range input {
+//				if returnEarly() {
+//					return
+//				}
+//
+//				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
+//				processingStartTime := makeTimestampNano()
+//
+//				if bytes.IndexByte(res.Content, '\x00') != -1 {
+//					res.Binary = true
+//				} else {
+//					// what we need to do is check for each term if it exists, and then use that to determine if its a match
+//					contentLower := strings.ToLower(string(res.Content))
+//
+//					// https://blog.gopheracademy.com/advent-2014/string-matching/
+//					if processMatches(res, contentLower) {
+//						return
+//					}
+//				}
+//
+//				if Trace {
+//					printTrace(fmt.Sprintf("nanoseconds process: %s: %d", res.Location, makeTimestampNano()-processingStartTime))
+//				}
+//
+//				if !res.Binary && res.Score != 0 {
+//					atomic.AddInt64(&TotalCount, 1)
+//					output <- res
+//				} else {
+//					if Verbose {
+//						if res.Binary {
+//							printWarn(fmt.Sprintf("skipping file identified as binary: %s", res.Location))
+//						} else {
+//							printWarn(fmt.Sprintf("skipping file due to no match: %s", res.Location))
+//						}
+//					}
+//				}
+//			}
+//		}()
+//	}
+//
+//	go func() {
+//		routineWaitGroup.Add(1)
+//		defer routineWaitGroup.Done()
+//
+//		wg.Wait()
+//		close(output)
+//	}()
+//
+//	if Debug {
+//		printDebug(fmt.Sprintf("milliseconds processing files: %d", makeTimestampMilli()-startTime))
+//	}
+//}
 
 func processMatches(res *FileJob, contentLower string) bool {
 	for i, term := range SearchString {
