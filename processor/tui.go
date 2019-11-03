@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/boyter/cs/processor/printer"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,7 +35,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// Kill off anything else that's potentially still processing
 	StopProcessing = true
 	// Wait for background processes to die off
-	routineWaitGroup.Wait() // TODO this never finishes for large diretories
+	routineWaitGroup.Wait() // TODO this never finishes for large directories
 
 	routineWaitGroup.Add(1)
 	defer routineWaitGroup.Done()
@@ -140,7 +141,12 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	app.QueueUpdateDraw(func() {
 		textView.Clear()
-		_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine())+" %s", text)
+		// for debugging
+		stack := debug.Stack()
+		_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine())+" %s", string(stack))
+
+		// usual happy path
+		//_, err := fmt.Fprintf(textView, "%s", text)
 
 		if err != nil {
 			return
