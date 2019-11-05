@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/boyter/cs/processor/printer"
 	"runtime"
-	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,11 +33,12 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// Kill off anything else that's potentially still processing
 	StopProcessing = true
+
 	// Wait for background processes to die off
 	routineWaitGroup.Wait() // TODO this never finishes for large directories
 
-	routineWaitGroup.Add(1)
-	defer routineWaitGroup.Done()
+	//routineWaitGroup.Add(1)
+	//defer routineWaitGroup.Done()
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
@@ -90,7 +90,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 			}
 
 			if update {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 			}
 		}
 	}()
@@ -142,11 +142,11 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	app.QueueUpdateDraw(func() {
 		textView.Clear()
 		// for debugging
-		stack := debug.Stack()
-		_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine())+" %s", string(stack))
+		//stack := debug.Stack()
+		//_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine())+" %s", string(stack))
 
 		// usual happy path
-		//_, err := fmt.Fprintf(textView, "%s", text)
+		_, err := fmt.Fprintf(textView, "%s", text)
 
 		if err != nil {
 			return

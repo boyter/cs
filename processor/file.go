@@ -86,7 +86,7 @@ func (dw *DirectoryWalker) Walk(root string) error {
 		return nil
 	}
 
-	dw.buffer.Push(
+	_ = dw.buffer.Push(
 		&DirectoryJob{
 			root:    root,
 			path:    root,
