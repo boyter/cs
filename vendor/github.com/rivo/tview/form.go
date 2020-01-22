@@ -59,7 +59,8 @@ type Form struct {
 	itemPadding int
 
 	// The index of the item or button which has focus. (Items are counted first,
-	// buttons are counted last.)
+	// buttons are counted last.) This is only used when the form itself receives
+	// focus so that the last element that had focus keeps it.
 	focusedElement int
 
 	// The label color.
@@ -295,9 +296,15 @@ func (f *Form) AddFormItem(item FormItem) *Form {
 	return f
 }
 
-// GetFormItem returns the form element at the given position, starting with
-// index 0. Elements are referenced in the order they were added. Buttons are
-// not included.
+// GetFormItemCount returns the number of items in the form (not including the
+// buttons).
+func (f *Form) GetFormItemCount() int {
+	return len(f.items)
+}
+
+// GetFormItem returns the form item at the given position, starting with index
+// 0. Elements are referenced in the order they were added. Buttons are not
+// included.
 func (f *Form) GetFormItem(index int) FormItem {
 	return f.items[index]
 }
@@ -334,6 +341,19 @@ func (f *Form) GetFormItemIndex(label string) int {
 	return -1
 }
 
+// GetFocusedItemIndex returns the indices of the form element or button which
+// currently has focus. If they don't, -1 is returned resepectively.
+func (f *Form) GetFocusedItemIndex() (formItem, button int) {
+	index := f.focusIndex()
+	if index < 0 {
+		return -1, -1
+	}
+	if index < len(f.items) {
+		return index, -1
+	}
+	return -1, index - len(f.items)
+}
+
 // SetCancelFunc sets a handler which is called when the user hits the Escape
 // key.
 func (f *Form) SetCancelFunc(callback func()) *Form {
@@ -344,6 +364,11 @@ func (f *Form) SetCancelFunc(callback func()) *Form {
 // Draw draws this primitive onto the screen.
 func (f *Form) Draw(screen tcell.Screen) {
 	f.Box.Draw(screen)
+
+	// Determine the actual item that has focus.
+	if index := f.focusIndex(); index >= 0 {
+		f.focusedElement = index
+	}
 
 	// Determine the dimensions.
 	x, y, width, height := f.GetInnerRect()
@@ -575,15 +600,22 @@ func (f *Form) HasFocus() bool {
 	if f.hasFocus {
 		return true
 	}
-	for _, item := range f.items {
+	return f.focusIndex() >= 0
+}
+
+// focusIndex returns the index of the currently focused item, counting form
+// items first, then buttons. A negative value indicates that no containeed item
+// has focus.
+func (f *Form) focusIndex() int {
+	for index, item := range f.items {
 		if item.GetFocusable().HasFocus() {
-			return true
+			return index
 		}
 	}
-	for _, button := range f.buttons {
+	for index, button := range f.buttons {
 		if button.focus.HasFocus() {
-			return true
+			return len(f.items) + index
 		}
 	}
-	return false
+	return -1
 }
