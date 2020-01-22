@@ -53,6 +53,7 @@ func walkDirectorySimple(fileListQueue chan *FileJob) {
 				Location: root,
 				Filename: root,
 				Extension: getExtension(root),
+				Locations: map[string][]int{},
 			}
 		}
 

@@ -22,84 +22,48 @@ func returnEarly() bool {
 	return false
 }
 
-// Reads entire file into memory and then pushes it onto the next queue
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
-	//close(output)
-	//return
-	routineWaitGroup.Add(1)
-	defer routineWaitGroup.Done()
 
-	var startTime int64
-	var wg sync.WaitGroup
+	for res := range input {
+		fi, err := os.Stat(res.Location)
+		if err != nil {
+			continue
+		}
 
-	for i := 0; i < FileReadJobWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			routineWaitGroup.Add(1)
-			defer routineWaitGroup.Done()
-			defer wg.Done()
+		var content []byte
+		fileStartTime := makeTimestampNano()
 
-			for res := range input {
-				if returnEarly() {
-					break
-				}
+		var s int64 = 1024000
 
-				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
-
-				fi, err := os.Stat(res.Location)
-				if err != nil {
-					continue
-				}
-
-				var content []byte
-				fileStartTime := makeTimestampNano()
-
-				var s int64 = 1024000
-
-				// Only read up to ~1MB of a file because anything beyond that is probably pointless
-				if fi.Size() < s {
-					content, err = ioutil.ReadFile(res.Location)
-				} else {
-					r, err := os.Open(res.Location)
-					if err != nil {
-						continue
-					}
-
-					var tmp [1024000]byte
-					_, _ = io.ReadFull(r, tmp[:])
-					_ = r.Close()
-				}
-
-				if Trace {
-					printTrace(fmt.Sprintf("nanoseconds read into memory: %s: %d", res.Location, makeTimestampNano()-fileStartTime))
-				}
-
-				if err == nil {
-					res.Content = content
-					res.Locations = map[string][]int{}
-					output <- res
-				} else {
-					if Verbose {
-						printWarn(fmt.Sprintf("error reading: %s %s", res.Location, err))
-					}
-				}
+		// Only read up to ~1MB of a file because anything beyond that is probably pointless
+		if fi.Size() < s {
+			content, err = ioutil.ReadFile(res.Location)
+		} else {
+			r, err := os.Open(res.Location)
+			if err != nil {
+				continue
 			}
-		}()
+
+			var tmp [1024000]byte
+			_, _ = io.ReadFull(r, tmp[:])
+			_ = r.Close()
+		}
+
+		if Trace {
+			printTrace(fmt.Sprintf("nanoseconds read into memory: %s: %d", res.Location, makeTimestampNano()-fileStartTime))
+		}
+
+		if err == nil {
+			res.Content = content
+			output <- res
+		} else {
+			if Verbose {
+				printWarn(fmt.Sprintf("error reading: %s %s", res.Location, err))
+			}
+		}
 	}
 
-	go func() {
-		// Apparently this one never finishes??
-		// TODO This one never exits for some reason
-		//routineWaitGroup.Add(1)
-		//defer routineWaitGroup.Done()
-
-		wg.Wait()
-		close(output)
-
-		if Debug {
-			printDebug(fmt.Sprintf("milliseconds reading files into memory: %d", makeTimestampMilli()-startTime))
-		}
-	}()
+	close(output)
 }
 
 // Just to work out where the goroutine leak exists
