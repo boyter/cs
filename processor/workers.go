@@ -19,7 +19,6 @@ func returnEarly() bool {
 	if StopProcessing || atomic.LoadInt64(&TotalCount) >= ResultLimit {
 		return true
 	}
-
 	return false
 }
 

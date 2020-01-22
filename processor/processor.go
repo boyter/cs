@@ -99,7 +99,6 @@ func CleanSearchString() {
 }
 
 // Process is the main entry point of the command line it sets everything up and starts running
-// TODO this should be created using the usual struct new pattern so we can ensure its all clean and encapsulated
 func Process() {
 	CleanSearchString()
 
@@ -116,9 +115,7 @@ func Process() {
 	fileReadContentJobQueue := make(chan *FileJob, FileReadContentJobQueueSize) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
 
-	directoryWalker := NewDirectoryWalker(fileListQueue)
-	_ = directoryWalker.Walk(".")
-	go directoryWalker.Run()
+	go walkDirectorySimple(fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
