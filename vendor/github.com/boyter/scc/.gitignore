@@ -1,0 +1,34 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+scc
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
+.glide/
+
+# IDE
+.idea/
+
+# Performance tests
+examples/performance_tests/0
+examples/performance_tests/1
+examples/performance_tests/2
+examples/performance_tests/3
+examples/performance_tests/4
+examples/performance_tests/5
+examples/performance_tests/6
+examples/performance_tests/7
+examples/performance_tests/8
+
+# Ignore test
+ignored.xml
+gitignorefile.txt

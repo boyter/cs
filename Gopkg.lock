@@ -2,6 +2,25 @@
 
 
 [[projects]]
+  digest = "1:e001a1eb64f8133fae5bd3cc8aa17287a4741348077bc78ee64c14f0854614ef"
+  name = "github.com/boyter/scc"
+  packages = [
+    ".",
+    "processor",
+  ]
+  pruneopts = "UT"
+  revision = "d3da3c8f1b55ac42b6deb298bebf776787fb11ba"
+  version = "v2.11.0"
+
+[[projects]]
+  digest = "1:a7a0ccde2e5b3ce9cc84d78a9ff89c65323f41fce30eb7d1c9e18ebe869dfab8"
+  name = "github.com/dbaggerman/cuba"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "eea065551ffcf98105d83bfc624d5ecbf4dd0ea9"
+  version = "v0.3.2"
+
+[[projects]]
   digest = "1:bde2a1ce1de28312f165a88926c12f4acd19dc4d7da96a445dfa5a29eae07a93"
   name = "github.com/fatih/color"
   packages = ["."]
@@ -118,6 +137,22 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:130cefe87d7eeefc824978dcb78e35672d4c49a11f25c153fbf0cfd952756fa3"
+  name = "github.com/minio/blake2b-simd"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3f5f724cb5b182a5c278d6d3d55b40e7f8c2efb4"
+
+[[projects]]
+  branch = "master"
+  digest = "1:e7a1af77ee190b4c4558142e769a6ab5df14e9f5768119f630128cff9060df54"
+  name = "github.com/monochromegane/go-gitignore"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "38717d0a108ca0e5af632cd6845ca77d45b50729"
+
+[[projects]]
+  branch = "master"
   digest = "1:10c3f233d978ae758665b17daa2883d23911b67384ce96d602ce0f8db3593616"
   name = "github.com/rivo/tview"
   packages = ["."]
@@ -157,12 +192,24 @@
   revision = "e047566fdf82409bf7a52212cf71df83ea2772fb"
 
 [[projects]]
-  digest = "1:cc38c2209a6c1f94debdfd96934865a258eac2f905a8d3f8fd56e7d0cfb85edd"
+  digest = "1:1324868f4d1d789e8c6443c278e6e8f510d6ec660d17527d6e3dc9492808e836"
   name = "golang.org/x/text"
   packages = [
     "encoding",
     "encoding/internal/identifier",
+    "feature/plural",
+    "internal",
+    "internal/catmsg",
+    "internal/format",
     "internal/gen",
+    "internal/language",
+    "internal/language/compact",
+    "internal/number",
+    "internal/stringset",
+    "internal/tag",
+    "language",
+    "message",
+    "message/catalog",
     "transform",
     "unicode/cldr",
   ]
@@ -170,10 +217,19 @@
   revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
   version = "v0.3.2"
 
+[[projects]]
+  digest = "1:b75b3deb2bce8bc079e16bb2aecfe01eb80098f5650f9e93e5643ca8b7b73737"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1f64d6156d11335c3f22d9330b0ad14fc1e789ce"
+  version = "v2.2.7"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/boyter/scc",
     "github.com/fatih/color",
     "github.com/gdamore/tcell",
     "github.com/rivo/tview",

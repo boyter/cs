@@ -4,6 +4,7 @@ import (
 	"github.com/boyter/cs/processor"
 	"github.com/spf13/cobra"
 	"os"
+	sccprocessor "github.com/boyter/scc/processor"
 )
 
 func main() {
@@ -17,6 +18,7 @@ func main() {
 		Version: "0.0.1",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
+			sccprocessor.ProcessConstants()
 
 			if len(processor.SearchString) != 0 {
 				processor.Process()
