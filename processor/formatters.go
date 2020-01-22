@@ -43,18 +43,6 @@ func fileSummarize(input chan *FileJob) string {
 		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		fmt.Println(rel)
-
-		// break up and highlight
-		// base the highligt off lower so we can ensure we match correctly
-
-		// find all of the matching sections so we can highlight them in the relevant part
-		//fmt.Print(rel[:10])
-		//color.Set(color.FgHiRed)
-		//fmt.Print(rel[10:20])
-		//color.Unset()
-		//fmt.Print(rel[20:])
-
-		//fmt.Println(rel)
 		fmt.Println("")
 	}
 

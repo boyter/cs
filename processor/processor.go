@@ -12,8 +12,6 @@ import (
 // Files indicates if there should be file output or not when formatting
 var Files = false
 
-// Languages indicates if the command line should print out the supported languages
-var Languages = false
 
 // Verbose enables verbose logging output
 var Verbose = false
@@ -97,15 +95,6 @@ func CleanSearchString() {
 // Process is the main entry point of the command line it sets everything up and starts running
 func Process() {
 	CleanSearchString()
-
-	if Debug {
-		printDebug(fmt.Sprintf("White List: %v", WhiteListExtensions))
-		printDebug(fmt.Sprintf("File Output: %t", Files))
-		printDebug(fmt.Sprintf("Verbose: %t", Verbose))
-		printDebug(fmt.Sprintf("NumCPU: %d", runtime.NumCPU()))
-		printDebug(fmt.Sprintf("PathBlacklist: %v", PathBlacklist))
-		printDebug(fmt.Sprintf("ResultLimit: %d", ResultLimit))
-	}
 
 	fileListQueue := make(chan *FileJob, FileListQueueSize)                     // Files ready to be read from disk
 	fileReadContentJobQueue := make(chan *FileJob, FileReadContentJobQueueSize) // Files ready to be processed

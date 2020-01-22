@@ -613,7 +613,9 @@ func (t *TextView) reindexBuffer(width int) {
 					}
 				}
 				splitLines = append(splitLines, extract)
-				str = str[len(extract):]
+
+				extract_cutoff := len(extract)
+				str = str[extract_cutoff:]
 			}
 		} else {
 			// No need to split the line.

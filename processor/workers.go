@@ -14,7 +14,6 @@ import (
 var TotalCount int64
 
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
-
 	for res := range input {
 		fi, err := os.Stat(res.Location)
 		if err != nil {
@@ -66,8 +65,6 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 	for res := range input {
-		processingStartTime := makeTimestampNano()
-
 		if bytes.IndexByte(res.Content, '\x00') != -1 {
 			res.Binary = true
 		} else {
@@ -78,10 +75,6 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 			if processMatches(res, contentLower) {
 				return
 			}
-		}
-
-		if Trace {
-			printTrace(fmt.Sprintf("nanoseconds process: %s: %d", res.Location, makeTimestampNano()-processingStartTime))
 		}
 
 		if !res.Binary && res.Score != 0 {
@@ -99,7 +92,6 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	}
 
 	close(output)
-
 }
 
 func processMatches(res *FileJob, contentLower string) bool {

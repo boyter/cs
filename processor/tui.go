@@ -3,16 +3,17 @@ package processor
 import (
 	"fmt"
 	"github.com/boyter/cs/processor/printer"
+	"github.com/boyter/cs/processor/snippet"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/boyter/cs/processor/snippet"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 )
+
 
 func debounce(interval time.Duration, input chan string, app *tview.Application, textView *tview.TextView, cb func(app *tview.Application, textView *tview.TextView, arg string)) {
 	var item string
@@ -30,9 +31,6 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 }
 
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
-
-	searchMutex.Lock()
-	defer searchMutex.Unlock()
 
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(app, textView, "")
@@ -110,6 +108,7 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 		locations := GetResultLocations(res)
 		coloredContent := printer.WriteColored(res.Content, res.Locations, "[red]", "[white]")
 		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+
 		resultText += rel + "\n\n"
 	}
 
@@ -134,7 +133,6 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	})
 }
 
-var searchMutex sync.Mutex
 var textMutex sync.Mutex
 
 // Param actually runs things which is only used for getting test coverage
