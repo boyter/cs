@@ -1,6 +1,10 @@
 package processor
 
-import "math"
+import (
+	"math"
+	"sort"
+	"strings"
+)
 
 // TF-IDF ranking of results
 func RankResults(results []*FileJob) []*FileJob {
@@ -22,4 +26,16 @@ func RankResults(results []*FileJob) []*FileJob {
 	}
 
 	return results
+}
+
+// Sort a slice of filejob results based on their score and then location to stop
+// any undeterministic ordering happening
+func SortResults(results []*FileJob) {
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Score == results[j].Score {
+			return strings.Compare(results[i].Location, results[j].Location) < 0
+		}
+
+		return results[i].Score > results[j].Score
+	})
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/boyter/cs/processor/printer"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,14 +30,6 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 }
 
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
-	// Kill off anything else that's potentially still processing
-	StopProcessing = true
-
-	// Wait for background processes to die off
-	routineWaitGroup.Wait() // TODO this never finishes for large directories
-
-	//routineWaitGroup.Add(1)
-	//defer routineWaitGroup.Done()
 
 	searchMutex.Lock()
 	defer searchMutex.Unlock()
@@ -51,9 +42,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
 	CleanSearchString()
 	TotalCount = 0
-
-	// Enable processing again
-	StopProcessing = false
 
 	fileListQueue := make(chan *FileJob, runtime.NumCPU())           // Files ready to be read from disk
 	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
@@ -72,8 +60,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	// NB this is not safe because results has no lock
 	go func() {
-		routineWaitGroup.Add(1)
-		defer routineWaitGroup.Done()
 
 		for update {
 			// Every 100 ms redraw
@@ -103,13 +89,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 func drawResults(app *tview.Application, results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
 	RankResults(results)
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Score == results[j].Score {
-			return strings.Compare(results[i].Location, results[j].Location) < 0
-		}
-
-		return results[i].Score > results[j].Score
-	})
+	SortResults(results)
 
 	if int64(len(results)) >= TotalCount {
 		results = results[:TotalCount]

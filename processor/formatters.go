@@ -31,13 +31,7 @@ func fileSummarize(input chan *FileJob) string {
 
 	// Rank results then sort for display
 	RankResults(results)
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Score == results[j].Score {
-			return strings.Compare(results[i].Location, results[j].Location) < 0
-		}
-
-		return results[i].Score > results[j].Score
-	})
+	SortResults(results)
 
 	for _, res := range results {
 		fmtBegin := "\033[1;31m"
