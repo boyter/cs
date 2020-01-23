@@ -58,7 +58,7 @@ func ExtractLocations(words []string, fulltext string) []int {
 
 	sort.Ints(locs)
 
-	// If not words found show beginning of the text NB should not happen
+	// If no words found show beginning of the text NB should not happen
 	if len(locs) == 0 {
 		locs = append(locs, 0)
 	}
@@ -114,7 +114,15 @@ func determineSnipLocations(locations []LocationType, previousCount int) int {
 // 1/6 ratio on prevcount tends to work pretty well and puts the terms
 // in the middle of the extract
 func GetPrevCount(relLength int) int {
-	t := int(relLength / 6)
+	return CalculatePrevCount(relLength, 6)
+}
+
+func CalculatePrevCount(relLength int, divisor int) int {
+	if divisor <= 0 {
+		divisor = 6
+	}
+
+	t := relLength / divisor
 
 	if t <= 0 {
 		t = 50

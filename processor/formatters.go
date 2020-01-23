@@ -40,7 +40,7 @@ func fileSummarize(input chan *FileJob) string {
 
 		locations := GetResultLocations(res)
 		coloredContent := printer.WriteColored(res.Content, res.Locations, fmtBegin, fmtEnd)
-		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.CalculatePrevCount(int(SnippetLength), 6), "…")
 
 		fmt.Println(rel)
 		fmt.Println("")

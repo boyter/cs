@@ -6,8 +6,16 @@ import (
 	"strings"
 )
 
-// TF-IDF ranking of results
 func RankResults(results []*FileJob) []*FileJob {
+	return RankResultsTFIDF(results)
+}
+
+func RankResultsVectorSpace(results []*FileJob) []*FileJob {
+	return results
+}
+
+// TF-IDF ranking of results
+func RankResultsTFIDF(results []*FileJob) []*FileJob {
 	idf := map[string]int{}
 	for _, r := range results {
 		for k := range r.Locations {
