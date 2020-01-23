@@ -1,195 +1,105 @@
 package processor
-//
-//import (
-//	"fmt"
-//	"github.com/dbaggerman/cuba"
-//	"github.com/monochromegane/go-gitignore"
-//	"os"
-//	"path/filepath"
-//	"regexp"
-//	"strings"
-//)
-//
-//type DirectoryJob struct {
-//	root    string
-//	path    string
-//	ignores []gitignore.IgnoreMatcher
-//}
-//
-//type DirectoryWalker struct {
-//	buffer   *cuba.Pool
-//	output   chan<- *FileJob
-//	excludes []*regexp.Regexp
-//}
-//
-//func NewDirectoryWalker(output chan<- *FileJob) *DirectoryWalker {
-//	directoryWalker := &DirectoryWalker{
-//		output: output,
-//	}
-//	for _, exclude := range Exclude {
-//		directoryWalker.excludes = append(directoryWalker.excludes, regexp.MustCompile(exclude))
-//	}
-//
-//	directoryWalker.buffer = cuba.New(directoryWalker.Readdir, cuba.NewStack())
-//
-//	return directoryWalker
-//}
-//
-//func (dw *DirectoryWalker) Walk(root string) error {
-//	root = filepath.Clean(root)
-//
-//	fileInfo, err := os.Stat(root)
-//	if err != nil {
-//		return err
-//	}
-//
-//	if !fileInfo.IsDir() {
-//		fileJob := newFileJob(root, root)
-//		if fileJob != nil {
-//			dw.output <- fileJob
-//		}
-//
-//		return nil
-//	}
-//
-//	_ = dw.buffer.Push(
-//		&DirectoryJob{
-//			root:    root,
-//			path:    root,
-//			ignores: nil,
-//		},
-//	)
-//
-//	return nil
-//}
-//
-//func (dw *DirectoryWalker) Run() {
-//	routineWaitGroup.Add(1)
-//	defer routineWaitGroup.Done()
-//
-//	dw.buffer.Finish()
-//	close(dw.output)
-//}
-//
-//func (dw *DirectoryWalker) Readdir(handle *cuba.Handle) {
-//	job := handle.Item().(*DirectoryJob)
-//
-//	ignores := job.ignores
-//
-//	file, err := os.Open(job.path)
-//	if err != nil {
-//		printError(fmt.Sprintf("failed to open %s: %v", job.path, err))
-//		return
-//	}
-//	defer file.Close()
-//
-//	dirents, err := file.Readdir(-1)
-//	if err != nil {
-//		printError(fmt.Sprintf("failed to read %s: %v", job.path, err))
-//		return
-//	}
-//
-//	for _, dirent := range dirents {
-//		if returnEarly() {
-//			dw.buffer.Abort()
-//			close(dw.output)
-//			return
-//		}
-//
-//		name := dirent.Name()
-//
-//		if (!GitIgnore && name == ".gitignore") || (!Ignore && name == ".ignore") {
-//			path := filepath.Join(job.path, name)
-//
-//			ignore, err := gitignore.NewGitIgnore(path)
-//			if err != nil {
-//				printError(fmt.Sprintf("failed to load gitignore %s: %v", job.path, err))
-//			}
-//			ignores = append(ignores, ignore)
-//		}
-//	}
-//
-//DIRENTS:
-//	for _, dirent := range dirents {
-//		if returnEarly() {
-//			dw.buffer.Abort()
-//			close(dw.output)
-//			return
-//		}
-//
-//		name := dirent.Name()
-//		path := filepath.Join(job.path, name)
-//		isDir := dirent.IsDir()
-//
-//		for _, black := range PathDenylist {
-//			if strings.HasPrefix(path, filepath.Join(job.root, black)) {
-//				if Verbose {
-//					printWarn(fmt.Sprintf("skipping directory due to being in blacklist: %s", path))
-//				}
-//				continue DIRENTS
-//			}
-//		}
-//
-//		for _, exclude := range dw.excludes {
-//			if exclude.Match([]byte(name)) {
-//				if Verbose {
-//					printWarn("skipping directory due to match exclude: " + name)
-//				}
-//				continue DIRENTS
-//			}
-//		}
-//
-//		for _, ignore := range ignores {
-//			if ignore.Match(path, isDir) {
-//				if Verbose {
-//					printWarn("skipping directory due to ignore: " + path)
-//				}
-//				continue DIRENTS
-//			}
-//		}
-//
-//		if isDir {
-//			handle.Push(
-//				&DirectoryJob{
-//					root:    job.root,
-//					path:    path,
-//					ignores: ignores,
-//				},
-//			)
-//		} else {
-//			fileJob := newFileJob(path, name)
-//			if fileJob != nil {
-//				dw.output <- fileJob
-//			}
-//		}
-//	}
-//}
-//
-//func newFileJob(path, name string) *FileJob {
-//	if returnEarly() {
-//		return nil
-//	}
-//
-//	extension := getExtension(name)
-//
-//	if len(WhiteListExtensions) != 0 {
-//		ok := false
-//		for _, x := range WhiteListExtensions {
-//			if x == extension {
-//				ok = true
-//			}
-//		}
-//
-//		if !ok {
-//			if Verbose {
-//				printWarn(fmt.Sprintf("skipping file as not whitelisted: %s", name))
-//			}
-//			return nil
-//		}
-//	}
-//
-//	return &FileJob{
-//		Location: path,
-//		Filename: name,
-//	}
-//}
+
+import (
+	sccprocessor "github.com/boyter/scc/processor"
+	"github.com/monochromegane/go-gitignore"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+)
+
+var WalkMutex = sync.Mutex{}          // We only ever want 1 file walker operating
+var IsWalking = NewBool(false)        // The state indicating if we are walking
+var TerminateWalking = NewBool(false) // The flag to indicate we should stop
+
+func walkDirectory(directory string, fileListQueue chan *FileJob) error {
+	WalkMutex.Lock()
+	defer WalkMutex.Unlock()
+
+	IsWalking.SetTo(true)
+	err := walkDirectoryRecursive(directory, []gitignore.IgnoreMatcher{}, fileListQueue)
+	close(fileListQueue)
+	TerminateWalking.SetTo(false)
+	IsWalking.SetTo(false)
+	return err
+}
+
+func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher, fileListQueue chan *FileJob) error {
+	if TerminateWalking.IsSet() == true {
+		return nil
+	}
+
+	fileInfos, err := ioutil.ReadDir(directory)
+
+	if err != nil {
+		return err
+	}
+
+	files := []os.FileInfo{}
+	dirs := []os.FileInfo{}
+
+	for _, file := range fileInfos {
+		if file.IsDir() {
+			dirs = append(dirs, file)
+		} else {
+			files = append(files, file)
+		}
+	}
+
+	for _, file := range files {
+		if file.Name() == ".gitignore" || file.Name() == ".ignore" {
+			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+			if err == nil {
+				ignores = append(ignores, ignore)
+			}
+		}
+	}
+
+	for _, file := range files {
+		shouldIgnore := false
+		for _, ignore := range ignores {
+			if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
+				shouldIgnore = true
+			}
+		}
+
+		if !shouldIgnore {
+			language, ext := sccprocessor.DetectLanguage(file.Name())
+
+			if len(language) != 0 && language[0] != "#!" {
+				fileListQueue <- &FileJob{
+					Location:  filepath.Join(directory, file.Name()),
+					Filename:  file.Name(),
+					Extension: ext,
+					Locations: map[string][]int{},
+				}
+			}
+		}
+	}
+
+	for _, dir := range dirs {
+		shouldIgnore := false
+		for _, ignore := range ignores {
+			if ignore.Match(filepath.Join(directory, dir.Name()), dir.IsDir()) {
+				shouldIgnore = true
+			}
+		}
+
+		for _, deny := range PathDenylist {
+			if strings.HasSuffix(dir.Name(), deny) {
+				shouldIgnore = true
+			}
+		}
+
+		if !shouldIgnore {
+			err = walkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores, fileListQueue)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

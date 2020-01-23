@@ -33,6 +33,16 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 
 	// At this point we need to stop the background process that is running and wait for it to finish
+	if IsWalking.IsSet() == true {
+		TerminateWalking.SetTo(true)
+	}
+
+	for {
+		time.Sleep(time.Millisecond * 10)
+		if IsWalking.IsSet() == false {
+			break
+		}
+	}
 
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(app, textView, "")

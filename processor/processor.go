@@ -12,7 +12,6 @@ import (
 // Files indicates if there should be file output or not when formatting
 var Files = false
 
-
 // Verbose enables verbose logging output
 var Verbose = false
 
@@ -96,10 +95,9 @@ func CleanSearchString() {
 func Process() {
 	CleanSearchString()
 
-	fileListQueue := make(chan *FileJob, FileListQueueSize)                     // Files ready to be read from disk
+	fileListQueue := make(chan *FileJob)                                        // Files ready to be read from disk
 	fileReadContentJobQueue := make(chan *FileJob, FileReadContentJobQueueSize) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
-
 
 	go walkDirectory(".", fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
