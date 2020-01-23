@@ -121,7 +121,7 @@ package processor
 //		path := filepath.Join(job.path, name)
 //		isDir := dirent.IsDir()
 //
-//		for _, black := range PathBlacklist {
+//		for _, black := range PathDenylist {
 //			if strings.HasPrefix(path, filepath.Join(job.root, black)) {
 //				if Verbose {
 //					printWarn(fmt.Sprintf("skipping directory due to being in blacklist: %s", path))

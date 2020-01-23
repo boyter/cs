@@ -70,7 +70,7 @@ func main() {
 		"number of matching results to process",
 	)
 	flags.StringSliceVar(
-		&processor.PathBlacklist,
+		&processor.PathDenylist,
 		"exclude-dir",
 		[]string{".git", ".hg", ".svn"},
 		"directories to exclude",

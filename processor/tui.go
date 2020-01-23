@@ -47,7 +47,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, runtime.NumCPU())     // Files ready to be summarised
 
-	go walkDirectorySimple(fileListQueue)
+	go walkDirectory(".", fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 

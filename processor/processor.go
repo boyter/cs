@@ -43,8 +43,8 @@ var Format = ""
 // FileOutput sets the file that output should be written to
 var FileOutput = ""
 
-// PathBlacklist sets the paths that should be skipped
-var PathBlacklist = []string{}
+// PathDenylist sets the paths that should be skipped
+var PathDenylist = []string{}
 
 // FileListQueueSize is the queue of files found and ready to be read into memory
 var FileListQueueSize = runtime.NumCPU()
@@ -100,7 +100,8 @@ func Process() {
 	fileReadContentJobQueue := make(chan *FileJob, FileReadContentJobQueueSize) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
 
-	go walkDirectorySimple(fileListQueue)
+
+	go walkDirectory(".", fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
