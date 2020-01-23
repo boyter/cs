@@ -8,89 +8,102 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 )
 
 var TotalCount int64
 
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
-	for res := range input {
-		fi, err := os.Stat(res.Location)
-		if err != nil {
-			continue
-		}
+	var wg sync.WaitGroup
+	for i := 0; i < FileReadJobWorkers; i++ {
+		wg.Add(1)
 
-		var content []byte
-		fileStartTime := makeTimestampNano()
+		go func() {
+			for res := range input {
+				fi, err := os.Stat(res.Location)
+				if err != nil {
+					continue
+				}
 
-		var s int64 = 1024000
+				var content []byte
+				fileStartTime := makeTimestampNano()
 
-		// Only read up to ~1MB of a file because anything beyond that is probably pointless
-		if fi.Size() < s {
-			content, err = ioutil.ReadFile(res.Location)
-		} else {
-			r, err := os.Open(res.Location)
-			if err != nil {
-				continue
+				var s int64 = 1024000
+
+				// Only read up to ~1MB of a file because anything beyond that is probably pointless
+				if fi.Size() < s {
+					content, err = ioutil.ReadFile(res.Location)
+				} else {
+					r, err := os.Open(res.Location)
+					if err != nil {
+						continue
+					}
+
+					var tmp [1024000]byte
+					_, _ = io.ReadFull(r, tmp[:])
+					_ = r.Close()
+				}
+
+				if Trace {
+					printTrace(fmt.Sprintf("nanoseconds read into memory: %s: %d", res.Location, makeTimestampNano()-fileStartTime))
+				}
+
+				if err == nil {
+					res.Content = content
+					output <- res
+				} else {
+					if Verbose {
+						printWarn(fmt.Sprintf("error reading: %s %s", res.Location, err))
+					}
+				}
 			}
-
-			var tmp [1024000]byte
-			_, _ = io.ReadFull(r, tmp[:])
-			_ = r.Close()
-		}
-
-		if Trace {
-			printTrace(fmt.Sprintf("nanoseconds read into memory: %s: %d", res.Location, makeTimestampNano()-fileStartTime))
-		}
-
-		if err == nil {
-			res.Content = content
-			output <- res
-		} else {
-			if Verbose {
-				printWarn(fmt.Sprintf("error reading: %s %s", res.Location, err))
-			}
-		}
+			wg.Done()
+		}()
 	}
 
+	wg.Wait()
 	close(output)
 }
 
-// Just to work out where the goroutine leak exists
-//func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
-//	close(output)
-//}
-
 // Does the actual processing of stats and as such contains the hot path CPU call
 func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
+	var wg sync.WaitGroup
+	for i := 0; i < FileProcessJobWorkers; i++ {
+		wg.Add(1)
 
-	for res := range input {
-		if bytes.IndexByte(res.Content, '\x00') != -1 {
-			res.Binary = true
-		} else {
-			// what we need to do is check for each term if it exists, and then use that to determine if its a match
-			contentLower := strings.ToLower(string(res.Content))
-
-			// https://blog.gopheracademy.com/advent-2014/string-matching/
-			if processMatches(res, contentLower) {
-				return
-			}
-		}
-
-		if !res.Binary && res.Score != 0 {
-			atomic.AddInt64(&TotalCount, 1)
-			output <- res
-		} else {
-			if Verbose {
-				if res.Binary {
-					printWarn(fmt.Sprintf("skipping file identified as binary: %s", res.Location))
+		go func() {
+			for res := range input {
+				if bytes.IndexByte(res.Content, '\x00') != -1 {
+					res.Binary = true
 				} else {
-					printWarn(fmt.Sprintf("skipping file due to no match: %s", res.Location))
+					// what we need to do is check for each term if it exists, and then use that to determine if its a match
+					contentLower := strings.ToLower(string(res.Content))
+
+					// https://blog.gopheracademy.com/advent-2014/string-matching/
+					if processMatches(res, contentLower) {
+						return
+					}
+				}
+
+				if !res.Binary && res.Score != 0 {
+					atomic.AddInt64(&TotalCount, 1)
+					output <- res
+				} else {
+					if Verbose {
+						if res.Binary {
+							printWarn(fmt.Sprintf("skipping file identified as binary: %s", res.Location))
+						} else {
+							printWarn(fmt.Sprintf("skipping file due to no match: %s", res.Location))
+						}
+					}
 				}
 			}
-		}
+			wg.Done()
+		}()
 	}
 
+	wg.Wait()
 	close(output)
 }
 
