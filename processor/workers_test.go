@@ -5,7 +5,6 @@ import (
 )
 
 func TestProcessMatchesSingleMatch(t *testing.T) {
-	StopProcessing = false
 	ResultLimit = 100
 	SearchString = []string{
 		"match",
@@ -27,7 +26,6 @@ func TestProcessMatchesSingleMatch(t *testing.T) {
 }
 
 func TestProcessMatchesTwoMatch(t *testing.T) {
-	StopProcessing = false
 	ResultLimit = 100
 	SearchString = []string{
 		"match",
@@ -50,7 +48,6 @@ func TestProcessMatchesTwoMatch(t *testing.T) {
 }
 
 func TestProcessMatchesTwoAndMatch(t *testing.T) {
-	StopProcessing = false
 	ResultLimit = 100
 	SearchString = []string{
 		"match",
@@ -74,7 +71,6 @@ func TestProcessMatchesTwoAndMatch(t *testing.T) {
 }
 
 func TestProcessMatchesTwoNotMatch(t *testing.T) {
-	StopProcessing = false
 	ResultLimit = 100
 	SearchString = []string{
 		"match",
@@ -98,7 +94,6 @@ func TestProcessMatchesTwoNotMatch(t *testing.T) {
 }
 
 func TestProcessMatchesFuzzyOne(t *testing.T) {
-	StopProcessing = false
 	ResultLimit = 100
 	SearchString = []string{
 		"this~1",
@@ -120,7 +115,6 @@ func TestProcessMatchesFuzzyOne(t *testing.T) {
 }
 
 func TestProcessMatchesFuzzyTwo(t *testing.T) {
-	StopProcessing = false
 	ResultLimit = 100
 	SearchString = []string{
 		"this~2",
