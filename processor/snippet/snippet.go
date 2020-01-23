@@ -169,7 +169,20 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 	}
 
 	if startPos != 0 {
-		relText = indicator + relText[strings.Index(relText, " ")+1:]
+		indicatorPos := strings.Index(relText, " ")
+		indicatorLen := 1
+
+		for _, c := range []string{"\n", "\r\n", "\t"} {
+			tmp := strings.Index(relText, c)
+
+			if tmp < indicatorPos {
+				indicatorPos = tmp
+				indicatorLen = len(c)
+			}
+		}
+
+
+		relText = indicator + relText[indicatorPos+indicatorLen:]
 	}
 
 	return relText

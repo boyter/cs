@@ -116,6 +116,12 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
+		// For debugging seeing the locations can be helpful
+		//for key, val := range res.Locations {
+		//	resultText += fmt.Sprintf("%s %d\n", key, val)
+		//}
+		//resultText += "\n"
+
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		locations := GetResultLocations(res)
 		coloredContent := printer.WriteColored(res.Content, res.Locations, "[red]", "[white]")
@@ -130,13 +136,8 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 func drawText(app *tview.Application, textView *tview.TextView, text string) {
 	app.QueueUpdateDraw(func() {
 		textView.Clear()
-		// for debugging
-		//stack := debug.Stack()
-		//_, err := fmt.Fprintf(textView, strconv.Itoa(runtime.NumGoroutine())+" %s", string(stack))
 
-		// usual happy path
 		_, err := fmt.Fprintf(textView, "%s", text)
-
 		if err != nil {
 			return
 		}
