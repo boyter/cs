@@ -14,6 +14,11 @@ import (
 
 var TotalCount int64
 
+// How many matches of a term do we want to find in any file?
+// Limited to 100 because after that is what we are looking for any more
+// relevant to the user?
+var MatchLimit = 100
+
 // This is responsible for spinning up all of the jobs
 // that read files from disk into memory
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
@@ -111,6 +116,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 func processMatches(res *FileJob, contentLower string) bool {
 	for i, term := range SearchString {
+		// Currently only NOT does anything as the rest
 		if term == "AND" || term == "OR" || term == "NOT" {
 			continue
 		}
@@ -118,12 +124,16 @@ func processMatches(res *FileJob, contentLower string) bool {
 		if i != 0 && SearchString[i-1] == "NOT" {
 			index := bytes.Index([]byte(contentLower), []byte(term))
 
-			// If a negated term is found we bail out instantly
+			// If a negated term is found we bail out instantly as
+			// this means we should not be matching at all
 			if index != -1 {
 				res.Score = 0
 				return false
 			}
 		} else {
+			// If someone supplies ~1 at the end of the term it means we want to expand out that
+			// term to support fuzzy matches for that term where the number indicates a level
+			// of fuzzyness
 			if strings.HasSuffix(term, "~1") || strings.HasSuffix(term, "~2") {
 				terms := makeFuzzyDistanceOne(strings.TrimRight(term, "~1"))
 				if strings.HasSuffix(term, "~2") {
@@ -132,7 +142,7 @@ func processMatches(res *FileJob, contentLower string) bool {
 
 				m := []int{}
 				for _, t := range terms {
-					m = append(m, snippet.ExtractLocation(t, contentLower, 50)...)
+					m = append(m, snippet.ExtractLocation(t, contentLower, MatchLimit)...)
 				}
 
 				if len(m) != 0 {
@@ -143,7 +153,8 @@ func processMatches(res *FileJob, contentLower string) bool {
 					return false
 				}
 			} else {
-				res.Locations[term] = snippet.ExtractLocation(term, contentLower, 50)
+				// This is a regular search, not negated where we must try and find
+				res.Locations[term] = snippet.ExtractLocation(term, contentLower, MatchLimit)
 
 				if len(res.Locations[term]) != 0 {
 					res.Score += float64(len(res.Locations[term]))

@@ -17,6 +17,9 @@ func makeTimestampNano() int64 {
 
 const letterDigitFuzzyBytes = " abcdefghijklmnopqrstuvwxyz0123456789"
 
+// Takes in a term and returns a slice of them which contains all the
+// fuzzy versions of that string with things such as mispellings and the
+// like
 func makeFuzzyDistanceOne(term string) []string {
 	vals := []string{}
 
@@ -35,6 +38,8 @@ func makeFuzzyDistanceOne(term string) []string {
 	return vals
 }
 
+// Similar to fuzzy 1 but in this case we add letters
+// to make the distance larger
 func makeFuzzyDistanceTwo(term string) []string {
 	vals := makeFuzzyDistanceOne(term)
 
