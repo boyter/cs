@@ -166,7 +166,7 @@ func ProcessTui(run bool) {
 		ScrollToBeginning()
 
 	snippetInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.Color16).
+		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetAcceptanceFunc(tview.InputFieldInteger).
 		SetText(strconv.Itoa(int(SnippetLength))).
 		SetFieldWidth(4).
@@ -244,7 +244,7 @@ func ProcessTui(run bool) {
 		})
 
 	inputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.Color16).
+		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
@@ -280,7 +280,7 @@ func ProcessTui(run bool) {
 
 	// Start the debounce after everything else is setup and leave it running
 	// forever in the background
-	go debounce(time.Millisecond*100, eventChan, app, textView, tuiSearch)
+	go debounce(time.Millisecond*50, eventChan, app, textView, tuiSearch)
 
 	if run {
 		if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {

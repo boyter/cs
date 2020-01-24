@@ -14,6 +14,8 @@ import (
 
 var TotalCount int64
 
+// This is responsible for spinning up all of the jobs
+// that read files from disk into memory
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 	var wg sync.WaitGroup
 	for i := 0; i < FileReadJobWorkers; i++ {

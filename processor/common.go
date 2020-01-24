@@ -5,6 +5,9 @@ import (
 	"sort"
 )
 
+// Simple helper method that removes duplicates from
+// any given string slice and then returns a nice
+// duplicate free string slice
 func RemoveStringDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	result := []string{}
@@ -19,6 +22,9 @@ func RemoveStringDuplicates(elements []string) []string {
 	return result
 }
 
+// Simple helper method that removes duplicates from
+// any given int slice and then returns a nice
+// duplicate free int slice
 func RemoveIntDuplicates(elements []int) []int {
 	encountered := map[int]bool{}
 	result := []int{}
