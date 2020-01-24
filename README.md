@@ -17,3 +17,4 @@ try using sc and its right at the top
 2. the highlight snippet issue
 3. a help for tui like tig???
 4. filter on filename
+5. ignore minified/generated files

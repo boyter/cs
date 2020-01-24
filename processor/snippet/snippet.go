@@ -42,7 +42,9 @@ func ExtractLocation(word string, fulltext string, limit int) []int {
 	return locs
 }
 
-// This method is about 3x more efficient then using regex
+// This method is about 3x more efficient then using regex to find
+// all the locations assuming you are matching plain strings
+//
 // BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
 // BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
 func ExtractLocations(words []string, fulltext string) []int {
@@ -58,7 +60,10 @@ func ExtractLocations(words []string, fulltext string) []int {
 
 	sort.Ints(locs)
 
-	// If no words found show beginning of the text NB should not happen
+	// If no words were found then we show the beginning of the text
+	// by setting the location to 0
+	// Note this should not happen generally as you would only try to snip
+	// things for which you know a match is made
 	if len(locs) == 0 {
 		locs = append(locs, 0)
 	}
@@ -81,20 +86,28 @@ func determineSnipLocations(locations []LocationType, previousCount int) int {
 
 	var diff int
 	if locCount > 2 {
-		for i := 0; i < locCount; i++ {
-			if i == locCount-1 { // at the end
-				diff = locations[i].Location - locations[i-1].Location
-			} else {
-				diff = locations[i+1].Location - locations[i].Location
-			}
+		// We don't need to iterate the last value in this so chop off the last one
+		// however note that we access the element anyway as that's how the inner loop works
+		for i := 0; i < locCount - 1; i++ {
+
+			// We don't need to worry about the +1 out of bounds here
+			// because we never loop the last term as the result
+			// should be 100% the same as the previous iteration
+			diff = locations[i+1].Location - locations[i].Location
 
 			if i != locCount-1 {
 				// If the term after this one is different reduce the weight so its considered more relevant
+				// this is to make terms like "a" all next to each other worth less than "a" next to "apple"
+				// so we should in theory choose that section of text to be the most relevant consider
+				// this a boost based on diversity of the text we are snipping
 				if locations[i].Term != locations[i+1].Term {
 					diff = (diff / 2) - len(locations[i].Term) - len(locations[i+1].Term)
 				}
 			}
 
+			// If the terms are closer together and the previous set then
+			// change this to be the location we want the snippet to be made from as its likely
+			// to have better context as the terms should appear together or at least close
 			if smallestDiff > diff {
 				smallestDiff = diff
 				startPos = locations[i].Location
@@ -111,12 +124,17 @@ func determineSnipLocations(locations []LocationType, previousCount int) int {
 	return startPos
 }
 
-// 1/6 ratio on prevcount tends to work pretty well and puts the terms
-// in the middle of the extract
+// A 1/6 ratio on tends to work pretty well and puts the terms
+// in the middle of the extract hence this method is the default to
+// use
 func GetPrevCount(relLength int) int {
 	return CalculatePrevCount(relLength, 6)
 }
 
+// This attempts to work out given the length of the text we want to display
+// how much before we should cut. This is so we can land the highlighted text
+// in the middle of the display rather than as the first part so there is
+// context
 func CalculatePrevCount(relLength int, divisor int) int {
 	if divisor <= 0 {
 		divisor = 6
@@ -140,7 +158,8 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 
 	startPos := determineSnipLocations(locations, prevCount)
 
-	// if we are going to snip too much...
+	// If we are about to snip beyond the locations then dial it back
+	// do we don't get a slice exception
 	if textLength-startPos < relLength {
 		startPos = startPos - (textLength-startPos)/2
 	}
@@ -168,10 +187,18 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		relText += indicator
 	}
 
+	// If we didn't trim from the start its possible we trimmed in the middle of a word
+	// this attempts to find a space to make that a cleaner break so we don't cut
+	// in the middle of the word, even with the indicator as its not a good look
 	if startPos != 0 {
+
+		// Find the location of the first space
 		indicatorPos := strings.Index(relText, " ")
 		indicatorLen := 1
 
+		// Its possible there was no close to the start, or that perhaps
+		// its broken up by newlines or tabs, in which case we want to change
+		// the cut to that position
 		for _, c := range []string{"\n", "\r\n", "\t"} {
 			tmp := strings.Index(relText, c)
 
@@ -180,7 +207,6 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 				indicatorLen = len(c)
 			}
 		}
-
 
 		relText = indicator + relText[indicatorPos+indicatorLen:]
 	}
