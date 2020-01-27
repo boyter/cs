@@ -68,7 +68,18 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 		if !shouldIgnore {
 			language, ext := sccprocessor.DetectLanguage(file.Name())
 
-			if len(language) != 0 && language[0] != "#!" {
+			// At this point we have passed all the ignore file checks
+			// so now we are checking if there
+			if len(AllowListExtensions) != 0 {
+				shouldIgnore = true
+				for _, e := range AllowListExtensions {
+					if ext == e {
+						shouldIgnore = false
+					}
+				}
+			}
+
+			if !shouldIgnore && len(language) != 0 && language[0] != "#!" {
 				fileListQueue <- &FileJob{
 					Location:  filepath.Join(directory, file.Name()),
 					Filename:  file.Name(),

@@ -60,8 +60,8 @@ var FileProcessJobWorkers = runtime.NumCPU()
 // FileSummaryJobQueueSize is the queue used to hold processed file statistics before formatting
 var FileSummaryJobQueueSize = runtime.NumCPU()
 
-// WhiteListExtensions is a list of extensions which are whitelisted to be processed
-var WhiteListExtensions = []string{}
+// AllowListExtensions is a list of extensions which are whitelisted to be processed
+var AllowListExtensions = []string{}
 
 // Search string if set to anything is what we want to run the search for against the current directory
 var SearchString = []string{}

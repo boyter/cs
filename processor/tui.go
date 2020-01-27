@@ -212,9 +212,9 @@ func ProcessTui(run bool) {
 		})
 
 	extInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.Color16).
+		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetLabelColor(tcell.ColorWhite).
-		SetText(strings.Join(WhiteListExtensions, ",")).
+		SetText(strings.Join(AllowListExtensions, ",")).
 		SetFieldWidth(10).
 		SetAcceptanceFunc(func(text string, c rune) bool {
 			if c == ' ' {
@@ -225,9 +225,9 @@ func ProcessTui(run bool) {
 		}).
 		SetChangedFunc(func(text string) {
 			if strings.TrimSpace(text) == "" {
-				WhiteListExtensions = []string{}
+				AllowListExtensions = []string{}
 			} else {
-				WhiteListExtensions = strings.Split(text, ",")
+				AllowListExtensions = strings.Split(text, ",")
 			}
 
 			eventChan <- lastSearch

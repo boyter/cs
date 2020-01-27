@@ -83,7 +83,7 @@ func main() {
 		"set output format [text, json]",
 	)
 	flags.StringSliceVarP(
-		&processor.WhiteListExtensions,
+		&processor.AllowListExtensions,
 		"include-ext",
 		"i",
 		[]string{},
