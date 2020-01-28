@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"github.com/boyter/cs/processor/snippet"
 	"math"
 	"sort"
 	"strings"
@@ -18,13 +19,12 @@ func RankResultsVectorSpace(searchTerms []string, results []*FileJob) []*FileJob
 }
 
 func RankResultsTitle(searchTerms []string, results []*FileJob) []*FileJob {
-
 	for i := 0; i < len(results); i++ {
+		loc := strings.ToLower(results[i].Location)
 		for _, s := range searchTerms {
-			if strings.Contains(results[i].Location, s) {
-				// Boost the rank slightly
-				results[i].Score = results[i].Score * 1.1
-			}
+			t := snippet.ExtractLocations([]string{strings.ToLower(s)}, loc)
+			// Boost the rank slightly based on number of matches
+			results[i].Score = results[i].Score * (0.05 * float64(len(t)))
 		}
 	}
 
