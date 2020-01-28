@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell"
@@ -109,7 +110,8 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 	}
 
 	var resultText string
-	resultText += strconv.Itoa(len(results)) + " result(s) for '" + searchTerm + "' " + inProgress + "\n\n"
+	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, atomic.LoadInt64(&TotalCount), inProgress)
+
 
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"

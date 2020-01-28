@@ -23,6 +23,7 @@ var MatchLimit = 100
 // that read files from disk into memory
 func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 	var wg sync.WaitGroup
+	TotalCount = 0
 	for i := 0; i < FileReadJobWorkers; i++ {
 		wg.Add(1)
 
@@ -57,6 +58,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 				}
 
 				if err == nil {
+					atomic.AddInt64(&TotalCount, 1)
 					res.Content = content
 					output <- res
 				} else {
@@ -76,6 +78,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 // Does the actual processing of stats and as such contains the hot path CPU call
 func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	var wg sync.WaitGroup
+
 	for i := 0; i < FileProcessJobWorkers; i++ {
 		wg.Add(1)
 
@@ -94,7 +97,6 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 				}
 
 				if !res.Binary && res.Score != 0 {
-					atomic.AddInt64(&TotalCount, 1)
 					output <- res
 				} else {
 					if Verbose {
