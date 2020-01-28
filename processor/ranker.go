@@ -7,17 +7,25 @@ import (
 	"strings"
 )
 
+// Takes in the search terms and results and applies chained
+// ranking over them to produce a score
+// Note that this method will evolve over time
+// and as such you should never rely on the returned results being
+// the same over time
 func RankResults(searchTerms []string, results []*FileJob) []*FileJob {
-	// TODO blend rankers if possible
 	results = RankResultsTFIDF(searchTerms, results)
 	results = RankResultsLocation(searchTerms, results)
 	return results
 }
 
-func RankResultsVectorSpace(searchTerms []string, results []*FileJob) []*FileJob {
-	return results
-}
+// Base value used to determine how much location matches
+// should be boosted by
+var LocationBoostValue = 0.05
 
+// Given the results will boost the rank of them based on matches in the
+// file location field.
+// This is not using TF-IDF or any fancy algorithm just basic checks
+// and boosts
 func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
 	for i := 0; i < len(results); i++ {
 		loc := strings.ToLower(results[i].Location)
@@ -36,22 +44,35 @@ func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
 					results[i].Score = 0.1
 				}
 
+				// Set the score to be itself * 1.something where something
+				// is 0.05 times the number of matches * the length of the match
+				// so if the user searches for test a file in the location
+				// /test/test.go
+				// will be boosted and have a higher rank than
+				// /test/other.go
+				//
+				// Of course this assumes that they have the text test in the
+				// content otherwise the match is discarded
 				results[i].Score = results[i].Score * (
 					1.0 +
-						(0.05 * float64(len(t)) * float64(len(s))))
+						(LocationBoostValue * float64(len(t)) * float64(len(s))))
 			}
 		}
 
-		// if we found multiple types, boost yet again to reward better matches
+		// If we found multiple terms (assuming we have multiple), boost yet again to
+		// reward matches which have multiple matches
 		if foundTerms > 1 {
-			results[i].Score = results[i].Score * (1 + 0.05 * float64(foundTerms))
+			results[i].Score = results[i].Score * (1 + LocationBoostValue*float64(foundTerms))
 		}
 	}
 
 	return results
 }
 
-// TF-IDF ranking of results
+// TF-IDF implementation which ranks the results
+// Technically this is not a real TF-IDF because we don't
+// have counts of terms for documents that don't match
+// so the IDF value is not correctly calculated
 func RankResultsTFIDF(searchTerms []string, results []*FileJob) []*FileJob {
 	idf := map[string]int{}
 	for _, r := range results {
@@ -73,8 +94,10 @@ func RankResultsTFIDF(searchTerms []string, results []*FileJob) []*FileJob {
 	return results
 }
 
-// Sort a slice of filejob results based on their score and then location to stop
-// any undeterministic ordering happening
+// Sort a slice of filejob results based on their score for displaying
+// and then sort based on location to stop any undeterministic ordering happening
+// as since the location includes the filename we should never have two matches
+// that are 100% equal based on the two criteria we use.
 func SortResults(results []*FileJob) {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Score == results[j].Score {
