@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/boyter/cs/processor"
+	sccprocessor "github.com/boyter/scc/processor"
 	"github.com/spf13/cobra"
 	"os"
-	sccprocessor "github.com/boyter/scc/processor"
 )
 
 func main() {
@@ -14,8 +14,8 @@ func main() {
 
 	rootCmd := &cobra.Command{
 		Use:     "cs",
-		Long:    "cs code search command line.\nBen Boyter <ben@boyter.org> and Pamela Gangopadhyay <pamela.gangopadhyay@gmail.com>",
-		Version: "0.0.1",
+		Long:    "cs code search command line.\nBen Boyter <ben@boyter.org>",
+		Version: "0.0.3",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
 			sccprocessor.ProcessConstants()

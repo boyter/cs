@@ -20,3 +20,20 @@ try using sc and its right at the top
 5. ignore minified/generated files
 6. display the number of processed files
 7. be able to look though the results using keys
+
+
+interesting bug
+
+# bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/lendlease_corp/chelsea-datalake-go on git:master x [11:28:56]
+$ cs javascript
+fargate/api/integration_tests/blns.json (1.980)
+…86expression(javascript:alert(1)\">DEF",
+    "ABC<div style=\"x:\\xE2\\x80\\x85expression(javascript:alert(1)\">DEF",
+    "ABC<div style=\"x:\\xE2\\x80\\x82expression(javascript:alert(1)\">DEF",
+    "ABC<div style=\"x:\\x0Bexpression(javascript:alert(1…
+
+fargate/xray-api/integration_tests/blns.json (1.980)
+…86expression(javascript:alert(1)\">DEF",
+    "ABC<div style=\"x:\\xE2\\x80\\x85expression(javascript:alert(1)\">DEF",
+    "ABC<div style=\"x:\\xE2\\x80\\x82expression(javascript:alert(1)\">DEF",
+    "ABC<div style=\"x:\\x0Bexpression(javascript:alert(1…

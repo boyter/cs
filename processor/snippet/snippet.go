@@ -88,7 +88,7 @@ func determineSnipLocations(locations []LocationType, previousCount int) int {
 	if locCount > 2 {
 		// We don't need to iterate the last value in this so chop off the last one
 		// however note that we access the element anyway as that's how the inner loop works
-		for i := 0; i < locCount - 1; i++ {
+		for i := 0; i < locCount-1; i++ {
 
 			// We don't need to worry about the +1 out of bounds here
 			// because we never loop the last term as the result
@@ -147,6 +147,24 @@ func CalculatePrevCount(relLength int, divisor int) int {
 	}
 
 	return t
+}
+
+// When we use the ExtractRelevant method it is possible that it cut on things that were inserted
+// using the WriteHighlights method which might make the output look odd. This method attempts to fix
+// the issue by removing partial matches on the edges
+func PatchRelevant(relevant, in, out, indicator string) string {
+	if in == "" && out == "" {
+		return relevant
+	}
+
+	//// if the indicator
+	//start := len(indicator)
+	//
+	//for i := range relevant {
+	//
+	//}
+
+	return relevant
 }
 
 func ExtractRelevant(fulltext string, locations []LocationType, relLength int, prevCount int, indicator string) string {

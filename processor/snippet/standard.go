@@ -1,4 +1,4 @@
-package printer
+package snippet
 
 import (
 	"strings"
@@ -7,7 +7,7 @@ import (
 // WriteColoured takes in some content and locations and then inserts in/out
 // strings which can be used for highlighting around matching terms. For example
 // you could pass in "test" and have it return "<strong>te</strong>st"
-func WriteColored(content []byte, locations map[string][]int, in string, out string) string {
+func WriteHighlights(content []byte, locations map[string][]int, in string, out string) string {
 	var str strings.Builder
 
 	end := -1

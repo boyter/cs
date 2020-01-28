@@ -62,7 +62,7 @@ func fileSummarize(input chan *FileJob) string {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
 		locations := GetResultLocations(res)
-		coloredContent := printer.WriteColored(res.Content, res.Locations, fmtBegin, fmtEnd)
+		coloredContent := printer.WriteHighlights(res.Content, res.Locations, fmtBegin, fmtEnd)
 		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.CalculatePrevCount(int(SnippetLength), 6), "…")
 
 		fmt.Println(rel)
@@ -196,7 +196,6 @@ func TestGetPrevCount(t *testing.T) {
 		t.Error("Expected 50 got", got)
 	}
 }
-
 
 // Designed to catch out any issues with unicode and the like
 func TestFuzzy(t *testing.T) {

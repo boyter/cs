@@ -23,7 +23,7 @@ func (h *initialPatternHolder) add(pattern string) {
 	if trimedPattern == "" {
 		return
 	}
-	
+
 	if strings.IndexAny(trimedPattern[0:1], initials) != -1 {
 		h.patterns.set(trimedPattern[0], newPatternForEqualizedPath(pattern))
 	} else {

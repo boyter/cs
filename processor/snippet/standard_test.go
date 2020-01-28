@@ -1,4 +1,4 @@
-package printer
+package snippet
 
 import "testing"
 
@@ -6,7 +6,7 @@ func TestWriteColoredSimple(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0}
 
-	got := WriteColored([]byte("this"), loc, "[red]", "[white]")
+	got := WriteHighlights([]byte("this"), loc, "[red]", "[white]")
 
 	expected := "[red]this[white]"
 	if got != expected {
@@ -18,7 +18,7 @@ func TestWriteColoredTermSimple(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0}
 
-	got := WriteColored([]byte("this"), loc, "\033[1;31m", "\033[0m")
+	got := WriteHighlights([]byte("this"), loc, "\033[1;31m", "\033[0m")
 
 	expected := "\033[1;31mthis\033[0m"
 	if got != expected {
@@ -30,7 +30,7 @@ func TestWriteColoredCheckInOut(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0}
 
-	got := WriteColored([]byte("this"), loc, "__", "__")
+	got := WriteHighlights([]byte("this"), loc, "__", "__")
 
 	expected := "__this__"
 	if got != expected {
@@ -42,7 +42,7 @@ func TestWriteColoredCheck2(t *testing.T) {
 	loc := map[string][]int{}
 	loc["bing"] = []int{0}
 
-	got := WriteColored([]byte("bing"), loc, "__", "__")
+	got := WriteHighlights([]byte("bing"), loc, "__", "__")
 
 	expected := "__bing__"
 	if got != expected {
@@ -54,7 +54,7 @@ func TestWriteColoredCheckTwoWords(t *testing.T) {
 	loc := map[string][]int{}
 	loc["this"] = []int{0, 5}
 
-	got := WriteColored([]byte("this this"), loc, "__", "__")
+	got := WriteHighlights([]byte("this this"), loc, "__", "__")
 
 	expected := "__this__ __this__"
 	if got != expected {
@@ -67,7 +67,7 @@ func TestWriteColoredCheckMixedWords(t *testing.T) {
 	loc["this"] = []int{0, 5}
 	loc["something"] = []int{10}
 
-	got := WriteColored([]byte("this this something"), loc, "__", "__")
+	got := WriteHighlights([]byte("this this something"), loc, "__", "__")
 
 	expected := "__this__ __this__ __something__"
 	if got != expected {
@@ -80,7 +80,7 @@ func TestWriteColoredCaseCheck(t *testing.T) {
 	loc["this"] = []int{0}
 	loc["t"] = []int{0}
 
-	got := WriteColored([]byte("THIS"), loc, "__", "__")
+	got := WriteHighlights([]byte("THIS"), loc, "__", "__")
 
 	expected := "__THIS__"
 	if got != expected {
@@ -93,7 +93,7 @@ func TestWriteColoredOverlapStart(t *testing.T) {
 	loc["this"] = []int{0}
 	loc["t"] = []int{0}
 
-	got := WriteColored([]byte("this"), loc, "__", "__")
+	got := WriteHighlights([]byte("this"), loc, "__", "__")
 
 	expected := "__this__"
 	if got != expected {
@@ -106,7 +106,7 @@ func TestWriteColoredOverlapMiddle(t *testing.T) {
 	loc["this"] = []int{0}
 	loc["h"] = []int{1}
 
-	got := WriteColored([]byte("this"), loc, "__", "__")
+	got := WriteHighlights([]byte("this"), loc, "__", "__")
 
 	expected := "__this__"
 	if got != expected {
@@ -119,7 +119,7 @@ func TestWriteColoredOverlapMiddleLonger(t *testing.T) {
 	loc["th"] = []int{0}
 	loc["his"] = []int{1}
 
-	got := WriteColored([]byte("this"), loc, "__", "__")
+	got := WriteHighlights([]byte("this"), loc, "__", "__")
 
 	expected := "__this__"
 	if got != expected {
@@ -131,7 +131,7 @@ func TestBugOne(t *testing.T) {
 	loc := map[string][]int{}
 	loc["expected"] = []int{10}
 
-	got := WriteColored([]byte("this is unexpected"), loc, "__", "__")
+	got := WriteHighlights([]byte("this is unexpected"), loc, "__", "__")
 
 	expected := "this is un__expected__"
 	if got != expected {
@@ -144,7 +144,7 @@ func TestBugTwo(t *testing.T) {
 	loc["got"] = []int{22, 71, 77}
 	loc["expected"] = []int{0, 29}
 
-	got := WriteColored([]byte(`expected := "this" if got != expected { t.Error("Expected", expected, "got", got)}`), loc, "[red]", "[white]")
+	got := WriteHighlights([]byte(`expected := "this" if got != expected { t.Error("Expected", expected, "got", got)}`), loc, "[red]", "[white]")
 
 	expected := `[red]expected[white] := "this" if [red]got[white] != [red]expected[white] { t.Error("Expected", expected, "[red]got[white]", [red]got[white])}`
 	if got != expected {
@@ -157,7 +157,7 @@ func TestBugThree(t *testing.T) {
 	loc[`"`] = []int{5, 8}
 	loc[`",`] = []int{8}
 
-	got := WriteColored([]byte(`Use: "cs",`), loc, "[red]", "[white]")
+	got := WriteHighlights([]byte(`Use: "cs",`), loc, "[red]", "[white]")
 
 	expected := `Use: [red]"[white]cs[red]",[white]`
 	if got != expected {

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boyter/cs/processor/printer"
 	"github.com/boyter/cs/processor/snippet"
 	"github.com/fatih/color"
 )
@@ -39,7 +38,7 @@ func fileSummarize(input chan *FileJob) string {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
 		locations := GetResultLocations(res)
-		coloredContent := printer.WriteColored(res.Content, res.Locations, fmtBegin, fmtEnd)
+		coloredContent := snippet.WriteHighlights(res.Content, res.Locations, fmtBegin, fmtEnd)
 		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.CalculatePrevCount(int(SnippetLength), 6), "…")
 
 		fmt.Println(rel)

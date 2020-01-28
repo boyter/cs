@@ -2,7 +2,6 @@ package processor
 
 import (
 	"fmt"
-	"github.com/boyter/cs/processor/printer"
 	"github.com/boyter/cs/processor/snippet"
 	"runtime"
 	"strconv"
@@ -13,7 +12,6 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 )
-
 
 func debounce(interval time.Duration, input chan string, app *tview.Application, textView *tview.TextView, cb func(app *tview.Application, textView *tview.TextView, arg string)) {
 	var item string
@@ -124,7 +122,7 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		locations := GetResultLocations(res)
-		coloredContent := printer.WriteColored(res.Content, res.Locations, "[red]", "[white]")
+		coloredContent := snippet.WriteHighlights(res.Content, res.Locations, "[red]", "[white]")
 		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
 		resultText += rel + "\n\n"
