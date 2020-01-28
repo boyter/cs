@@ -24,7 +24,7 @@ try using sc and its right at the top
 
 interesting bug
 
-# bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/lendlease_corp/chelsea-datalake-go on git:master x [11:28:56]
+# bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]
 $ cs javascript
 fargate/api/integration_tests/blns.json (1.980)
 …86expression(javascript:alert(1)\">DEF",
