@@ -10,7 +10,7 @@ import (
 func RankResults(searchTerms []string, results []*FileJob) []*FileJob {
 	// TODO blend rankers if possible
 	results = RankResultsTFIDF(searchTerms, results)
-	results = RankResultsTitle(searchTerms, results)
+	results = RankResultsLocation(searchTerms, results)
 	return results
 }
 
@@ -18,13 +18,33 @@ func RankResultsVectorSpace(searchTerms []string, results []*FileJob) []*FileJob
 	return results
 }
 
-func RankResultsTitle(searchTerms []string, results []*FileJob) []*FileJob {
+func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
 	for i := 0; i < len(results); i++ {
 		loc := strings.ToLower(results[i].Location)
+		foundTerms := 0
 		for _, s := range searchTerms {
 			t := snippet.ExtractLocations([]string{strings.ToLower(s)}, loc)
-			// Boost the rank slightly based on number of matches
-			results[i].Score = results[i].Score * (0.05 * float64(len(t)))
+
+			// Boost the rank slightly based on number of matches and on
+			// how long a match it is as we should reward longer matches
+			if len(t) != 0 && t[0] != 0 {
+				foundTerms++
+
+				// If the rank is ever 0 than nothing will change, so set it
+				// to a small value to at least introduce some ranking here
+				if results[i].Score == 0 {
+					results[i].Score = 0.1
+				}
+
+				results[i].Score = results[i].Score * (
+					1.0 +
+						(0.05 * float64(len(t)) * float64(len(s))))
+			}
+		}
+
+		// if we found multiple types, boost yet again to reward better matches
+		if foundTerms > 1 {
+			results[i].Score = results[i].Score * (1 + 0.05 * float64(foundTerms))
 		}
 	}
 
