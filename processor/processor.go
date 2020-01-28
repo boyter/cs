@@ -24,6 +24,9 @@ var Trace = false
 // Trace enables error logging output
 var Error = true
 
+// Number of bytes per average line to determine file is minified/generated
+var MinifiedGeneratedLineByteLength = 255
+
 // Disables .gitignore checks
 var GitIgnore = false
 

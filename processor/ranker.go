@@ -73,6 +73,7 @@ func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
 // Technically this is not a real TF-IDF because we don't
 // have counts of terms for documents that don't match
 // so the IDF value is not correctly calculated
+// https://en.wikipedia.org/wiki/Tf-idf
 func RankResultsTFIDF(searchTerms []string, results []*FileJob) []*FileJob {
 	idf := map[string]int{}
 	for _, r := range results {

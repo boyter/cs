@@ -87,16 +87,28 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 				if bytes.IndexByte(res.Content, '\x00') != -1 {
 					res.Binary = true
 				} else {
-					// what we need to do is check for each term if it exists, and then use that to determine if its a match
-					contentLower := strings.ToLower(string(res.Content))
 
-					// https://blog.gopheracademy.com/advent-2014/string-matching/
-					if processMatches(res, contentLower) {
-						return
+					// Check if the file is minified and if so ignore it
+					split := bytes.Split(res.Content, []byte("\n"))
+					sumLineLength := 0
+					for _, s := range split {
+						sumLineLength += len(s)
+					}
+					averageLineLength := sumLineLength / len(split)
+
+					if averageLineLength < MinifiedGeneratedLineByteLength {
+						// what we need to do is check for each term if it exists, and then use that to determine if its a match
+						contentLower := strings.ToLower(string(res.Content))
+						// https://blog.gopheracademy.com/advent-2014/string-matching/
+						if processMatches(res, contentLower) {
+							return
+						}
+					} else {
+						res.Minified = true
 					}
 				}
 
-				if !res.Binary && res.Score != 0 {
+				if !res.Minified && !res.Binary && res.Score != 0 {
 					output <- res
 				} else {
 					if Verbose {

@@ -11,6 +11,7 @@ type FileJob struct {
 	Binary    bool
 	Score     float64
 	Locations map[string][]int
+	Minified  bool
 }
 
 type JsonResult struct {

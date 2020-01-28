@@ -26,7 +26,13 @@ func walkDirectory(directory string, fileListQueue chan *FileJob) error {
 	return err
 }
 
+// Walks a directory recursively using gitignore/ignore files to ignore files and directories
+// as well as using extension checks to ensure only files that should be processed are
+// let though.
 func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher, fileListQueue chan *FileJob) error {
+	// Because this can work in a interactive mode we need a way to be able
+	// to stop walking such as when the user starts a new search which this return should
+	// take care of
 	if TerminateWalking.IsSet() == true {
 		return nil
 	}
@@ -40,6 +46,9 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 	files := []os.FileInfo{}
 	dirs := []os.FileInfo{}
 
+	// We want to break apart the files and directories from the
+	// return as we loop over them differently and this avoids some
+	// nested if logic at the expense of a "redundant" loop
 	for _, file := range fileInfos {
 		if file.IsDir() {
 			dirs = append(dirs, file)
@@ -48,6 +57,9 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 		}
 	}
 
+	// Pull out all of the ignore and gitignore files and add them
+	// to out collection of ignores to be applied for this pass
+	// and later on
 	for _, file := range files {
 		if file.Name() == ".gitignore" || file.Name() == ".ignore" {
 			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
@@ -69,7 +81,8 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 			language, ext := sccprocessor.DetectLanguage(file.Name())
 
 			// At this point we have passed all the ignore file checks
-			// so now we are checking if there
+			// so now we are checking if there are extensions we should
+			// be looking for
 			if len(AllowListExtensions) != 0 {
 				shouldIgnore = true
 				for _, e := range AllowListExtensions {
@@ -79,6 +92,9 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 				}
 			}
 
+			// We need to check the #! because any file without an extension is
+			// considered a possible #! file
+			// TODO we should allow those though and handle it later on
 			if !shouldIgnore && len(language) != 0 && language[0] != "#!" {
 				fileListQueue <- &FileJob{
 					Location:  filepath.Join(directory, file.Name()),

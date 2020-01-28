@@ -15,7 +15,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:     "cs",
 		Long:    "cs code search command line.\nBen Boyter <ben@boyter.org>",
-		Version: "0.0.3",
+		Version: "0.0.4",
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
 			sccprocessor.ProcessConstants()
@@ -116,6 +116,12 @@ func main() {
 		"v",
 		false,
 		"verbose output",
+	)
+	flags.IntVar(
+		&processor.MinifiedGeneratedLineByteLength,
+		"min-gen-line-length",
+		255,
+		"number of bytes per average line for file to be considered minified or generated",
 	)
 
 	if err := rootCmd.Execute(); err != nil {
