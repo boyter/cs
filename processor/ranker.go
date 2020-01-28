@@ -6,16 +6,33 @@ import (
 	"strings"
 )
 
-func RankResults(results []*FileJob) []*FileJob {
-	return RankResultsTFIDF(results)
+func RankResults(searchTerms []string, results []*FileJob) []*FileJob {
+	// TODO blend rankers if possible
+	results = RankResultsTFIDF(searchTerms, results)
+	results = RankResultsTitle(searchTerms, results)
+	return results
 }
 
-func RankResultsVectorSpace(results []*FileJob) []*FileJob {
+func RankResultsVectorSpace(searchTerms []string, results []*FileJob) []*FileJob {
+	return results
+}
+
+func RankResultsTitle(searchTerms []string, results []*FileJob) []*FileJob {
+
+	for i := 0; i < len(results); i++ {
+		for _, s := range searchTerms {
+			if strings.Contains(results[i].Location, s) {
+				// Boost the rank slightly
+				results[i].Score = results[i].Score * 1.1
+			}
+		}
+	}
+
 	return results
 }
 
 // TF-IDF ranking of results
-func RankResultsTFIDF(results []*FileJob) []*FileJob {
+func RankResultsTFIDF(searchTerms []string, results []*FileJob) []*FileJob {
 	idf := map[string]int{}
 	for _, r := range results {
 		for k := range r.Locations {

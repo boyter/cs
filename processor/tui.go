@@ -29,6 +29,8 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 	}
 }
 
+
+
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 
 	// At this point we need to stop the background process that is running and wait for it to finish
@@ -63,22 +65,21 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	results := []*FileJob{}
 	reset := makeTimestampMilli()
 
-	var spinLoc int
+	var spinLocation int
 	update := true
 	spinString := `\|/-`
 
 	// NB this is not safe because results has no lock
 	go func() {
-
 		for update {
 			// Every 100 ms redraw
 			if makeTimestampMilli()-reset >= 100 {
-				drawResults(app, results, textView, searchTerm, string(spinString[spinLoc]))
+				drawResults(app, results, textView, searchTerm, string(spinString[spinLocation]))
 				reset = makeTimestampMilli()
-				spinLoc++
+				spinLocation++
 
-				if spinLoc >= len(spinString) {
-					spinLoc = 0
+				if spinLocation >= len(spinString) {
+					spinLocation = 0
 				}
 			}
 
@@ -87,6 +88,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 			}
 		}
 	}()
+
 
 	for res := range fileSummaryJobQueue {
 		results = append(results, res)
@@ -97,7 +99,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 }
 
 func drawResults(app *tview.Application, results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
-	RankResults(results)
+	RankResults(SearchString, results)
 	SortResults(results)
 
 	if int64(len(results)) >= TotalCount {
