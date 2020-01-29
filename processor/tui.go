@@ -204,11 +204,11 @@ func ProcessTui(run bool) {
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			case tcell.KeyUp:
-				SnippetLength = min(SnippetLength+50, 2000)
+				SnippetLength = min(SnippetLength+50, 8000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			case tcell.KeyPgUp:
-				SnippetLength = min(SnippetLength+200, 2000)
+				SnippetLength = min(SnippetLength+200, 8000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
 			case tcell.KeyDown:
