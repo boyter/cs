@@ -117,11 +117,17 @@ func main() {
 		false,
 		"verbose output",
 	)
+	flags.BoolVar(
+		&processor.IncludeMinified,
+		"include-min",
+		false,
+		"include minified files",
+	)
 	flags.IntVar(
-		&processor.MinifiedGeneratedLineByteLength,
-		"min-gen-line-length",
+		&processor.MinifiedLineByteLength,
+		"min-line-length",
 		255,
-		"number of bytes per average line for file to be considered minified or generated",
+		"number of bytes per average line for file to be considered minified",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

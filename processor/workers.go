@@ -86,8 +86,10 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 			for res := range input {
 				if bytes.IndexByte(res.Content, '\x00') != -1 {
 					res.Binary = true
-				} else {
+					continue
+				}
 
+				if !IncludeMinified {
 					// Check if the file is minified and if so ignore it
 					split := bytes.Split(res.Content, []byte("\n"))
 					sumLineLength := 0
@@ -96,28 +98,22 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 					}
 					averageLineLength := sumLineLength / len(split)
 
-					if averageLineLength < MinifiedGeneratedLineByteLength {
-						// what we need to do is check for each term if it exists, and then use that to determine if its a match
-						contentLower := strings.ToLower(string(res.Content))
-						// https://blog.gopheracademy.com/advent-2014/string-matching/
-						if processMatches(res, contentLower) {
-							return
-						}
-					} else {
+					if averageLineLength > MinifiedLineByteLength {
 						res.Minified = true
+						continue
 					}
 				}
 
-				if !res.Minified && !res.Binary && res.Score != 0 {
+				// what we need to do is check for each term if it exists, and then use that to determine if its a match
+				contentLower := strings.ToLower(string(res.Content))
+				// Potentially look into other string matching methods if we need the speed
+				// https://blog.gopheracademy.com/advent-2014/string-matching/
+				if processMatches(res, contentLower) {
+					continue
+				}
+
+				if res.Score != 0 {
 					output <- res
-				} else {
-					if Verbose {
-						if res.Binary {
-							printWarn(fmt.Sprintf("skipping file identified as binary: %s", res.Location))
-						} else {
-							printWarn(fmt.Sprintf("skipping file due to no match: %s", res.Location))
-						}
-					}
 				}
 			}
 			wg.Done()
@@ -130,7 +126,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 func processMatches(res *FileJob, contentLower string) bool {
 	for i, term := range SearchString {
-		// Currently only NOT does anything as the rest
+		// Currently only NOT does anything as the rest are just ignored
 		if term == "AND" || term == "OR" || term == "NOT" {
 			continue
 		}
