@@ -53,9 +53,8 @@ func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
 				//
 				// Of course this assumes that they have the text test in the
 				// content otherwise the match is discarded
-				results[i].Score = results[i].Score * (
-					1.0 +
-						(LocationBoostValue * float64(len(t)) * float64(len(s))))
+				results[i].Score = results[i].Score * (1.0 +
+					(LocationBoostValue * float64(len(t)) * float64(len(s))))
 			}
 		}
 

@@ -35,9 +35,9 @@ func TestRanker(t *testing.T) {
 func TestRankResultsLocation(t *testing.T) {
 	results := []*FileJob{
 		{
-			Filename:  "test.go",
-			Location:  "/this/matches/something/test.go",
-			Score:     0,
+			Filename: "test.go",
+			Location: "/this/matches/something/test.go",
+			Score:    0,
 		},
 	}
 	ranked := RankResultsLocation([]string{"something"}, results)
@@ -50,14 +50,14 @@ func TestRankResultsLocation(t *testing.T) {
 func TestRankResultsLocationScoreCheck(t *testing.T) {
 	results := []*FileJob{
 		{
-			Filename:  "test1.go",
-			Location:  "/this/matches/something/test1.go",
-			Score:     0,
+			Filename: "test1.go",
+			Location: "/this/matches/something/test1.go",
+			Score:    0,
 		},
 		{
-			Filename:  "test2.go",
-			Location:  "/this/matches/something/test2.go",
-			Score:     0,
+			Filename: "test2.go",
+			Location: "/this/matches/something/test2.go",
+			Score:    0,
 		},
 	}
 	ranked := RankResultsLocation([]string{"something", "test1"}, results)
