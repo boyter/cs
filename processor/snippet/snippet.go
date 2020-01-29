@@ -11,6 +11,11 @@ type LocationType struct {
 	Location int
 }
 
+type SnipLocation struct {
+	Location  int
+	DiffScore int
+}
+
 // Extracts all of the locations of a string inside another string
 // upto the defined limit and does so without regular expressions
 // which  makes it about 3x more efficient
@@ -79,10 +84,11 @@ func ExtractLocations(words []string, fulltext string) []int {
 // first as will be equally distant.
 //
 // NB makes the assumption that the locations are already sorted
-func determineSnipLocations(locations []LocationType, previousCount int) int {
+func determineSnipLocations(locations []LocationType, previousCount int) (int, []SnipLocation) {
 	startPos := locations[0].Location
 	locCount := len(locations)
 	smallestDiff := math.MaxInt32
+	snipLocations := []SnipLocation{}
 
 	var diff int
 	if locCount > 2 {
@@ -105,6 +111,11 @@ func determineSnipLocations(locations []LocationType, previousCount int) int {
 				}
 			}
 
+			snipLocations = append(snipLocations, SnipLocation{
+				Location:  locations[i].Location,
+				DiffScore: diff,
+			})
+
 			// If the terms are closer together and the previous set then
 			// change this to be the location we want the snippet to be made from as its likely
 			// to have better context as the terms should appear together or at least close
@@ -121,7 +132,7 @@ func determineSnipLocations(locations []LocationType, previousCount int) int {
 		startPos = 0
 	}
 
-	return startPos
+	return startPos, snipLocations
 }
 
 // A 1/6 ratio on tends to work pretty well and puts the terms
@@ -174,7 +185,7 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		return fulltext
 	}
 
-	startPos := determineSnipLocations(locations, prevCount)
+	startPos, _ := determineSnipLocations(locations, prevCount)
 
 	// If we are about to snip beyond the locations then dial it back
 	// do we don't get a slice exception
