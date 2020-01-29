@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var Version = "0.0.5 alpha"
+
 // Flags set via the CLI which control how the output is displayed
 
 // Files indicates if there should be file output or not when formatting
