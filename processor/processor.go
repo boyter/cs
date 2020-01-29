@@ -80,7 +80,9 @@ var ResultLimit int64 = 0
 // How many characters out of the file to display in snippets
 var SnippetLength int64 = 0
 
-// Clean up the input
+// Clean up the input to avoid searching for spaces etc...
+// Take the string cut it up, lower case everything except
+// boolean operators and join it all back into the same slice
 func CleanSearchString() {
 	tmp := []string{}
 
@@ -99,7 +101,7 @@ func CleanSearchString() {
 	SearchString = tmp
 }
 
-// Process is the main entry point of the command line it sets everything up and starts running
+// Process is the main entry point of the command line output it sets everything up and starts running
 func Process() {
 	CleanSearchString()
 

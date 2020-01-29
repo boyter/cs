@@ -22,6 +22,8 @@ func main() {
 			processor.SearchString = args
 			sccprocessor.ProcessConstants()
 
+			// If there are arguments we want to print straight out to the console
+			// otherwise we should enter interactive tui mode
 			if len(processor.SearchString) != 0 {
 				processor.Process()
 			} else {
