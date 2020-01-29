@@ -165,7 +165,16 @@ func ProcessTui(run bool) {
 	textView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
-		ScrollToBeginning()
+		SetScrollable(true).
+		ScrollToBeginning().
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(inputField)
+			case tcell.KeyBacktab:
+				app.SetFocus(snippetInputField)
+			}
+		})
 
 	snippetInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorDefault).
@@ -189,7 +198,7 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(inputField)
+				app.SetFocus(textView)
 			case tcell.KeyBacktab:
 				app.SetFocus(extInputField)
 			case tcell.KeyEnter:
@@ -265,7 +274,7 @@ func ProcessTui(run bool) {
 			case tcell.KeyTab:
 				app.SetFocus(extInputField)
 			case tcell.KeyBacktab:
-				app.SetFocus(snippetInputField)
+				app.SetFocus(textView)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			}
