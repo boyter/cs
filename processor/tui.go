@@ -29,8 +29,6 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 	}
 }
 
-
-
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 
 	// At this point we need to stop the background process that is running and wait for it to finish
@@ -89,7 +87,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		}
 	}()
 
-
 	for res := range fileSummaryJobQueue {
 		results = append(results, res)
 	}
@@ -113,7 +110,6 @@ func drawResults(app *tview.Application, results []*FileJob, textView *tview.Tex
 
 	var resultText string
 	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, atomic.LoadInt64(&TotalCount), inProgress)
-
 
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
@@ -150,17 +146,31 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 
 var textMutex sync.Mutex
 
+const (
+	SearchMode    string = " > search mode"
+	ExtensionMode string = " > extension mode"
+	SnippetMode   string = " > snippet mode"
+	TextMode      string = " > text mode"
+)
+
 // Param actually runs things which is only used for getting test coverage
 func ProcessTui(run bool) {
 	app := tview.NewApplication()
 
 	var textView *tview.TextView
+	var statusView *tview.InputField
 	var inputField *tview.InputField
 	var extInputField *tview.InputField
 	var snippetInputField *tview.InputField
 	var lastSearch string
 
 	eventChan := make(chan string)
+
+	// For displaying status of where you are
+	statusView = tview.NewInputField().
+		SetFieldBackgroundColor(tcell.ColorGreen).
+		SetFieldTextColor(tcell.ColorBlack).
+		SetText(SearchMode)
 
 	textView = tview.NewTextView().
 		SetDynamicColors(true).
@@ -171,8 +181,10 @@ func ProcessTui(run bool) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(inputField)
+				statusView.SetText(SearchMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
 			}
 		})
 
@@ -199,8 +211,10 @@ func ProcessTui(run bool) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(textView)
+				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(extInputField)
+				statusView.SetText(ExtensionMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			case tcell.KeyUp:
@@ -247,8 +261,10 @@ func ProcessTui(run bool) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(inputField)
+				statusView.SetText(SearchMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			}
@@ -273,8 +289,10 @@ func ProcessTui(run bool) {
 			switch key {
 			case tcell.KeyTab:
 				app.SetFocus(extInputField)
+				statusView.SetText(ExtensionMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(textView)
+				statusView.SetText(TextMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			}
@@ -287,7 +305,9 @@ func ProcessTui(run bool) {
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
-		AddItem(textView, 0, 3, false)
+		AddItem(textView, 0, 3, false).
+		AddItem(statusView, 1, 0, false).
+		AddItem(nil, 1, 0, false)
 
 	// Start the debounce after everything else is setup and leave it running
 	// forever in the background
