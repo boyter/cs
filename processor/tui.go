@@ -147,11 +147,12 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 var textMutex sync.Mutex
 
 const (
-	SearchMode    string = " > search box"
-	ExtensionMode string = " > extension filter ('go' 'go,java')"
-	SnippetMode   string = " > snippet size selector"
-	FuzzyMode     string = " > fuzzy search toggle"
-	TextMode      string = " > text scroll"
+	SearchMode          string = " > search box"
+	LocationExcludeMode string = " > location exclusion"
+	ExtensionMode       string = " > extension filter ('go' 'go,java')"
+	SnippetMode         string = " > snippet size selector"
+	FuzzyMode           string = " > fuzzy search toggle"
+	TextMode            string = " > text scroll"
 )
 
 // Param actually runs things which is only used for getting test coverage
@@ -160,9 +161,10 @@ func ProcessTui(run bool) {
 
 	var textView *tview.TextView
 	var statusView *tview.InputField
-	var inputField *tview.InputField
-	var extInputField *tview.InputField
+	var searchInputField *tview.InputField
+	var extensionInputField *tview.InputField
 	var snippetInputField *tview.InputField
+	var excludeInputField *tview.InputField
 	var fuzzyCheckbox *tview.Checkbox
 	var lastSearch string
 
@@ -182,7 +184,7 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(inputField)
+				app.SetFocus(searchInputField)
 				statusView.SetText(SearchMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(fuzzyCheckbox)
@@ -215,7 +217,7 @@ func ProcessTui(run bool) {
 				app.SetFocus(fuzzyCheckbox)
 				statusView.SetText(FuzzyMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(extInputField)
+				app.SetFocus(extensionInputField)
 				statusView.SetText(ExtensionMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
@@ -238,8 +240,37 @@ func ProcessTui(run bool) {
 			}
 		})
 
-	extInputField = tview.NewInputField().
+	excludeInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetText(strings.Join(LocationExcludePattern, ",")).
+		SetFieldWidth(10).
+		SetChangedFunc(func(text string) {
+			text = strings.TrimSpace(text)
+
+			t := []string{}
+			for _, s := range strings.Split(text, ",") {
+				if strings.TrimSpace(s) != "" {
+					t = append(t, strings.TrimSpace(s))
+				}
+			}
+			LocationExcludePattern = t
+
+			eventChan <- lastSearch
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(extensionInputField)
+				statusView.SetText(ExtensionMode)
+			case tcell.KeyBacktab:
+				app.SetFocus(searchInputField)
+				statusView.SetText(SearchMode)
+			}
+		})
+
+	extensionInputField = tview.NewInputField().
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetLabel(" ").
 		SetLabelColor(tcell.ColorWhite).
 		SetText(strings.Join(AllowListExtensions, ",")).
 		SetFieldWidth(10).
@@ -265,14 +296,14 @@ func ProcessTui(run bool) {
 				app.SetFocus(snippetInputField)
 				statusView.SetText(SnippetMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(inputField)
-				statusView.SetText(SearchMode)
+				app.SetFocus(excludeInputField)
+				statusView.SetText(LocationExcludeMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			}
 		})
 
-	inputField = tview.NewInputField().
+	searchInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
@@ -290,8 +321,8 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(extInputField)
-				statusView.SetText(ExtensionMode)
+				app.SetFocus(excludeInputField)
+				statusView.SetText(LocationExcludeMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(textView)
 				statusView.SetText(TextMode)
@@ -314,14 +345,15 @@ func ProcessTui(run bool) {
 				app.SetFocus(textView)
 				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(extInputField)
+				app.SetFocus(extensionInputField)
 				statusView.SetText(ExtensionMode)
 			}
 		})
 
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputField, 0, 8, false).
-		AddItem(extInputField, 10, 0, false).
+		AddItem(searchInputField, 0, 8, false).
+		AddItem(excludeInputField, 10, 0, false).
+		AddItem(extensionInputField, 10, 0, false).
 		AddItem(snippetInputField, 5, 1, false).
 		AddItem(fuzzyCheckbox, 1, 1, false)
 
@@ -336,7 +368,7 @@ func ProcessTui(run bool) {
 	go debounce(time.Millisecond*50, eventChan, app, textView, tuiSearch)
 
 	if run {
-		if err := app.SetRoot(flex, true).SetFocus(inputField).Run(); err != nil {
+		if err := app.SetRoot(flex, true).SetFocus(searchInputField).Run(); err != nil {
 			panic(err)
 		}
 	}

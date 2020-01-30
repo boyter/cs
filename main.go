@@ -139,12 +139,14 @@ func main() {
 		false,
 		"make the search by default fuzzy",
 	)
-	flags.BoolVar(
-		&processor.MoreFuzzy,
-		"more-fuzzy",
-		false,
-		"make the search by default even fuzzier than fuzzy",
+	flags.StringSliceVarP(
+		&processor.LocationExcludePattern,
+		"exclude-pattern",
+		"x",
+		[]string{},
+		"file locations matching this pattern ignoring case will be ignored",
 	)
+
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

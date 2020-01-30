@@ -92,6 +92,12 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 				}
 			}
 
+			for _, p := range LocationExcludePattern {
+				if strings.Contains(filepath.Join(directory, file.Name()), p) {
+					shouldIgnore = true
+				}
+			}
+
 			// We need to check the #! because any file without an extension is
 			// considered a possible #! file
 			// TODO we should allow those though and handle it later on

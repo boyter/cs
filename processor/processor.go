@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var Version = "0.0.5 alpha"
+var Version = "0.0.6 alpha"
 
 // Flags set via the CLI which control how the output is displayed
 
@@ -58,6 +58,9 @@ var FileOutput = ""
 
 // PathDenylist sets the paths that should be skipped
 var PathDenylist = []string{}
+
+// Allow ignoring files by location
+var LocationExcludePattern = []string{}
 
 // FileListQueueSize is the queue of files found and ready to be read into memory
 var FileListQueueSize = runtime.NumCPU()
