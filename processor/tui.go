@@ -345,8 +345,8 @@ func ProcessTui(run bool) {
 				app.SetFocus(textView)
 				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(extensionInputField)
-				statusView.SetText(ExtensionMode)
+				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
 			}
 		})
 
