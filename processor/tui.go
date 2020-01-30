@@ -151,6 +151,7 @@ const (
 	ExtensionMode string = " > extension mode"
 	SnippetMode   string = " > snippet mode"
 	TextMode      string = " > text mode"
+	FuzzyMode     string = " > fuzzy mode"
 )
 
 // Param actually runs things which is only used for getting test coverage
@@ -162,6 +163,7 @@ func ProcessTui(run bool) {
 	var inputField *tview.InputField
 	var extInputField *tview.InputField
 	var snippetInputField *tview.InputField
+	var fuzzyCheckbox *tview.Checkbox
 	var lastSearch string
 
 	eventChan := make(chan string)
@@ -183,8 +185,8 @@ func ProcessTui(run bool) {
 				app.SetFocus(inputField)
 				statusView.SetText(SearchMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(snippetInputField)
-				statusView.SetText(SnippetMode)
+				app.SetFocus(fuzzyCheckbox)
+				statusView.SetText(FuzzyMode)
 			}
 		})
 
@@ -210,8 +212,8 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(textView)
-				statusView.SetText(TextMode)
+				app.SetFocus(fuzzyCheckbox)
+				statusView.SetText(FuzzyMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(extInputField)
 				statusView.SetText(ExtensionMode)
@@ -298,10 +300,30 @@ func ProcessTui(run bool) {
 			}
 		})
 
+	fuzzyCheckbox = tview.NewCheckbox().
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetLabel("").
+		SetChecked(Fuzzy).
+		SetChangedFunc(func(checked bool) {
+			Fuzzy = checked
+			eventChan <- lastSearch
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(textView)
+				statusView.SetText(TextMode)
+			case tcell.KeyBacktab:
+				app.SetFocus(extInputField)
+				statusView.SetText(ExtensionMode)
+			}
+		})
+
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputField, 0, 8, false).
 		AddItem(extInputField, 10, 0, false).
-		AddItem(snippetInputField, 5, 1, false)
+		AddItem(snippetInputField, 5, 1, false).
+		AddItem(fuzzyCheckbox, 1, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
