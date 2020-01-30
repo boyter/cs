@@ -15,27 +15,46 @@ func makeTimestampNano() int64 {
 	return time.Now().UnixNano()
 }
 
-const letterDigitFuzzyBytes = " abcdefghijklmnopqrstuvwxyz0123456789"
+const letterDigitFuzzyBytes = `abcdefghijklmnopqrstuvwxyz1234567890~!@#$%^&*()_+-=[]\{}|;':"',./<>?~`
 
 // Takes in a term and returns a slice of them which contains all the
-// fuzzy versions of that string with things such as mispellings and the
-// like
+// fuzzy versions of that string with things such as mis-spellings
+// somewhat based on https://norvig.com/spell-correct.html
 func makeFuzzyDistanceOne(term string) []string {
-	vals := []string{}
+	vals := []string{term}
 
-	// Maybe they mistyped a single letter?
-	// or added an additional one
-	for i := 1; i < len(term); i++ {
+	if len(term) <= 3 {
+		return vals
+	}
+
+	// This tends to produce bad results
+	// Split apart so turn "test" into "t" "est" then "te" "st"
+	//for i := 0; i < len(term); i++ {
+	//	vals = append(vals, term[:i])
+	//	vals = append(vals, term[i:])
+	//}
+
+	// Delete letters so turn "test" into "est" "tst" "tet"
+	for i := 0; i < len(term); i++ {
+		vals = append(vals, term[:i]+term[i+1:])
+	}
+
+	// Replace a letter or digit which effectively does transpose for us
+	for i := 0; i < len(term); i++ {
 		for _, b := range letterDigitFuzzyBytes {
-			if string(b) == " " {
-				vals = append(vals, term[:i]+term[i+1:])
-			} else {
-				vals = append(vals, term[:i]+string(b)+term[i+1:])
-			}
+			vals = append(vals, term[:i]+string(b)+term[i+1:])
 		}
 	}
 
-	return vals
+	// This tends to produce bad results so comment it out
+	// Insert a letter or digit
+	for i := 0; i < len(term); i++ {
+		for _, b := range letterDigitFuzzyBytes {
+			vals = append(vals, term[:i]+string(b)+term[i:])
+		}
+	}
+
+	return RemoveStringDuplicates(vals)
 }
 
 // Similar to fuzzy 1 but in this case we add letters
@@ -46,9 +65,7 @@ func makeFuzzyDistanceTwo(term string) []string {
 	// Maybe they forgot to type a letter? Try adding one
 	for i := 0; i < len(term)+1; i++ {
 		for _, b := range letterDigitFuzzyBytes {
-			if string(b) != " " {
-				vals = append(vals, term[:i]+string(b)+term[i:])
-			}
+			vals = append(vals, term[:i]+string(b)+term[i:])
 		}
 	}
 

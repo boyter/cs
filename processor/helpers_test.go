@@ -23,6 +23,22 @@ func TestMakeTimestampMilli(t *testing.T) {
 	}
 }
 
+func TestMakeFuzzySplit(t *testing.T) {
+	fuzzy := makeFuzzyDistanceOne("print")
+
+	if len(fuzzy) == 0 {
+		t.Error("Should get back non empty slice")
+	}
+}
+
+func TestMakeFuzzyShort(t *testing.T) {
+	fuzzy := makeFuzzyDistanceOne("p")
+
+	if len(fuzzy) != 1 {
+		t.Error("Should get back single result")
+	}
+}
+
 func TestMakeFuzzy(t *testing.T) {
 	fuzzy := makeFuzzyDistanceOne("test")
 

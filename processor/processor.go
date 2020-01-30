@@ -26,6 +26,12 @@ var Trace = false
 // Trace enables error logging output
 var Error = true
 
+// Fuzzy makes all searches fuzzy by default
+var Fuzzy = false
+
+// Fuzzy makes all searches even fuzzier by default
+var MoreFuzzy = false
+
 // Include minified files
 var IncludeMinified = false
 

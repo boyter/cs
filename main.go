@@ -133,6 +133,18 @@ func main() {
 		255,
 		"number of bytes per average line for file to be considered minified",
 	)
+	flags.BoolVar(
+		&processor.Fuzzy,
+		"fuzzy",
+		false,
+		"make the search by default fuzzy",
+	)
+	flags.BoolVar(
+		&processor.MoreFuzzy,
+		"more-fuzzy",
+		false,
+		"make the search by default even fuzzier than fuzzy",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

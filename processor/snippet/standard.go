@@ -13,26 +13,39 @@ func WriteHighlights(content []byte, locations map[string][]int, in string, out 
 	end := -1
 	found := false
 
+	// Cheap and nasty cache to avoid looping the map too much when we range over content
+	locationLookup := map[int]int{}
+	for _, value := range locations {
+		for _, v := range value {
+			locationLookup[v] = 0
+		}
+	}
+
 	for i, x := range content {
 		found = false
-		// Check if any of the locations match
-		// and if so write the start string
-		for key, value := range locations {
-			for _, v := range value {
-				if i == v {
-					// We only write the found string once per match and
-					// only if we are not in the middle of one
-					if !found && end <= 0 {
-						str.WriteString(in)
-						found = true
-					}
 
-					// Go for the greatest value of end
-					// and always check if it should be pushed out
-					// so we can cover cases where overlaps occur
-					y := v + len(key) - 1
-					if y > end {
-						end = y
+		_, ok := locationLookup[i]
+
+		if ok {
+			// Find which of the locations match
+			// and if so write the start string
+			for key, value := range locations {
+				for _, v := range value {
+					if i == v {
+						// We only write the found string once per match and
+						// only if we are not in the middle of one
+						if !found && end <= 0 {
+							str.WriteString(in)
+							found = true
+						}
+
+						// Go for the greatest value of end
+						// and always check if it should be pushed out
+						// so we can cover cases where overlaps occur
+						y := v + len(key) - 1
+						if y > end {
+							end = y
+						}
 					}
 				}
 			}

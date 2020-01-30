@@ -133,7 +133,7 @@ func determineSnipLocations(locations []LocationType, previousCount int) (int, [
 	}
 
 	// Sort the snip locations based firstly on their diffscore IE
-	// which one we think is the best match and 
+	// which one we think is the best match and
 	sort.Slice(snipLocations, func(i, j int) bool {
 		if snipLocations[i].DiffScore == snipLocations[j].DiffScore {
 			return snipLocations[i].Location > snipLocations[j].Location

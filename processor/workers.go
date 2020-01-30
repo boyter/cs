@@ -108,9 +108,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 				contentLower := strings.ToLower(string(res.Content))
 				// Potentially look into other string matching methods if we need the speed
 				// https://blog.gopheracademy.com/advent-2014/string-matching/
-				if processMatches(res, contentLower) {
-					continue
-				}
+				processMatches(res, contentLower)
 
 				if res.Score != 0 {
 					output <- res
@@ -123,6 +121,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	wg.Wait()
 	close(output)
 }
+
 
 func processMatches(res *FileJob, contentLower string) bool {
 	for i, term := range SearchString {
@@ -141,9 +140,21 @@ func processMatches(res *FileJob, contentLower string) bool {
 				return false
 			}
 		} else {
+
+			if Fuzzy || MoreFuzzy {
+				if !strings.HasSuffix(term, "~1") || !strings.HasSuffix(term, "~2") {
+					if MoreFuzzy {
+						term += "~2"
+					} else {
+						term += "~1"
+					}
+				}
+			}
+
 			// If someone supplies ~1 at the end of the term it means we want to expand out that
 			// term to support fuzzy matches for that term where the number indicates a level
 			// of fuzzyness
+			res.Score = 0
 			if strings.HasSuffix(term, "~1") || strings.HasSuffix(term, "~2") {
 				terms := makeFuzzyDistanceOne(strings.TrimRight(term, "~1"))
 				if strings.HasSuffix(term, "~2") {
@@ -153,14 +164,11 @@ func processMatches(res *FileJob, contentLower string) bool {
 				m := []int{}
 				for _, t := range terms {
 					m = append(m, snippet.ExtractLocation(t, contentLower, MatchLimit)...)
-				}
 
-				if len(m) != 0 {
-					res.Locations[term] = m
-					res.Score = float64(len(m))
-				} else {
-					res.Score = 0
-					return false
+					if len(m) != 0 {
+						res.Locations[t] = m
+						res.Score += float64(len(m))
+					}
 				}
 			} else {
 				// This is a regular search, not negated where we must try and find
