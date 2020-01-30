@@ -42,8 +42,8 @@ func TestProcessMatchesTwoMatch(t *testing.T) {
 		t.Errorf("Response should be false")
 	}
 
-	if res.Score != 2 {
-		t.Errorf("Score should be 1")
+	if res.Score != 1 {
+		t.Error("Score should be 1 got", res.Score)
 	}
 }
 
@@ -65,8 +65,8 @@ func TestProcessMatchesTwoAndMatch(t *testing.T) {
 		t.Errorf("Response should be false")
 	}
 
-	if res.Score != 2 {
-		t.Errorf("Score should be 1")
+	if res.Score != 1 {
+		t.Error("Score should be 1 got", res.Score)
 	}
 }
 
@@ -109,8 +109,8 @@ func TestProcessMatchesFuzzyOne(t *testing.T) {
 		t.Errorf("Response should be false")
 	}
 
-	if res.Score != 4 {
-		t.Error("Score should be 4 got", res.Score)
+	if res.Score == 0 {
+		t.Error("Score should not be 0 got", res.Score)
 	}
 }
 
@@ -130,8 +130,8 @@ func TestProcessMatchesFuzzyTwo(t *testing.T) {
 		t.Errorf("Response should be false")
 	}
 
-	if res.Score != 2 {
-		t.Error("Score should be 2 got", res.Score)
+	if res.Score == 0 {
+		t.Error("Score should be not 0 got", res.Score)
 	}
 }
 

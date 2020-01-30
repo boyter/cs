@@ -148,7 +148,7 @@ var textMutex sync.Mutex
 
 const (
 	SearchMode    string = " > search box"
-	ExtensionMode string = " > extension filter E.G. 'go' 'go,java'"
+	ExtensionMode string = " > extension filter ('go' 'go,java')"
 	SnippetMode   string = " > snippet size selector"
 	FuzzyMode     string = " > fuzzy search toggle"
 	TextMode      string = " > text scroll"

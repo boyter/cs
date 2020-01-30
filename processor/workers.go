@@ -122,7 +122,6 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	close(output)
 }
 
-
 func processMatches(res *FileJob, contentLower string) bool {
 	for i, term := range SearchString {
 		// Currently only NOT does anything as the rest are just ignored
