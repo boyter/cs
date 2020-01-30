@@ -147,11 +147,11 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 var textMutex sync.Mutex
 
 const (
-	SearchMode    string = " > search mode"
-	ExtensionMode string = " > extension mode"
-	SnippetMode   string = " > snippet mode"
-	TextMode      string = " > text mode"
-	FuzzyMode     string = " > fuzzy mode"
+	SearchMode    string = " > search box"
+	ExtensionMode string = " > extension filter E.G. 'go' 'go,java'"
+	SnippetMode   string = " > snippet size selector"
+	FuzzyMode     string = " > fuzzy search toggle"
+	TextMode      string = " > text scroll"
 )
 
 // Param actually runs things which is only used for getting test coverage

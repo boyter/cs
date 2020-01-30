@@ -23,7 +23,7 @@ const letterDigitFuzzyBytes = `abcdefghijklmnopqrstuvwxyz1234567890~!@#$%^&*()_+
 func makeFuzzyDistanceOne(term string) []string {
 	vals := []string{term}
 
-	if len(term) <= 3 {
+	if len(term) <= 2 {
 		return vals
 	}
 
@@ -46,7 +46,6 @@ func makeFuzzyDistanceOne(term string) []string {
 		}
 	}
 
-	// This tends to produce bad results so comment it out
 	// Insert a letter or digit
 	for i := 0; i < len(term); i++ {
 		for _, b := range letterDigitFuzzyBytes {
