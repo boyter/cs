@@ -56,6 +56,12 @@ var PathDenylist = []string{}
 // Allow ignoring files by location
 var LocationExcludePattern = []string{}
 
+// Allow turning on case sensitive search
+var CaseSensitive = false
+
+// Allow turning on case sensitive search
+var FindRoot = false
+
 // FileReadJobWorkers is the number of processes that read files off disk into memory
 var FileReadJobWorkers = runtime.NumCPU() * 4
 
@@ -90,7 +96,9 @@ func CleanSearchString() {
 		s = strings.Trim(s, " ")
 
 		if s != "AND" && s != "OR" && s != "NOT" {
-			s = strings.ToLower(s)
+			if !CaseSensitive {
+				s = strings.ToLower(s)
+			}
 		}
 
 		if s != "" {
@@ -109,7 +117,14 @@ func Process() {
 	fileReadContentJobQueue := make(chan *FileJob, FileReadContentJobQueueSize) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
 
-	go walkDirectory(".", fileListQueue)
+	// If the user asks we should look back till we find the .git or .hg directory and start the search
+	// or in case of SVN go back till we don't find it
+	startDirectory := "."
+	if FindRoot {
+		startDirectory = findRepositoryRoot(startDirectory)
+	}
+
+	go walkDirectory(startDirectory, fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 

@@ -56,7 +56,14 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
 	fileSummaryJobQueue := make(chan *FileJob, runtime.NumCPU())     // Files ready to be summarised
 
-	go walkDirectory(".", fileListQueue)
+	// If the user asks we should look back till we find the .git or .hg directory and start the search
+	// or in case of SVN go back till we don't find it
+	startDirectory := "."
+	if FindRoot {
+		startDirectory = findRepositoryRoot(startDirectory)
+	}
+
+	go walkDirectory(startDirectory, fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
@@ -153,6 +160,7 @@ const (
 	ExtensionMode       string = " > extension filter ('go' 'go,java')"
 	SnippetMode         string = " > snippet size selector"
 	FuzzyMode           string = " > fuzzy search toggle"
+	CaseSensitiveMode   string = " > case sensitive toggle"
 	TextMode            string = " > text scroll"
 )
 
@@ -167,6 +175,7 @@ func ProcessTui(run bool) {
 	var snippetInputField *tview.InputField
 	var excludeInputField *tview.InputField
 	var fuzzyCheckbox *tview.Checkbox
+	var casesensitiveCheckbox *tview.Checkbox
 	var lastSearch string
 
 	eventChan := make(chan string)
@@ -215,8 +224,8 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(fuzzyCheckbox)
-				statusView.SetText(FuzzyMode)
+				app.SetFocus(casesensitiveCheckbox)
+				statusView.SetText(CaseSensitiveMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(extensionInputField)
 				statusView.SetText(ExtensionMode)
@@ -328,6 +337,25 @@ func ProcessTui(run bool) {
 			}
 		})
 
+	casesensitiveCheckbox = tview.NewCheckbox().
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetLabel("").
+		SetChecked(Fuzzy).
+		SetChangedFunc(func(checked bool) {
+			CaseSensitive = checked
+			eventChan <- lastSearch
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(fuzzyCheckbox)
+				statusView.SetText(FuzzyMode)
+			case tcell.KeyBacktab:
+				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
+			}
+		})
+
 	fuzzyCheckbox = tview.NewCheckbox().
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetLabel("").
@@ -342,8 +370,8 @@ func ProcessTui(run bool) {
 				app.SetFocus(textView)
 				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(snippetInputField)
-				statusView.SetText(SnippetMode)
+				app.SetFocus(casesensitiveCheckbox)
+				statusView.SetText(CaseSensitiveMode)
 			}
 		})
 
@@ -352,6 +380,7 @@ func ProcessTui(run bool) {
 		AddItem(excludeInputField, 10, 0, false).
 		AddItem(extensionInputField, 10, 0, false).
 		AddItem(snippetInputField, 5, 1, false).
+		AddItem(casesensitiveCheckbox, 1, 1, false).
 		AddItem(fuzzyCheckbox, 1, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).

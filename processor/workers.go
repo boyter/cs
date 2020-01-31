@@ -105,10 +105,14 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 				}
 
 				// what we need to do is check for each term if it exists, and then use that to determine if its a match
-				contentLower := strings.ToLower(string(res.Content))
-				// Potentially look into other string matching methods if we need the speed
-				// https://blog.gopheracademy.com/advent-2014/string-matching/
-				processMatches(res, contentLower)
+				if !CaseSensitive {
+					contentLower := strings.ToLower(string(res.Content))
+					// Potentially look into other string matching methods if we need the speed
+					// https://blog.gopheracademy.com/advent-2014/string-matching/
+					processMatches(res, contentLower)
+				} else {
+					processMatches(res, string(res.Content))
+				}
 
 				if res.Score != 0 {
 					output <- res
@@ -122,7 +126,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	close(output)
 }
 
-func processMatches(res *FileJob, contentLower string) bool {
+func processMatches(res *FileJob, content string) bool {
 	for i, term := range SearchString {
 		// Currently only NOT does anything as the rest are just ignored
 		if term == "AND" || term == "OR" || term == "NOT" {
@@ -130,7 +134,7 @@ func processMatches(res *FileJob, contentLower string) bool {
 		}
 
 		if i != 0 && SearchString[i-1] == "NOT" {
-			index := bytes.Index([]byte(contentLower), []byte(term))
+			index := bytes.Index([]byte(content), []byte(term))
 
 			// If a negated term is found we bail out instantly as
 			// this means we should not be matching at all
@@ -158,7 +162,7 @@ func processMatches(res *FileJob, contentLower string) bool {
 
 				m := []int{}
 				for _, t := range terms {
-					m = append(m, snippet.ExtractLocation(t, contentLower, MatchLimit)...)
+					m = append(m, snippet.ExtractLocation(t, content, MatchLimit)...)
 
 					if len(m) != 0 {
 						res.Locations[t] = m
@@ -167,7 +171,7 @@ func processMatches(res *FileJob, contentLower string) bool {
 				}
 			} else {
 				// This is a regular search, not negated where we must try and find
-				res.Locations[term] = snippet.ExtractLocation(term, contentLower, MatchLimit)
+				res.Locations[term] = snippet.ExtractLocation(term, content, MatchLimit)
 
 				if len(res.Locations[term]) != 0 {
 					res.Score += float64(len(res.Locations[term]))

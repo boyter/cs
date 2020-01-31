@@ -139,6 +139,20 @@ func main() {
 		[]string{},
 		"file locations matching this pattern ignoring case will be ignored",
 	)
+	flags.BoolVarP(
+		&processor.CaseSensitive,
+		"case-sensitive",
+		"c",
+		false,
+		"make the search case sensitive",
+	)
+	flags.BoolVarP(
+		&processor.FindRoot,
+		"find-root",
+		"r",
+		false,
+		"attempts to find the root of this repository recursively looking for .git or .hg",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
