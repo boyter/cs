@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var Version = "0.0.6 alpha"
+var Version = "0.0.7 alpha"
 
 // Flags set via the CLI which control how the output is displayed
 
