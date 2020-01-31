@@ -22,9 +22,7 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 		case item = <-input:
 			timer.Reset(interval)
 		case <-timer.C:
-			if item != "" {
-				go cb(app, textView, item)
-			}
+			go cb(app, textView, item)
 		}
 	}
 }
@@ -32,7 +30,6 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 var IsCollecting = NewBool(false) // The state indicating if we are collecting results
 
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
-
 	// At this point we need to stop the background process that is running then wait for the
 	// result collection to finish IE the part that collects results for display
 	if IsWalking.IsSet() == true {
@@ -40,7 +37,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	}
 
 	for {
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 50)
 		if IsCollecting.IsSet() == false {
 			break
 		}
@@ -316,11 +313,7 @@ func ProcessTui(run bool) {
 			textMutex.Lock()
 			lastSearch = text
 			textMutex.Unlock()
-			eventChan <- text
-
-			if strings.TrimSpace(text) == "" {
-				drawText(app, textView, "")
-			}
+			eventChan <- lastSearch
 		}).
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
