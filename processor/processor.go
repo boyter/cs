@@ -29,9 +29,6 @@ var Error = true
 // Fuzzy makes all searches fuzzy by default
 var Fuzzy = false
 
-// Fuzzy makes all searches even fuzzier by default
-var MoreFuzzy = false
-
 // Include minified files
 var IncludeMinified = false
 
@@ -47,9 +44,6 @@ var Ignore = false
 // DisableCheckBinary toggles checking for binary files using NUL bytes
 var DisableCheckBinary = false
 
-// Exclude is a regular expression which is used to exclude files from being processed
-var Exclude = []string{}
-
 // Format sets the output format of the formatter
 var Format = ""
 
@@ -61,9 +55,6 @@ var PathDenylist = []string{}
 
 // Allow ignoring files by location
 var LocationExcludePattern = []string{}
-
-// FileListQueueSize is the queue of files found and ready to be read into memory
-var FileListQueueSize = runtime.NumCPU()
 
 // FileReadJobWorkers is the number of processes that read files off disk into memory
 var FileReadJobWorkers = runtime.NumCPU() * 4

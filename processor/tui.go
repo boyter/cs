@@ -29,16 +29,19 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 	}
 }
 
+var IsCollecting = NewBool(false) // The state indicating if we are collecting results
+
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 
-	// At this point we need to stop the background process that is running and wait for it to finish
+	// At this point we need to stop the background process that is running then wait for the
+	// result collection to finish IE the part that collects results for display
 	if IsWalking.IsSet() == true {
 		TerminateWalking.SetTo(true)
 	}
 
 	for {
 		time.Sleep(time.Millisecond * 10)
-		if IsWalking.IsSet() == false {
+		if IsCollecting.IsSet() == false {
 			break
 		}
 	}
@@ -70,8 +73,8 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// NB this is not safe because results has no lock
 	go func() {
 		for update {
-			// Every 100 ms redraw
-			if makeTimestampMilli()-reset >= 100 {
+			// Every 50 ms redraw
+			if makeTimestampMilli()-reset >= 50 {
 				drawResults(app, results, textView, searchTerm, string(spinString[spinLocation]))
 				reset = makeTimestampMilli()
 				spinLocation++
@@ -87,10 +90,11 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		}
 	}()
 
+	IsCollecting.SetTo(true)
+	defer IsCollecting.SetTo(false)
 	for res := range fileSummaryJobQueue {
 		results = append(results, res)
 	}
-
 	update = false
 	drawResults(app, results, textView, searchTerm, "")
 }

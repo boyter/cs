@@ -93,13 +93,6 @@ func main() {
 		[]string{},
 		"limit to file extensions [comma separated list: e.g. go,java,js]",
 	)
-	flags.StringArrayVarP(
-		&processor.Exclude,
-		"not-match",
-		"M",
-		[]string{},
-		"ignore files and directories matching regular expression",
-	)
 	flags.StringVarP(
 		&processor.FileOutput,
 		"output",
@@ -146,7 +139,6 @@ func main() {
 		[]string{},
 		"file locations matching this pattern ignoring case will be ignored",
 	)
-
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

@@ -140,13 +140,9 @@ func processMatches(res *FileJob, contentLower string) bool {
 			}
 		} else {
 
-			if Fuzzy || MoreFuzzy {
+			if Fuzzy {
 				if !strings.HasSuffix(term, "~1") || !strings.HasSuffix(term, "~2") {
-					if MoreFuzzy {
-						term += "~2"
-					} else {
-						term += "~1"
-					}
+					term += "~1"
 				}
 			}
 
