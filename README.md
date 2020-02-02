@@ -11,7 +11,7 @@ codesearch (cs)
 example, vendor/github.com/rivo/
 
 searching for tab key usage with shift modifier, searched for keytab using ag/rg/ack and nothing useful
-try using sc and its right at the top 
+try using cs and its right at the top 
 
 1. The runaway goroutines
 2. the highlight snippet issue
@@ -20,6 +20,8 @@ try using sc and its right at the top
 5. ignore minified/generated files
 6. display the number of processed files
 7. be able to look though the results using keys
+
+https://github.com/BurntSushi/ripgrep/issues/95
 
 
 interesting bug

@@ -109,8 +109,12 @@ func CleanSearchString() {
 	SearchString = tmp
 }
 
+type Process struct {
+
+}
+
 // Process is the main entry point of the command line output it sets everything up and starts running
-func Process() {
+func (process *Process) StartProcess() {
 	CleanSearchString()
 
 	fileListQueue := make(chan *FileJob)                                        // Files ready to be read from disk
@@ -124,7 +128,9 @@ func Process() {
 		startDirectory = findRepositoryRoot(startDirectory)
 	}
 
-	go walkDirectory(startDirectory, fileListQueue)
+	fileWalker := NewFileWalker(startDirectory, fileListQueue)
+
+	go fileWalker.WalkDirectory()
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
