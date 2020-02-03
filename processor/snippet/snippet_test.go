@@ -169,7 +169,7 @@ func TestExtractLocation(t *testing.T) {
 	content, _ := ioutil.ReadFile("blns.json")
 
 	for i := 0; i < 10000; i++ {
-		location := ExtractLocation(RandStringBytes(rand.Intn(2)), string(content), 50)
+		location := ExtractLocation([]byte(RandStringBytes(rand.Intn(2))), content, 50)
 
 		for l := range location {
 			if l > len([]rune(string(content))) {
@@ -182,7 +182,7 @@ func TestExtractLocation(t *testing.T) {
 func TestExtractLocations(t *testing.T) {
 	content, _ := ioutil.ReadFile("blns.json")
 
-	locations := ExtractLocations([]string{"test", "something", "other"}, string(content))
+	locations := ExtractLocations([][]byte{[]byte("test"), []byte("something"), []byte("other")}, content)
 
 	if len(locations) == 0 {
 		t.Error("Expected at least one location")

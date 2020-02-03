@@ -21,7 +21,7 @@ func TestRanker(t *testing.T) {
 			Locations: locations,
 		},
 	}
-	ranked := RankResultsTFIDF([]string{}, results)
+	ranked := RankResultsTFIDF([][]byte{}, results)
 
 	if len(ranked) != 1 {
 		t.Error("Should be one results")
@@ -40,7 +40,7 @@ func TestRankResultsLocation(t *testing.T) {
 			Score:    0,
 		},
 	}
-	ranked := RankResultsLocation([]string{"something"}, results)
+	ranked := RankResultsLocation([][]byte{[]byte("something")}, results)
 
 	if ranked[0].Score == 0 {
 		t.Error("Expect rank to be > 0 got", ranked[0].Score)
@@ -60,7 +60,7 @@ func TestRankResultsLocationScoreCheck(t *testing.T) {
 			Score:    0,
 		},
 	}
-	ranked := RankResultsLocation([]string{"something", "test1"}, results)
+	ranked := RankResultsLocation([][]byte{[]byte("something"), []byte("test1")}, results)
 
 	if ranked[0].Score <= ranked[1].Score {
 		t.Error("Expect first to get higher match", ranked[0].Score, ranked[1].Score)

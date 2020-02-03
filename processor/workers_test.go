@@ -6,15 +6,15 @@ import (
 
 func TestProcessMatchesSingleMatch(t *testing.T) {
 	ResultLimit = 100
-	SearchString = []string{
-		"match",
+	SearchBytes = [][]byte{
+		[]byte("match"),
 	}
 
 	res := FileJob{
 		Locations: map[string][]int{},
 	}
 
-	matches := processMatches(&res, "this is a match")
+	matches := processMatches(&res, []byte("this is a match"))
 
 	if matches {
 		t.Errorf("Response should be false")
@@ -27,16 +27,16 @@ func TestProcessMatchesSingleMatch(t *testing.T) {
 
 func TestProcessMatchesTwoMatch(t *testing.T) {
 	ResultLimit = 100
-	SearchString = []string{
-		"match",
-		"this",
+	SearchBytes = [][]byte{
+		[]byte("match"),
+		[]byte("this"),
 	}
 
 	res := FileJob{
 		Locations: map[string][]int{},
 	}
 
-	matches := processMatches(&res, "this is a match")
+	matches := processMatches(&res, []byte("this is a match"))
 
 	if matches {
 		t.Errorf("Response should be false")
@@ -49,17 +49,17 @@ func TestProcessMatchesTwoMatch(t *testing.T) {
 
 func TestProcessMatchesTwoAndMatch(t *testing.T) {
 	ResultLimit = 100
-	SearchString = []string{
-		"match",
-		"AND",
-		"this",
+	SearchBytes = [][]byte{
+		[]byte("match"),
+		[]byte("AND"),
+		[]byte("this"),
 	}
 
 	res := FileJob{
 		Locations: map[string][]int{},
 	}
 
-	matches := processMatches(&res, "this is a match")
+	matches := processMatches(&res, []byte("this is a match"))
 
 	if matches {
 		t.Errorf("Response should be false")
@@ -72,17 +72,17 @@ func TestProcessMatchesTwoAndMatch(t *testing.T) {
 
 func TestProcessMatchesTwoNotMatch(t *testing.T) {
 	ResultLimit = 100
-	SearchString = []string{
-		"match",
-		"NOT",
-		"this",
+	SearchBytes = [][]byte{
+		[]byte("match"),
+		[]byte("NOT"),
+		[]byte("this"),
 	}
 
 	res := FileJob{
 		Locations: map[string][]int{},
 	}
 
-	matches := processMatches(&res, "this is a match")
+	matches := processMatches(&res, []byte("this is a match"))
 
 	if matches {
 		t.Errorf("Response should be false")
@@ -95,15 +95,15 @@ func TestProcessMatchesTwoNotMatch(t *testing.T) {
 
 func TestProcessMatchesFuzzyOne(t *testing.T) {
 	ResultLimit = 100
-	SearchString = []string{
-		"this~1",
+	SearchBytes = [][]byte{
+		[]byte("this~1"),
 	}
 
 	res := FileJob{
 		Locations: map[string][]int{},
 	}
 
-	matches := processMatches(&res, "this is a match")
+	matches := processMatches(&res, []byte("this is a match"))
 
 	if matches {
 		t.Errorf("Response should be false")
@@ -116,15 +116,15 @@ func TestProcessMatchesFuzzyOne(t *testing.T) {
 
 func TestProcessMatchesFuzzyTwo(t *testing.T) {
 	ResultLimit = 100
-	SearchString = []string{
-		"this~2",
+	SearchBytes = [][]byte{
+		[]byte("this~2"),
 	}
 
 	res := FileJob{
 		Locations: map[string][]int{},
 	}
 
-	matches := processMatches(&res, "this is a match")
+	matches := processMatches(&res, []byte("this is a match"))
 
 	if matches {
 		t.Errorf("Response should be false")

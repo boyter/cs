@@ -136,7 +136,7 @@ func processMatches(res *FileJob, content []byte) bool {
 			continue
 		}
 
-		if i != 0 && bytes.Equal(term, []byte("NOT")) {
+		if i != 0 && bytes.Equal(SearchBytes[i-1], []byte("NOT")) {
 			index := bytes.Index(content, term)
 
 			// If a negated term is found we bail out instantly as

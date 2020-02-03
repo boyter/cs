@@ -24,6 +24,8 @@ try using cs and its right at the top
 https://github.com/BurntSushi/ripgrep/issues/95
 
 
+"ten thousand a year"
+
 interesting bug
 
 # bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]

@@ -1,6 +1,8 @@
 package processor
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCleanSearchString(t *testing.T) {
 	SearchString = []string{
@@ -12,12 +14,8 @@ func TestCleanSearchString(t *testing.T) {
 	}
 	CleanSearchString()
 
-	if len(SearchString) != 4 {
+	if len(SearchBytes) != 4 {
 		t.Error("Expected 4")
-	}
-
-	if SearchString[3] != "the" {
-		t.Error("Expected the not THE")
 	}
 }
 
