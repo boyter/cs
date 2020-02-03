@@ -22,10 +22,11 @@ func main() {
 			processor.SearchString = args
 			sccprocessor.ProcessConstants()
 
+			p := processor.NewProcess()
+
 			// If there are arguments we want to print straight out to the console
 			// otherwise we should enter interactive tui mode
 			if len(processor.SearchString) != 0 {
-				p := processor.Process{}
 				p.StartProcess()
 			} else {
 				processor.Error = false // suppress writing errors in TUI mode

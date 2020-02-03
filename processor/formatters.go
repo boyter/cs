@@ -28,7 +28,7 @@ func fileSummarize(input chan *FileJob) string {
 		results = results[:ResultLimit]
 	}
 	// Rank results then sort for display
-	RankResults(SearchString, results)
+	RankResults(SearchBytes, results)
 	SortResults(results)
 
 	for _, res := range results {
@@ -59,7 +59,7 @@ func toJSON(input chan *FileJob) string {
 	}
 
 	// Rank results then sort for display
-	RankResults(SearchString, results)
+	RankResults(SearchBytes, results)
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Score == results[j].Score {
 			return strings.Compare(results[i].Location, results[j].Location) < 0

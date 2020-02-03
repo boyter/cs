@@ -22,5 +22,6 @@ func TestCleanSearchString(t *testing.T) {
 }
 
 func TestProcess(t *testing.T) {
-	Process()
+	p := NewProcess()
+	p.StartProcess()
 }

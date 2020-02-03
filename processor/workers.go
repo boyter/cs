@@ -84,6 +84,8 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 		go func() {
 			for res := range input {
+				// Check for the presence of a nul byte indicating that this
+				// is likely a binary file
 				if bytes.IndexByte(res.Content, '\x00') != -1 {
 					res.Binary = true
 					continue
@@ -106,12 +108,13 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 				// what we need to do is check for each term if it exists, and then use that to determine if its a match
 				if !CaseSensitive {
-					contentLower := strings.ToLower(string(res.Content))
+					contentLower := bytes.ToLower(res.Content)
+
 					// Potentially look into other string matching methods if we need the speed
 					// https://blog.gopheracademy.com/advent-2014/string-matching/
 					processMatches(res, contentLower)
 				} else {
-					processMatches(res, string(res.Content))
+					processMatches(res, res.Content)
 				}
 
 				if res.Score != 0 {
@@ -126,15 +129,15 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	close(output)
 }
 
-func processMatches(res *FileJob, content string) bool {
-	for i, term := range SearchString {
+func processMatches(res *FileJob, content []byte) bool {
+	for i, term := range SearchBytes {
 		// Currently only NOT does anything as the rest are just ignored
-		if term == "AND" || term == "OR" || term == "NOT" {
+		if bytes.Equal(term, []byte("AND")) || bytes.Equal(term, []byte("OR")) || bytes.Equal(term, []byte("NOT")) {
 			continue
 		}
 
-		if i != 0 && SearchString[i-1] == "NOT" {
-			index := bytes.Index([]byte(content), []byte(term))
+		if i != 0 && bytes.Equal(term, []byte("NOT")) {
+			index := bytes.Index(content, term)
 
 			// If a negated term is found we bail out instantly as
 			// this means we should not be matching at all
@@ -145,8 +148,8 @@ func processMatches(res *FileJob, content string) bool {
 		} else {
 
 			if Fuzzy {
-				if !strings.HasSuffix(term, "~1") || !strings.HasSuffix(term, "~2") {
-					term += "~1"
+				if !bytes.HasSuffix(term, []byte("~1")) || !bytes.HasSuffix(term, []byte("~2")) {
+					term = append(term, []byte("~1")...)
 				}
 			}
 
@@ -154,15 +157,15 @@ func processMatches(res *FileJob, content string) bool {
 			// term to support fuzzy matches for that term where the number indicates a level
 			// of fuzzyness
 			res.Score = 0
-			if strings.HasSuffix(term, "~1") || strings.HasSuffix(term, "~2") {
-				terms := makeFuzzyDistanceOne(strings.TrimRight(term, "~1"))
-				if strings.HasSuffix(term, "~2") {
-					terms = makeFuzzyDistanceTwo(strings.TrimRight(term, "~2"))
+			if bytes.HasSuffix(term, []byte("~1")) || bytes.HasSuffix(term, []byte("~2")) {
+				terms := makeFuzzyDistanceOne(strings.TrimRight(string(term), "~1"))
+				if bytes.HasSuffix(term, []byte("~2")) {
+					terms = makeFuzzyDistanceTwo(strings.TrimRight(string(term), "~2"))
 				}
 
 				m := []int{}
 				for _, t := range terms {
-					m = append(m, snippet.ExtractLocation(t, content, MatchLimit)...)
+					m = append(m, snippet.ExtractLocation([]byte(t), content, MatchLimit)...)
 
 					if len(m) != 0 {
 						res.Locations[t] = m
@@ -171,10 +174,10 @@ func processMatches(res *FileJob, content string) bool {
 				}
 			} else {
 				// This is a regular search, not negated where we must try and find
-				res.Locations[term] = snippet.ExtractLocation(term, content, MatchLimit)
+				res.Locations[string(term)] = snippet.ExtractLocation(term, content, MatchLimit)
 
-				if len(res.Locations[term]) != 0 {
-					res.Score += float64(len(res.Locations[term]))
+				if len(res.Locations[string(term)]) != 0 {
+					res.Score += float64(len(res.Locations[string(term)]))
 				} else {
 					res.Score = 0
 					return false

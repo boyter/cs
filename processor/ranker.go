@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"bytes"
 	"github.com/boyter/cs/processor/snippet"
 	"math"
 	"sort"
@@ -12,7 +13,7 @@ import (
 // Note that this method will evolve over time
 // and as such you should never rely on the returned results being
 // the same over time
-func RankResults(searchTerms []string, results []*FileJob) []*FileJob {
+func RankResults(searchTerms [][]byte, results []*FileJob) []*FileJob {
 	results = RankResultsTFIDF(searchTerms, results)
 	results = RankResultsLocation(searchTerms, results)
 	return results
@@ -20,18 +21,20 @@ func RankResults(searchTerms []string, results []*FileJob) []*FileJob {
 
 // Base value used to determine how much location matches
 // should be boosted by
-var LocationBoostValue = 0.05
+const (
+	LocationBoostValue = 0.05
+)
 
 // Given the results will boost the rank of them based on matches in the
 // file location field.
 // This is not using TF-IDF or any fancy algorithm just basic checks
 // and boosts
-func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
+func RankResultsLocation(searchTerms [][]byte, results []*FileJob) []*FileJob {
 	for i := 0; i < len(results); i++ {
-		loc := strings.ToLower(results[i].Location)
+		loc := bytes.ToLower([]byte(results[i].Location))
 		foundTerms := 0
 		for _, s := range searchTerms {
-			t := snippet.ExtractLocations([]string{strings.ToLower(s)}, loc)
+			t := snippet.ExtractLocations(searchTerms, loc)
 
 			// Boost the rank slightly based on number of matches and on
 			// how long a match it is as we should reward longer matches
@@ -73,7 +76,7 @@ func RankResultsLocation(searchTerms []string, results []*FileJob) []*FileJob {
 // have counts of terms for documents that don't match
 // so the IDF value is not correctly calculated
 // https://en.wikipedia.org/wiki/Tf-idf
-func RankResultsTFIDF(searchTerms []string, results []*FileJob) []*FileJob {
+func RankResultsTFIDF(searchTerms [][]byte, results []*FileJob) []*FileJob {
 	idf := map[string]int{}
 	for _, r := range results {
 		for k := range r.Locations {

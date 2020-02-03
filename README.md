@@ -39,3 +39,9 @@ fargate/xray-api/integration_tests/blns.json (1.980)
     "ABC<div style=\"x:\\xE2\\x80\\x85expression(javascript:alert(1)\">DEF",
     "ABC<div style=\"x:\\xE2\\x80\\x82expression(javascript:alert(1)\">DEF",
     "ABC<div style=\"x:\\x0Bexpression(javascript:alert(1…
+
+Snippet generation
+
+https://stackoverflow.com/questions/2829303/given-a-document-select-a-relevant-snippet
+https://stackoverflow.com/questions/282002/c-sharp-finding-relevant-document-snippets-for-search-result-display
+

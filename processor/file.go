@@ -15,11 +15,11 @@ var IsWalking = NewBool(false)        // The state indicating if we are walking
 var TerminateWalking = NewBool(false) // The flag to indicate we should stop
 
 type FileWalker struct {
-	WalkMutex sync.Mutex
-	IsWalking *AtomicBool
+	WalkMutex        sync.Mutex
+	IsWalking        *AtomicBool
 	TerminateWalking *AtomicBool
-	Directory string
-	FileListQueue chan *FileJob
+	Directory        string
+	FileListQueue    chan *FileJob
 }
 
 func NewFileWalker(directory string, fileListQueue chan *FileJob) FileWalker {
@@ -152,8 +152,6 @@ func (f *FileWalker) WalkDirectoryRecursive(directory string, ignores []gitignor
 
 	return nil
 }
-
-
 
 func walkDirectory(directory string, fileListQueue chan *FileJob) error {
 	WalkMutex.Lock()

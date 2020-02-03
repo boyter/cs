@@ -1,6 +1,7 @@
 package snippet
 
 import (
+	"bytes"
 	"math"
 	"sort"
 	"strings"
@@ -19,12 +20,12 @@ type SnipLocation struct {
 // Extracts all of the locations of a string inside another string
 // upto the defined limit and does so without regular expressions
 // which  makes it about 3x more efficient
-func ExtractLocation(word string, fulltext string, limit int) []int {
+func ExtractLocation(word []byte, fulltext []byte, limit int) []int {
 	locs := []int{}
 
 	searchText := fulltext
 	offSet := 0
-	loc := strings.Index(searchText, word)
+	loc := bytes.Index(searchText, word)
 
 	count := 0
 	for loc != -1 {
@@ -39,7 +40,7 @@ func ExtractLocation(word string, fulltext string, limit int) []int {
 
 		// trim off the start, and look from there and keep trimming
 		offSet += loc + len(word)
-		loc = strings.Index(searchText, word)
+		loc = bytes.Index(searchText, word)
 	}
 
 	sort.Ints(locs)
@@ -52,10 +53,10 @@ func ExtractLocation(word string, fulltext string, limit int) []int {
 //
 // BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
 // BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
-func ExtractLocations(words []string, fulltext string) []int {
+func ExtractLocations(words [][]byte, fulltext []byte) []int {
 	locs := []int{}
 
-	fulltext = strings.ToLower(fulltext)
+	fulltext = bytes.ToLower(fulltext)
 
 	for _, w := range words {
 		for _, l := range ExtractLocation(w, fulltext, 20) {
@@ -82,6 +83,11 @@ func ExtractLocations(words []string, fulltext string) []int {
 // When checking for matches we only change the location if there is a better match.
 // The only exception is where we have only two matches in which case we just take the
 // first as will be equally distant.
+//
+// Most algorithms such as those explored by A. Turpin, Y. Tsegay, D. Hawking and H. E. Williams
+// Fast Generation of Result Snippets in Web Search tend to work using sentences.
+//
+// This is designed to work with source code to be fast.
 //
 // NB makes the assumption that the locations are already sorted
 func determineSnipLocations(locations []LocationType, previousCount int) (int, []SnipLocation) {
@@ -142,6 +148,7 @@ func determineSnipLocations(locations []LocationType, previousCount int) (int, [
 		return snipLocations[i].DiffScore > snipLocations[j].DiffScore
 	})
 
+	//fmt.Println(">>>>> ", startPos, snipLocations)
 	return startPos, snipLocations
 }
 
