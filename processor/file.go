@@ -199,11 +199,13 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 	// Pull out all of the ignore and gitignore files and add them
 	// to out collection of ignores to be applied for this pass
 	// and later on
-	for _, file := range files {
-		if file.Name() == ".gitignore" || file.Name() == ".ignore" {
-			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
-			if err == nil {
-				ignores = append(ignores, ignore)
+	if Ignore == false {
+		for _, file := range files {
+			if file.Name() == ".gitignore" || file.Name() == ".ignore" {
+				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+				if err == nil {
+					ignores = append(ignores, ignore)
+				}
 			}
 		}
 	}

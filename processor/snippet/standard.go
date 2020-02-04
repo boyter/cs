@@ -63,3 +63,25 @@ func WriteHighlights(content []byte, locations map[string][]int, in string, out 
 
 	return str.String()
 }
+
+func Permute(input string) []string {
+	l := len(input)
+	max := 1 << l
+
+	combinations := []string{}
+
+	for i := 0; i < max; i++ {
+		s := ""
+		for idx, ch := range input {
+			if (i & (1 << idx)) == 0 {
+				s += strings.ToUpper(string(ch))
+			} else {
+				s += strings.ToLower(string(ch))
+			}
+		}
+
+		combinations = append(combinations, s)
+	}
+
+	return combinations
+}

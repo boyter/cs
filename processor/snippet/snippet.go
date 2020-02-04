@@ -44,7 +44,6 @@ func ExtractLocation(word []byte, fulltext []byte, limit int) []int {
 	}
 
 	sort.Ints(locs)
-
 	return locs
 }
 
