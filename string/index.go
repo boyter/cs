@@ -129,5 +129,6 @@ func PermuteCase(input string) []string {
 		combinations = append(combinations, s)
 	}
 
-	return combinations
+	return RemoveStringDuplicates(combinations)
 }
+
