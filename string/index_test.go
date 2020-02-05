@@ -5,22 +5,6 @@ import (
 	"testing"
 )
 
-func TestPermuteCase(t *testing.T) {
-	permutations := PermuteCase("fo")
-
-	if len(permutations) != 4 {
-		t.Error("Expected 4 returns")
-	}
-}
-
-func TestPermuteCaseUnicode(t *testing.T) {
-	permutations := PermuteCase("ȺȾ")
-
-	if len(permutations) != 4 {
-		t.Error("Expected 4 returns")
-	}
-}
-
 func TestExtractLocations(t *testing.T) {
 	locations := IndexAll("test that this returns a match", "test", math.MaxInt64)
 

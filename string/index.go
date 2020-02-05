@@ -1,6 +1,7 @@
 package string
 
 import (
+	"math"
 	"strings"
 )
 
@@ -8,18 +9,20 @@ import (
 // upto the defined limit and does so without regular expressions
 // which  makes it about 3x more efficient than the regex way of doing this.
 //
-// A sample benchmark result to illustrate the point
+// A sample benchmark result to illustrate the point in index_benchmark_test.go
 //
-// BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
-// BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
+// BenchmarkRegexFindAllIndex-8   	 1819051	       575 ns/op
+// BenchmarkIndexAll-8            	12940279	        88.6 ns/op
 //
 // Also note that this method has a limit option allowing you to bail out
 // at some threshold of matches which is useful in situations where
-// additional matches are no longer useful. Otherwise set to to math.MaxInt64
+// additional matches are no longer useful. Similar to how FindAllIndex
+// works. You can use -1 or math.MaxInt64
 // to get what should hopefully be all possible matches although I suspect
 // you may hit memory limits at that point.
 //
 // Note that this method is explicitly case sensitive in its matching
+// A return value will be an empty slice if no match TODO correct?
 func IndexAll(fulltext string, term string, limit int64) []int {
 	locs := []int{}
 
@@ -27,7 +30,15 @@ func IndexAll(fulltext string, term string, limit int64) []int {
 	offSet := 0
 	loc := strings.Index(searchText, term)
 
-	limit++
+	if limit == -1 {
+		// Similar to how regex FindAllString works
+		// if we have -1 as the limit just try to get everything
+		limit = math.MaxInt64
+	} else {
+		// Increment by one because we do count++ at the start of the loop
+		// and as such there is a off by 1 error in the return otherwise
+		limit++
+	}
 
 	var count int64
 	for loc != -1 {
@@ -58,13 +69,11 @@ func IndexAll(fulltext string, term string, limit int64) []int {
 // you may hit memory limits at that point.
 //
 // One subtle thing about this method is that it work
-func IndexesAll(fulltext string, terms []string,  limit int64) []int {
+func IndexesAll(fulltext string, terms []string, limit int64) []int {
 	locs := []int{}
 
 	for _, w := range terms {
-		for _, l := range IndexAll(fulltext, w, limit) {
-			locs = append(locs, l)
-		}
+		locs = append(locs, IndexAll(fulltext, w, limit)...)
 	}
 
 	return locs
@@ -93,42 +102,11 @@ func IndexesAllIgnoreCase(term string, fulltext string, limit int64) []int {
 	// may not be ASCII although this also has issues which can be overcome
 	// by https://github.com/rivo/uniseg
 	var terms []string
-	if len(term) > 4 {
-		terms = PermuteCase(term[:4])
-	} else {
-		terms = PermuteCase(term)
-	}
+	terms = PermuteCase(term)
+
 	// Now we have all the possible case situations we should search for our
 	// potential matches
 	IndexesAll(fulltext, terms, limit)
 
 	return IndexAll(fulltext, term, limit)
 }
-
-// Given a string returns a slice containing all possible case permutations
-// of that string such that input of foo will return
-// foo Foo fOo FOo foO FoO fOO FOO
-// Note that very long inputs can produce an enormous amount of
-// results in the returned slice
-func PermuteCase(input string) []string {
-	l := len(input)
-	max := 1 << l
-
-	combinations := []string{}
-
-	for i := 0; i < max; i++ {
-		s := ""
-		for idx, ch := range input {
-			if (i & (1 << idx)) == 0 {
-				s += strings.ToUpper(string(ch))
-			} else {
-				s += strings.ToLower(string(ch))
-			}
-		}
-
-		combinations = append(combinations, s)
-	}
-
-	return RemoveStringDuplicates(combinations)
-}
-
