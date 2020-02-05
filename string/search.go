@@ -1,4 +1,4 @@
-package search
+package string
 
 import (
 	"strings"
@@ -20,7 +20,7 @@ import (
 // you may hit memory limits at that point.
 //
 // Note that this method is explicitly case sensitive in its matching
-func FindLocations(term string, fulltext string, limit int64) []int {
+func IndexAll(fulltext string, term string, limit int64) []int {
 	locs := []int{}
 
 	searchText := fulltext
@@ -58,11 +58,11 @@ func FindLocations(term string, fulltext string, limit int64) []int {
 // you may hit memory limits at that point.
 //
 // One subtle thing about this method is that it work
-func FindTermLocations(terms []string, fulltext string, limit int64) []int {
+func IndexesAll(fulltext string, terms []string,  limit int64) []int {
 	locs := []int{}
 
 	for _, w := range terms {
-		for _, l := range FindLocations(w, fulltext, limit) {
+		for _, l := range IndexAll(fulltext, w, limit) {
 			locs = append(locs, l)
 		}
 	}
@@ -71,10 +71,10 @@ func FindTermLocations(terms []string, fulltext string, limit int64) []int {
 }
 
 func FindLocationsCase(term string, fulltext string, limit int64) []int {
-	return FindLocations(term, fulltext, limit)
+	return IndexAll(fulltext, term, limit)
 }
 
-func FindLocationsIgnoreCase(term string, fulltext string, limit int64) []int {
+func IndexesAllIgnoreCase(term string, fulltext string, limit int64) []int {
 	// One of the problems with finding locations ignoring case is that
 	// the different case representations can have different byte counts
 	// which means the locations using strings or bytes Index can be off
@@ -100,9 +100,9 @@ func FindLocationsIgnoreCase(term string, fulltext string, limit int64) []int {
 	}
 	// Now we have all the possible case situations we should search for our
 	// potential matches
-	FindTermLocations(terms, fulltext, limit)
+	IndexesAll(fulltext, terms, limit)
 
-	return FindLocations(term, fulltext, limit)
+	return IndexAll(fulltext, term, limit)
 }
 
 // Given a string returns a slice containing all possible case permutations
