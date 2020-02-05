@@ -9,10 +9,20 @@ import (
 // upto the defined limit and does so without regular expressions
 // which  makes it about 3x more efficient than the regex way of doing this.
 //
-// A sample benchmark result to illustrate the point in index_benchmark_test.go
+// Some benchmark results to illustrate the point (find in index_benchmark_test.go)
 //
-// BenchmarkRegexFindAllIndex-8   	 1819051	       575 ns/op
-// BenchmarkIndexAll-8            	12940279	        88.6 ns/op
+// BenchmarkFindAllIndex-8                            	 3351572	       342 ns/op
+// BenchmarkIndexAll-8                                	19356867	      58.2 ns/op
+// BenchmarkFindAllIndexLarge-8                       	 1954294	       602 ns/op
+// BenchmarkIndexAllLarge-8                           	 4959736	       235 ns/op
+// BenchmarkFindAllIndexUnicode-8                     	 3243284	       438 ns/op
+// BenchmarkIndexAllUnicode-8                         	11533791	       107 ns/op
+// BenchmarkFindAllIndexUnicodeLarge-8                	  854901	      1233 ns/op
+// BenchmarkIndexAllUnicodeLarge-8                    	 2850352	       438 ns/op
+// BenchmarkFindAllIndexManyPartialMatches-8          	 1000000	      1177 ns/op
+// BenchmarkIndexAllManyPartialMatches-8              	 1366690	       868 ns/op
+// BenchmarkFindAllIndexUnicodeManyPartialMatches-8   	 1846048	       791 ns/op
+// BenchmarkIndexAllUnicodeManyPartialMatches-8       	 3607710	       324 ns/op
 //
 // Also note that this method has a limit option allowing you to bail out
 // at some threshold of matches which is useful in situations where
