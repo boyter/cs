@@ -6,7 +6,7 @@ import (
 )
 
 func TestExtractLocations(t *testing.T) {
-	locations := ExtractLocations("test", "test that this returns a match", math.MaxInt64)
+	locations := FindLocations("test", "test that this returns a match", math.MaxInt64)
 
 	if locations[0] != 0 {
 		t.Error("Expected to find location 0")
@@ -14,7 +14,7 @@ func TestExtractLocations(t *testing.T) {
 }
 
 func TestExtractLocationsLimit(t *testing.T) {
-	locations := ExtractLocations("test", "test test", 1)
+	locations := FindLocations("test", "test test", 1)
 
 	if len(locations) != 1 {
 		t.Error("Expected to find a single location")
@@ -22,7 +22,7 @@ func TestExtractLocationsLimit(t *testing.T) {
 }
 
 func TestExtractLocationsLimitTwo(t *testing.T) {
-	locations := ExtractLocations("test", "test test test", 2)
+	locations := FindLocations("test", "test test test", 2)
 
 	if len(locations) != 2 {
 		t.Error("Expected to find two locations")
@@ -30,9 +30,33 @@ func TestExtractLocationsLimitTwo(t *testing.T) {
 }
 
 func TestExtractLocationsLimitThree(t *testing.T) {
-	locations := ExtractLocations("test", "test test test", 3)
+	locations := FindLocations("test", "test test test", 3)
 
 	if len(locations) != 3 {
 		t.Error("Expected to find three locations")
 	}
 }
+
+func TestExtractTermLocations(t *testing.T) {
+	locations := FindTermLocations([]string{"test"}, "test test test", math.MaxInt64)
+
+	if len(locations) != 3 {
+		t.Error("Expected to find three locations")
+	}
+
+	if locations[0] != 0 {
+		t.Error("Expected 0")
+	}
+
+	if locations[2] != 10 {
+		t.Error("Expected 10")
+	}
+}
+
+//func TestExtractTermLocationsCaseInsensitive(t *testing.T) {
+//	locations := FindTermLocations([]string{"test"}, "TEST test test", math.MaxInt64)
+//
+//	if len(locations) != 1 {
+//		t.Error("Expected to find one locations")
+//	}
+//}

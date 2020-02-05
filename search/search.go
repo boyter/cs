@@ -20,7 +20,7 @@ import (
 // you may hit memory limits at that point.
 //
 // Note that this method is explicitly case sensitive in its matching
-func ExtractLocations(term string, fulltext string, limit int64) []int {
+func FindLocations(term string, fulltext string, limit int64) []int {
 	locs := []int{}
 
 	searchText := fulltext
@@ -58,16 +58,51 @@ func ExtractLocations(term string, fulltext string, limit int64) []int {
 // you may hit memory limits at that point.
 //
 // One subtle thing about this method is that it work
-func ExtractTermLocations(terms []string, fulltext string, limit int64) []int {
+func FindTermLocations(terms []string, fulltext string, limit int64) []int {
 	locs := []int{}
 
 	for _, w := range terms {
-		for _, l := range ExtractLocations(w, fulltext, limit) {
+		for _, l := range FindLocations(w, fulltext, limit) {
 			locs = append(locs, l)
 		}
 	}
 
 	return locs
+}
+
+func FindLocationsCase(term string, fulltext string, limit int64) []int {
+	return FindLocations(term, fulltext, limit)
+}
+
+func FindLocationsIgnoreCase(term string, fulltext string, limit int64) []int {
+	// One of the problems with finding locations ignoring case is that
+	// the different case representations can have different byte counts
+	// which means the locations using strings or bytes Index can be off
+	// if you blindly Lower everything then use Index.
+	// This is easy to overcome using regex but suffers the penalty
+	// of hitting the regex engine and then paying the price of case
+	// insensitive match there.
+	// This method tries something else which is used by some regex engines
+	// such as the one in rust where given a string literal if you get
+	// all the case options of that E.G turn foo into foo Foo fOo FOo foO FoO fOO FOO
+	// and then search over those you can find potential matches very quickly
+	// and then only on finding a potential match look for an actual one.
+
+	// Note if the term is over 4 characters long we want to get the first 4
+	// characters which means in reality the first 4 runes as the input
+	// may not be ASCII although this also has issues which can be overcome
+	// by https://github.com/rivo/uniseg
+	var terms []string
+	if len(term) > 4 {
+		terms = PermuteCase(term[:4])
+	} else {
+		terms = PermuteCase(term)
+	}
+	// Now we have all the possible case situations we should search for our
+	// potential matches
+	FindTermLocations(terms, fulltext, limit)
+
+	return FindLocations(term, fulltext, limit)
 }
 
 // Given a string returns a slice containing all possible case permutations
