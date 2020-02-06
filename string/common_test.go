@@ -1,9 +1,7 @@
 package string
 
 import (
-	"fmt"
 	"testing"
-	"unicode"
 )
 
 func TestRemoveStringDuplicates(t *testing.T) {
@@ -30,7 +28,15 @@ func TestPermuteCaseUnicode(t *testing.T) {
 	}
 }
 
-func TestPermuteCaseUnicode2(t *testing.T) {
+func TestPermuteCaseUnicodeNoFolding(t *testing.T) {
+	permutations := PermuteCase("ſ")
+
+	if len(permutations) != 2 {
+		t.Error("Expected 2 returns")
+	}
+}
+
+func TestPermuteCaseFoldingUnicodeNoFolding(t *testing.T) {
 	permutations := PermuteCase("ſ")
 
 	if len(permutations) != 3 {
@@ -38,53 +44,39 @@ func TestPermuteCaseUnicode2(t *testing.T) {
 	}
 }
 
-func TestSimpleFoldStuff(t *testing.T) {
-	var s rune = 'ß'
+func TestAllSimpleFoldAsciiNumber(t *testing.T) {
+	folded := AllSimpleFold('1')
 
-	for i := 0; i < 3; i++ {
-		fmt.Printf("%#U\n", unicode.SimpleFold(s))
-		s = unicode.SimpleFold(s)
+	if len(folded) != 1 {
+		t.Error("Should get 1 result")
 	}
 }
 
+func TestAllSimpleFoldAsciiLetter(t *testing.T) {
+	folded := AllSimpleFold('z')
 
-var simpleFoldTests = []string{
-	// SimpleFold(x) returns the next equivalent rune > x or wraps
-	// around to smaller values.
-
-	// Easy cases.
-	"Aa",
-	"δΔ",
-
-	// ASCII special cases.
-	"KkK",
-	"Ssſ",
-
-	// Non-ASCII special cases.
-	"ρϱΡ",
-	"ͅΙιι",
-
-	// Extra special cases: has lower/upper but no case fold.
-	"İ",
-	"ı",
-
-	// Upper comes before lower (Cherokee).
-	"\u13b0\uab80",
+	if len(folded) != 2 {
+		t.Error("Should get 2 results")
+	}
 }
 
-func TestSimpleFold(t *testing.T) {
-	for _, tt := range simpleFoldTests {
-		cycle := []rune(tt)
-		r := cycle[len(cycle)-1]
-		for _, out := range cycle {
-			if r := unicode.SimpleFold(r); r != out {
-				t.Errorf("SimpleFold(%#U) = %#U, want %#U", r, r, out)
-			}
-			r = out
-		}
-	}
+func TestAllSimpleFoldMultipleReturn(t *testing.T) {
+	folded := AllSimpleFold('ſ')
 
-	if r := unicode.SimpleFold(-42); r != -42 {
-		t.Errorf("SimpleFold(-42) = %v, want -42", r)
+	if len(folded) != 3 {
+		t.Error("Should get 3 results")
+	}
+}
+
+func TestAllSimpleFoldNotFullFold(t *testing.T) {
+	// ß (assuming I copied the lowercase one)
+	// can with full fold rules turn into SS
+	// https://www.w3.org/TR/charmod-norm/#definitionCaseFolding
+	// however in this case its a simple fold
+	// so we would not expect that
+	folded := AllSimpleFold('ß')
+
+	if len(folded) != 2 {
+		t.Error("Should get 2 results")
 	}
 }

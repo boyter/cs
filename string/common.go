@@ -1,6 +1,9 @@
 package string
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+)
 
 // Simple helper method that removes duplicates from
 // any given string slice and then returns a nice
@@ -17,6 +20,16 @@ func RemoveStringDuplicates(elements []string) []string {
 	}
 
 	return result
+}
+
+func Contains(elements []string, needle string) bool {
+	for _, v := range elements {
+		if needle == v {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Given a string returns a slice containing all possible case permutations
@@ -44,4 +57,37 @@ func PermuteCase(input string) []string {
 	}
 
 	return RemoveStringDuplicates(combinations)
+}
+
+func PermuteCaseFolding(input string) []string {
+	return []string{}
+}
+
+// Given an input rune return a rune slice containing
+// all of the possible simple fold
+func AllSimpleFold(input rune) []rune {
+	res := []rune{}
+
+	// This works for getting all folded representations
+	// but feels totally wrong due to the bailout break.
+	// That said its simpler than a while with checks
+	for i := 0; i < 255; i++ {
+		input = unicode.SimpleFold(input)
+		if containsRune(res, input) {
+			break
+		}
+		res = append(res, input)
+	}
+
+	return res
+}
+
+func containsRune(elements []rune, needle rune) bool {
+	for _, v := range elements {
+		if needle == v {
+			return true
+		}
+	}
+
+	return false
 }
