@@ -116,11 +116,14 @@ func IndexesAllIgnoreCase(term string, fulltext string, limit int64) []int {
 	// may not be ASCII although this also has issues which can be overcome
 	// by https://github.com/rivo/uniseg
 	var terms []string
-	terms = PermuteCase(term)
+	terms = PermuteCaseFolding(term)
 
+	locs := []int{}
 	// Now we have all the possible case situations we should search for our
 	// potential matches
-	IndexesAll(fulltext, terms, limit)
+	for _, term := range terms {
+		locs = append(locs, IndexAll(fulltext, term, limit)...)
+	}
 
-	return IndexAll(fulltext, term, limit)
+	return locs
 }

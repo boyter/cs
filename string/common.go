@@ -59,6 +59,8 @@ func PermuteCase(input string) []string {
 	return RemoveStringDuplicates(combinations)
 }
 
+// Given a string returns a slice containing all possible case permutations
+// with characters being folded such that S will return S s ſ
 func PermuteCaseFolding(input string) []string {
 	combinations := PermuteCase(input)
 	combos := []string{}

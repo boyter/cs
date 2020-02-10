@@ -52,11 +52,3 @@ func TestExtractTermLocations(t *testing.T) {
 		t.Error("Expected 10")
 	}
 }
-
-//func TestExtractTermLocationsCaseInsensitive(t *testing.T) {
-//	locations := IndexesAll([]string{"test"}, "TEST test test", math.MaxInt64)
-//
-//	if len(locations) != 1 {
-//		t.Error("Expected to find one locations")
-//	}
-//}
