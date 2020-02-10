@@ -6,25 +6,29 @@ import (
 )
 
 // Extracts all of the locations of a string inside another string
-// upto the defined limit and does so without regular expressions
-// which  makes it about 3x more efficient than the regex way of doing this.
+// up-to the defined limit and does so without regular expressions
+// which makes it considerably faster.
 //
 // Some benchmark results to illustrate the point (find in index_benchmark_test.go)
 //
-// BenchmarkFindAllIndex-8                            	 3351572	       342 ns/op
-// BenchmarkIndexAll-8                                	19356867	      58.2 ns/op
-// BenchmarkFindAllIndexLarge-8                       	 1954294	       602 ns/op
-// BenchmarkIndexAllLarge-8                           	 4959736	       235 ns/op
-// BenchmarkFindAllIndexUnicode-8                     	 3243284	       438 ns/op
-// BenchmarkIndexAllUnicode-8                         	11533791	       107 ns/op
-// BenchmarkFindAllIndexUnicodeLarge-8                	  854901	      1233 ns/op
-// BenchmarkIndexAllUnicodeLarge-8                    	 2850352	       438 ns/op
-// BenchmarkFindAllIndexManyPartialMatches-8          	 1000000	      1177 ns/op
-// BenchmarkIndexAllManyPartialMatches-8              	 1366690	       868 ns/op
-// BenchmarkFindAllIndexUnicodeManyPartialMatches-8   	 1846048	       791 ns/op
-// BenchmarkIndexAllUnicodeManyPartialMatches-8       	 3607710	       324 ns/op
+// BenchmarkFindAllIndex-8                                           	 2458844	       480 ns/op
+// BenchmarkIndexAll-8                                               	14819680	      79.6 ns/op
+// BenchmarkFindAllIndexLarge-8                                      	 1415024	       767 ns/op
+// BenchmarkIndexAllLarge-8                                          	 4332188	       273 ns/op
+// BenchmarkFindAllIndexUnicode-8                                    	 2614605	       453 ns/op
+// BenchmarkIndexAllUnicode-8                                        	11995201	      98.0 ns/op
+// BenchmarkFindAllIndexUnicodeLarge-8                               	  995239	      1362 ns/op
+// BenchmarkIndexAllUnicodeLarge-8                                   	 2327736	       508 ns/op
+// BenchmarkFindAllIndexManyPartialMatches-8                         	  921036	      1365 ns/op
+// BenchmarkIndexAllManyPartialMatches-8                             	 1237137	       959 ns/op
+// BenchmarkFindAllIndexUnicodeManyPartialMatches-8                  	 1564449	       763 ns/op
+// BenchmarkIndexAllUnicodeManyPartialMatches-8                      	 3305750	       367 ns/op
+// BenchmarkFindAllIndexUnicodeManyPartialMatchesVeryLarge-8         	      27	  40394119 ns/op
+// BenchmarkIndexAllUnicodeManyPartialMatchesVeryLarge-8             	    2802	    430293 ns/op
+// BenchmarkFindAllIndexUnicodeManyPartialMatchesSuperLarge-8        	       1	1568026700 ns/op
+// BenchmarkIndexAllUnicodeManyPartialMatchesSuperLarge-8            	      12	 100250200 ns/op
 //
-// Also note that this method has a limit option allowing you to bail out
+// Note that this method has a limit option allowing you to bail out
 // at some threshold of matches which is useful in situations where
 // additional matches are no longer useful. Similar to how FindAllIndex
 // works. You can use -1 or math.MaxInt64

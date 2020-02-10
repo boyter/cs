@@ -60,7 +60,12 @@ func PermuteCase(input string) []string {
 }
 
 func PermuteCaseFolding(input string) []string {
-	return []string{}
+	combinations := PermuteCase(input)
+
+	// For each combination iterate the runes and if we have any differences
+	// then modify them
+
+	return combinations
 }
 
 // Given an input rune return a rune slice containing
