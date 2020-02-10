@@ -90,8 +90,6 @@ func IndexesAll(fulltext string, terms []string, limit int64) []int {
 		locs = append(locs, IndexAll(fulltext, w, limit)...)
 	}
 
-
-
 	return locs
 }
 

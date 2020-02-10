@@ -36,14 +36,6 @@ func TestPermuteCaseUnicodeNoFolding(t *testing.T) {
 	}
 }
 
-func TestPermuteCaseFoldingUnicodeNoFolding(t *testing.T) {
-	permutations := PermuteCase("ſ")
-
-	if len(permutations) != 3 {
-		t.Error("Expected 3 returns")
-	}
-}
-
 func TestAllSimpleFoldAsciiNumber(t *testing.T) {
 	folded := AllSimpleFold('1')
 
@@ -78,5 +70,21 @@ func TestAllSimpleFoldNotFullFold(t *testing.T) {
 
 	if len(folded) != 2 {
 		t.Error("Should get 2 results")
+	}
+}
+
+func TestPermuteCaseFoldingUnicodeNoFolding(t *testing.T) {
+	permutations := PermuteCaseFolding("ſ")
+
+	if len(permutations) != 3 {
+		t.Error("Expected 3 returns")
+	}
+}
+
+func TestPermuteCaseFolding(t *testing.T) {
+	folded := PermuteCaseFolding("nſ")
+
+	if len(folded) != 6 {
+		t.Error("Should get 6 results got", len(folded))
 	}
 }

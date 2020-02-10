@@ -149,7 +149,6 @@ func BenchmarkIndexAllUnicodeManyPartialMatches(b *testing.B) {
 	}
 }
 
-
 func BenchmarkFindAllIndexUnicodeManyPartialMatchesVeryLarge(b *testing.B) {
 	r := regexp.MustCompile(`Ⱥtest`)
 

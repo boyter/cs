@@ -61,11 +61,17 @@ func PermuteCase(input string) []string {
 
 func PermuteCaseFolding(input string) []string {
 	combinations := PermuteCase(input)
+	combos := []string{}
 
-	// For each combination iterate the runes and if we have any differences
-	// then modify them
+	for _, combo := range combinations {
+		for index, runeValue := range combo {
+			for _, p := range AllSimpleFold(runeValue) {
+				combos = append(combos, combo[:index]+string(p)+combo[index+len(string(runeValue)):])
+			}
+		}
+	}
 
-	return combinations
+	return RemoveStringDuplicates(combos)
 }
 
 // Given an input rune return a rune slice containing
