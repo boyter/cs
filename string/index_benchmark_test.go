@@ -149,6 +149,71 @@ func BenchmarkIndexAllUnicodeManyPartialMatches(b *testing.B) {
 	}
 }
 
+
+func BenchmarkFindAllIndexUnicodeManyPartialMatchesVeryLarge(b *testing.B) {
+	r := regexp.MustCompile(`Ⱥtest`)
+
+	var large string
+	for i := 0; i <= 100; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 101 {
+			b.Error("Expected 101 match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexAllUnicodeManyPartialMatchesVeryLarge(b *testing.B) {
+	var large string
+	for i := 0; i <= 100; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAll(large, "Ⱥtest", -1)
+		if len(matches) != 101 {
+			b.Error("Expected 101 match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexUnicodeManyPartialMatchesSuperLarge(b *testing.B) {
+	r := regexp.MustCompile(`Ⱥtest`)
+
+	var large string
+	for i := 0; i <= 500; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 501 {
+			b.Error("Expected 501 match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexAllUnicodeManyPartialMatchesSuperLarge(b *testing.B) {
+	var large string
+	for i := 0; i <= 500; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAll(large, "Ⱥtest", -1)
+		if len(matches) != 501 {
+			b.Error("Expected 501 match got", len(matches))
+		}
+	}
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 // This benchmark simulates a
