@@ -19,7 +19,7 @@ func BenchmarkFindAllIndexCaseInsensitive(b *testing.B) {
 
 func BenchmarkIndexesAllIgnoreCaseCaseInsensitive(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("test", test_MatchEndCase, -1)
+		matches := IndexAllIgnoreCase(test_MatchEndCase, "test", -1)
 
 		if len(matches) != 1 {
 			b.Error("Expected single match")
@@ -41,7 +41,7 @@ func BenchmarkFindAllIndexLargeCaseInsensitive(b *testing.B) {
 
 func BenchmarkIndexesAllIgnoreCaseLargeCaseInsensitive(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("test", test_MatchEndCaseLarge, -1)
+		matches := IndexAllIgnoreCase(test_MatchEndCaseLarge, "test", -1)
 		if len(matches) != 1 {
 			b.Error("Expected single match")
 		}
@@ -62,7 +62,7 @@ func BenchmarkFindAllIndexUnicodeCaseInsensitive(b *testing.B) {
 
 func BenchmarkIndexesAllIgnoreCaseUnicodeCaseInsensitive(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("test", test_UnicodeMatchEndCase, -1)
+		matches := IndexAllIgnoreCase(test_UnicodeMatchEndCase, "test", -1)
 		if len(matches) != 1 {
 			b.Error("Expected single match")
 		}
@@ -83,7 +83,7 @@ func BenchmarkFindAllIndexUnicodeLargeCaseInsensitive(b *testing.B) {
 
 func BenchmarkIndexesAllIgnoreCaseUnicodeLargeCaseInsensitive(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("test", test_UnicodeMatchEndCaseLarge, -1)
+		matches := IndexAllIgnoreCase(test_UnicodeMatchEndCaseLarge, "test", -1)
 		if len(matches) != 1 {
 			b.Error("Expected single match")
 		}
@@ -107,7 +107,7 @@ func BenchmarkFindAllIndexManyPartialMatchesCaseInsensitive(b *testing.B) {
 
 func BenchmarkIndexesAllIgnoreCaseManyPartialMatchesCaseInsensitive(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("1test", test_MatchEndCase, -1)
+		matches := IndexAllIgnoreCase(test_MatchEndCase, "1test", -1)
 		if len(matches) != 1 {
 			b.Error("Expected single match")
 		}
@@ -131,7 +131,7 @@ func BenchmarkFindAllIndexUnicodeManyPartialMatchesCaseInsensitive(b *testing.B)
 
 func BenchmarkIndexesAllIgnoreCaseUnicodeManyPartialMatchesCaseInsensitive(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("Ⱥtest", test_UnicodeMatchEndCase, -1)
+		matches := IndexAllIgnoreCase(test_UnicodeMatchEndCase, "Ⱥtest", -1)
 		if len(matches) != 1 {
 			b.Error("Expected single match")
 		}
@@ -162,7 +162,7 @@ func BenchmarkIndexesAllIgnoreCaseUnicodeCaseInsensitiveVeryLarge(b *testing.B) 
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("Ⱥtest", large, -1)
+		matches := IndexAllIgnoreCase(large, "Ⱥtest", -1)
 		if len(matches) != 101 {
 			b.Error("Expected single match got", len(matches))
 		}
@@ -193,7 +193,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveVeryLarge(b *testing.B) 
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("ſ", large, -1)
+		matches := IndexAllIgnoreCase(large, "ſ", -1)
 		if len(matches) != 101 {
 			b.Error("Expected single match got", len(matches))
 		}
@@ -224,7 +224,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle1(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("a", large, -1)
+		matches := IndexAllIgnoreCase(large, "a", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -255,7 +255,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle2(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -286,7 +286,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle3(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -317,7 +317,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle4(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -348,7 +348,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle5(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -379,7 +379,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle6(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -410,7 +410,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle7(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaaaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaaaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -441,7 +441,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle8(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaaaaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaaaaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -472,7 +472,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle9(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaaaaaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaaaaaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}
@@ -503,7 +503,7 @@ func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle10(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		matches := IndexAllIgnoreCase("aaaaaaaaaa", large, -1)
+		matches := IndexAllIgnoreCase(large, "aaaaaaaaaa", -1)
 		if len(matches) != 0 {
 			b.Error("Expected no matches got", len(matches))
 		}

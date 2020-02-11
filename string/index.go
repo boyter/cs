@@ -59,7 +59,7 @@ func IndexAll(fulltext string, term string, limit int64) []int {
 	return locs
 }
 
-func IndexAllIgnoreCase(term string, fulltext string, limit int64) []int {
+func IndexAllIgnoreCase(fulltext string, term string, limit int64) []int {
 	// One of the problems with finding locations ignoring case is that
 	// the different case representations can have different byte counts
 	// which means the locations using strings or bytes Index can be off

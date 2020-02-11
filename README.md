@@ -58,3 +58,5 @@ https://www.reddit.com/r/javascript/comments/9i455b/why_is_%C3%9Ftouppercase_equ
 $ rg -i --debug ß
 DEBUG|grep_regex::literal|/home/bboyter/.cargo/registry/src/github.com-1ecc6299db9ec823/grep-regex-0.1.5/src/literal.rs:59: literal prefixes detected: Literals { lits: [Complete(ß), Complete(ẞ)], limit_size: 250, limit_class: 10 }
 
+
+ head -c200000000 /dev/urandom > 200mb.txt
