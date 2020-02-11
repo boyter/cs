@@ -36,19 +36,3 @@ func TestExtractLocationsLimitThree(t *testing.T) {
 		t.Error("Expected to find three locations")
 	}
 }
-
-func TestExtractTermLocations(t *testing.T) {
-	locations := IndexesAll("test test test", []string{"test"}, math.MaxInt64)
-
-	if len(locations) != 3 {
-		t.Error("Expected to find three locations")
-	}
-
-	if locations[0] != 0 {
-		t.Error("Expected 0")
-	}
-
-	if locations[2] != 10 {
-		t.Error("Expected 10")
-	}
-}

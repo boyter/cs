@@ -1,0 +1,511 @@
+package string
+
+import (
+	"regexp"
+	"testing"
+)
+
+func BenchmarkFindAllIndexCaseInsensitive(b *testing.B) {
+	r := regexp.MustCompile(`(?i)test`)
+	haystack := []byte(test_MatchEndCase)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseCaseInsensitive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("test", test_MatchEndCase, -1)
+
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkFindAllIndexLargeCaseInsensitive(b *testing.B) {
+	r := regexp.MustCompile(`(?i)test`)
+	haystack := []byte(test_MatchEndCaseLarge)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseLargeCaseInsensitive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("test", test_MatchEndCaseLarge, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkFindAllIndexUnicodeCaseInsensitive(b *testing.B) {
+	r := regexp.MustCompile(`(?i)test`)
+	haystack := []byte(test_UnicodeMatchEndCase)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseUnicodeCaseInsensitive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("test", test_UnicodeMatchEndCase, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkFindAllIndexUnicodeLargeCaseInsensitive(b *testing.B) {
+	r := regexp.MustCompile(`(?i)test`)
+	haystack := []byte(test_UnicodeMatchEndCaseLarge)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseUnicodeLargeCaseInsensitive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("test", test_UnicodeMatchEndCaseLarge, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+// This benchmark simulates a bad case of there being many
+// partial matches where the first character in the needle
+// can be found throughout the haystack
+func BenchmarkFindAllIndexManyPartialMatchesCaseInsensitive(b *testing.B) {
+	r := regexp.MustCompile(`(?i)1test`)
+	haystack := []byte(test_MatchEndCase)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseManyPartialMatchesCaseInsensitive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("1test", test_MatchEndCase, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+// This benchmark simulates a bad case of there being many
+// partial matches where the first character in the needle
+// can be found throughout the haystack
+func BenchmarkFindAllIndexUnicodeManyPartialMatchesCaseInsensitive(b *testing.B) {
+	r := regexp.MustCompile(`(?i)Ⱥtest`)
+	haystack := []byte(test_UnicodeMatchEndCase)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseUnicodeManyPartialMatchesCaseInsensitive(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("Ⱥtest", test_UnicodeMatchEndCase, -1)
+		if len(matches) != 1 {
+			b.Error("Expected single match")
+		}
+	}
+}
+
+func BenchmarkFindAllIndexUnicodeCaseInsensitiveVeryLarge(b *testing.B) {
+	var large string
+	for i := 0; i <= 100; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)Ⱥtest`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 101 {
+			b.Error("Expected single match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseUnicodeCaseInsensitiveVeryLarge(b *testing.B) {
+	var large string
+	for i := 0; i <= 100; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("Ⱥtest", large, -1)
+		if len(matches) != 101 {
+			b.Error("Expected single match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveVeryLarge(b *testing.B) {
+	var large string
+	for i := 0; i <= 100; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)ſ`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 101 {
+			b.Error("Expected single match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveVeryLarge(b *testing.B) {
+	var large string
+	for i := 0; i <= 100; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("ſ", large, -1)
+		if len(matches) != 101 {
+			b.Error("Expected single match got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle1(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)a`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle1(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("a", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle2(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle2(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle3(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle3(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle4(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle4(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle5(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle5(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle6(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle6(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle7(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaaaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle7(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaaaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle8(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaaaaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle8(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaaaaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle9(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaaaaaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle9(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaaaaaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkFindAllIndexFoldingCaseInsensitiveNeedle10(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	r := regexp.MustCompile(`(?i)aaaaaaaaaa`)
+	haystack := []byte(large)
+
+	for i := 0; i < b.N; i++ {
+		matches := r.FindAllIndex(haystack, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}
+
+func BenchmarkIndexesAllIgnoreCaseFoldingCaseInsensitiveNeedle10(b *testing.B) {
+	var large string
+	for i := 0; i <= 10; i++ {
+		large += test_UnicodeMatchEndCaseLarge
+	}
+
+	for i := 0; i < b.N; i++ {
+		matches := IndexAllIgnoreCase("aaaaaaaaaa", large, -1)
+		if len(matches) != 0 {
+			b.Error("Expected no matches got", len(matches))
+		}
+	}
+}

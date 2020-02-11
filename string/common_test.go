@@ -88,3 +88,12 @@ func TestPermuteCaseFolding(t *testing.T) {
 		t.Error("Should get 6 results got", len(folded))
 	}
 }
+
+func TestPermuteCaseFoldingComparison(t *testing.T) {
+	r1 := PermuteCase("groß")
+	r2 := PermuteCaseFolding("groß")
+
+	if len(r1) >= len(r2){
+		t.Error("Should not be of equal length")
+	}
+}
