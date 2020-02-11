@@ -43,10 +43,10 @@ func main() {
 		fmt.Println("Scan took", elapsed, len(all))
 	}
 
-	fmt.Println("IndexAllIgnoreCase")
+	fmt.Println("IndexAllIgnoreCaseUnicode")
 	for i := 0; i < 5; i++ {
 		start = time.Now()
-		all := str.IndexAllIgnoreCase(haystack, arg1, -1)
+		all := str.IndexAllIgnoreCaseUnicode(haystack, arg1, -1)
 		elapsed = time.Since(start)
 		fmt.Println("Scan took", elapsed, len(all))
 	}

@@ -101,9 +101,7 @@ func TestPermuteCaseFoldingComparison(t *testing.T) {
 	r1 := PermuteCase("groß")
 	r2 := PermuteCaseFolding("groß")
 
-	if len(r1) >= len(r2){
+	if len(r1) >= len(r2) {
 		t.Error("Should not be of equal length")
 	}
 }
-
-
