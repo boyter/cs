@@ -2,7 +2,9 @@ package string
 
 import (
 	"math"
+	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // IndexAll extracts all of the locations of a string inside another string
@@ -72,7 +74,7 @@ func IndexAll(haystack string, needle string, limit int64) [][]int {
 	return locs
 }
 
-func IndexAllIgnoreCaseUnicode(fulltext string, term string, limit int64) [][]int {
+func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int64) [][]int {
 	// One of the problems with finding locations ignoring case is that
 	// the different case representations can have different byte counts
 	// which means the locations using strings or bytes Index can be off
@@ -87,19 +89,46 @@ func IndexAllIgnoreCaseUnicode(fulltext string, term string, limit int64) [][]in
 	// all the case options of that such as turning foo into foo Foo fOo FOo foO FoO fOO FOO
 	// and then searching over those.
 	//
-	// Note if the term is over 5 characters long we want to get the first 5
-	// characters which in Go means the first 5 runes as the input.
+	// Note if the needle is over 2 characters long we want to get the first 2
+	// characters which in Go means the first 2 runes as the input.
 	// However this means you are not finding actual matches and as such
 	// you the need to validate a potential match after you have found one
-	var terms []string
-	terms = PermuteCaseFolding(term)
+
+	// TODO If the needle is hilariously long it probably makes sense to fall back into regex
 
 	locs := [][]int{}
-	// Now we have all the possible case situations we should search for our
-	// potential matches
-	for _, term := range terms {
-		locs = append(locs, IndexAll(fulltext, term, limit)...)
-		// TODO validate potential matches here
+	var charLimit = 3
+
+	var searchTerms []string
+	if utf8.RuneCountInString(needle) <= charLimit {
+		searchTerms = PermuteCaseFolding(needle)
+
+		for _, term := range searchTerms {
+			locs = append(locs, IndexAll(haystack, term, limit)...)
+		}
+	} else {
+		// Look for potential matchs and only then find real ones
+		s := []rune(needle)
+		searchTerms = PermuteCaseFolding(string(s[:charLimit]))
+		regexIgnore := regexp.MustCompile(`(?i)` + needle)
+
+		for _, term := range searchTerms {
+			potentialMatches := IndexAll(haystack, term, limit)
+
+			for _, match := range potentialMatches {
+				// We have a potential match, so now see if it actually matches
+				toMatch := haystack[match[0] : match[0]+len(needle)]
+
+				// Use a regular expression here to match because we already cut down the time
+				if regexIgnore.Match([]byte(toMatch)) {
+					locs = append(locs, []int{match[0], match[0] + len(needle)})
+				}
+			}
+		}
+	}
+
+	if len(locs) == 0 {
+		return nil
 	}
 
 	return locs

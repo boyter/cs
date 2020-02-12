@@ -9,7 +9,13 @@ import (
 	"time"
 )
 
+// Simple test comparison between various search methods
 func main() {
+	//f, _ := os.Create("csperf.pprof")
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
+
+
 	arg1 := os.Args[1]
 	arg2 := os.Args[2]
 
@@ -27,7 +33,7 @@ func main() {
 	var elapsed time.Duration
 
 	fmt.Println("IndexAll")
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 3; i++ {
 		start = time.Now()
 		all := str.IndexAll(haystack, arg1, -1)
 		elapsed = time.Since(start)
@@ -36,7 +42,7 @@ func main() {
 
 	r := regexp.MustCompile(`(?i)` + arg1)
 	fmt.Println("FindAllIndex (regex ignore case)")
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 3; i++ {
 		start = time.Now()
 		all := r.FindAllIndex(b, -1)
 		elapsed = time.Since(start)
@@ -44,7 +50,7 @@ func main() {
 	}
 
 	fmt.Println("IndexAllIgnoreCaseUnicode")
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 3; i++ {
 		start = time.Now()
 		all := str.IndexAllIgnoreCaseUnicode(haystack, arg1, -1)
 		elapsed = time.Since(start)

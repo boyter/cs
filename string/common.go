@@ -36,7 +36,7 @@ func Contains(elements []string, needle string) bool {
 // of that string such that input of foo will return
 // foo Foo fOo FOo foO FoO fOO FOO
 // Note that very long inputs can produce an enormous amount of
-// results in the returned slice
+// results in the returned slice OR result in an overflow and return nothing
 func PermuteCase(input string) []string {
 	l := len(input)
 	max := 1 << l

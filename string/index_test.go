@@ -61,3 +61,19 @@ func TestDropInReplacementNil(t *testing.T) {
 		t.Error("Expect results to be nil")
 	}
 }
+
+func TestIndexAllIgnoreCaseUnicodeLongNeedleNoMatch(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("aaaaabbbbb", "aaaaaa", -1)
+
+	if matches != nil {
+		t.Error("Expected no matches")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeLongNeedleSingleMatch(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("aaaaaabbbbb", "aaaaaa", -1)
+
+	if len(matches) != 1 {
+		t.Error("Expected single matches")
+	}
+}
