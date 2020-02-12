@@ -15,7 +15,6 @@ func main() {
 	//pprof.StartCPUProfile(f)
 	//defer pprof.StopCPUProfile()
 
-
 	arg1 := os.Args[1]
 	arg2 := os.Args[2]
 
@@ -32,16 +31,8 @@ func main() {
 	var start time.Time
 	var elapsed time.Duration
 
-	fmt.Println("IndexAll")
-	for i := 0; i < 3; i++ {
-		start = time.Now()
-		all := str.IndexAll(haystack, arg1, -1)
-		elapsed = time.Since(start)
-		fmt.Println("Scan took", elapsed, len(all))
-	}
-
-	r := regexp.MustCompile(`(?i)` + arg1)
-	fmt.Println("FindAllIndex (regex ignore case)")
+	fmt.Println("\nFindAllIndex (regex)")
+	r := regexp.MustCompile(regexp.QuoteMeta(arg1))
 	for i := 0; i < 3; i++ {
 		start = time.Now()
 		all := r.FindAllIndex(b, -1)
@@ -49,7 +40,24 @@ func main() {
 		fmt.Println("Scan took", elapsed, len(all))
 	}
 
-	fmt.Println("IndexAllIgnoreCaseUnicode")
+	fmt.Println("\nIndexAll (custom)")
+	for i := 0; i < 3; i++ {
+		start = time.Now()
+		all := str.IndexAll(haystack, arg1, -1)
+		elapsed = time.Since(start)
+		fmt.Println("Scan took", elapsed, len(all))
+	}
+
+	r = regexp.MustCompile(`(?i)` + regexp.QuoteMeta(arg1))
+	fmt.Println("\nFindAllIndex (regex ignore case)")
+	for i := 0; i < 3; i++ {
+		start = time.Now()
+		all := r.FindAllIndex(b, -1)
+		elapsed = time.Since(start)
+		fmt.Println("Scan took", elapsed, len(all))
+	}
+
+	fmt.Println("\nIndexAllIgnoreCaseUnicode (custom)")
 	for i := 0; i < 3; i++ {
 		start = time.Now()
 		all := str.IndexAllIgnoreCaseUnicode(haystack, arg1, -1)

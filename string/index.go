@@ -24,7 +24,7 @@ import (
 //
 // Note that this method is explicitly case sensitive in its matching.
 // A return value of nil indicates no match.
-func IndexAll(haystack string, needle string, limit int64) [][]int {
+func IndexAll(haystack string, needle string, limit int) [][]int {
 	// Return contains a slice of slices where index 0 is the location of the match in bytes
 	// and index 1 contains the end location in bytes of the match
 	locs := [][]int{}
@@ -39,14 +39,14 @@ func IndexAll(haystack string, needle string, limit int64) [][]int {
 		// Similar to how regex FindAllString works
 		// if we have -1 as the limit set to max to
 		//  try to get everything
-		limit = math.MaxInt64
+		limit = math.MaxInt32
 	} else {
 		// Increment by one because we do count++ at the start of the loop
 		// and as such there is a off by 1 error in the return otherwise
 		limit++
 	}
 
-	var count int64
+	var count int
 	for loc != -1 {
 		count++
 
@@ -74,7 +74,13 @@ func IndexAll(haystack string, needle string, limit int64) [][]int {
 	return locs
 }
 
-func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int64) [][]int {
+// IndexAllIgnoreCaseUnicode extracts all of the locations of a string inside another string
+// up-to the defined limit. It is designed to be faster than uses of FindAllIndex with
+// case insenstive matching enabled, by looking for string literals first and then
+// checking for exact matches. It also does so in a unicode aware way such that a search
+// for S will search for S s and ſ which a simple strings.ToLower over the haystack
+// and the needle will not.
+func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]int {
 	// One of the problems with finding locations ignoring case is that
 	// the different case representations can have different byte counts
 	// which means the locations using strings or bytes Index can be off
@@ -94,9 +100,10 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int64) [][]
 	// However this means you are not finding actual matches and as such
 	// you the need to validate a potential match after you have found one
 
-	// TODO If the needle is hilariously long it probably makes sense to fall back into regex
-
 	locs := [][]int{}
+	// Char limit is the cuttoff where we switch from all case permutations
+	// to just the first 3 and then check for an actual match
+	// in my tests 3 speeds things up the most
 	var charLimit = 3
 
 	var searchTerms []string
@@ -105,12 +112,17 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int64) [][]
 
 		for _, term := range searchTerms {
 			locs = append(locs, IndexAll(haystack, term, limit)...)
+
+			//if len(locs) >= limit {
+			//	return locs[:limit]
+			//}
 		}
 	} else {
-		// Look for potential matchs and only then find real ones
+		// Over the character limit so look for potential matches and only then find real ones
 		s := []rune(needle)
+		// Reduce the number of cases
 		searchTerms = PermuteCaseFolding(string(s[:charLimit]))
-		regexIgnore := regexp.MustCompile(`(?i)` + needle)
+		regexIgnore := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(needle))
 
 		for _, term := range searchTerms {
 			potentialMatches := IndexAll(haystack, term, limit)
@@ -120,8 +132,13 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int64) [][]
 				toMatch := haystack[match[0] : match[0]+len(needle)]
 
 				// Use a regular expression here to match because we already cut down the time
+				// needed and its faster than CaseFolding large needles
 				if regexIgnore.Match([]byte(toMatch)) {
 					locs = append(locs, []int{match[0], match[0] + len(needle)})
+
+					//if len(locs) >= limit {
+					//	return locs[:limit]
+					//}
 				}
 			}
 		}
