@@ -50,3 +50,14 @@ func TestDropInReplacement(t *testing.T) {
 		}
 	}
 }
+
+func TestDropInReplacementNil(t *testing.T) {
+	r := regexp.MustCompile(`test`)
+
+	matches1 := r.FindAllIndex([]byte(`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`), -1)
+	matches2 := IndexAll(`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`, "test", -1)
+
+	if matches1 != nil || matches2 != nil {
+		t.Error("Expect results to be nil")
+	}
+}

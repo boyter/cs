@@ -5,34 +5,38 @@ import (
 	"strings"
 )
 
-// Extracts all of the locations of a string inside another string
+// IndexAll extracts all of the locations of a string inside another string
 // up-to the defined limit and does so without regular expressions
-// which makes it considerably faster.
+// which makes it considerably faster than FindAllIndex.
 //
 // Some benchmark results to illustrate the point (find more in index_benchmark_test.go)
 //
 // BenchmarkFindAllIndex-8                         2458844	       480.0 ns/op
 // BenchmarkIndexAll-8                            14819680	        79.6 ns/op
 //
-// Note that this method has a limit option allowing you to bail out
-// at some threshold of matches which is useful in situations where
-// additional matches are no longer useful. Similar to how FindAllIndex
-// works. You can use -1 or math.MaxInt64
-// to get what should hopefully be all possible matches although I suspect
-// you may hit memory limits at that point.
+// For pure literal searches IE no regular expression logic this method
+// is a drop in replacement for FindAllIndex.
 //
-// Note that this method is explicitly case sensitive in its matching
-// A return value will be an empty slice if no match TODO correct?
+// Similar to how FindAllIndex the limit option can be passed -1
+// to get all matches.
+//
+// Note that this method is explicitly case sensitive in its matching.
+// A return value of nil indicates no match.
 func IndexAll(haystack string, needle string, limit int64) [][]int {
+	// Return contains a slice of slices where index 0 is the location of the match in bytes
+	// and index 1 contains the end location in bytes of the match
 	locs := [][]int{}
 
+	// Perform the first search outside the main loop to make the method
+	// easier to understand
 	searchText := haystack
 	offSet := 0
 	loc := strings.Index(searchText, needle)
 
-	if limit == -1 {
+	if limit <= -1 {
 		// Similar to how regex FindAllString works
-		// if we have -1 as the limit just try to get everything
+		// if we have -1 as the limit set to max to
+		//  try to get everything
 		limit = math.MaxInt64
 	} else {
 		// Increment by one because we do count++ at the start of the loop
@@ -48,12 +52,21 @@ func IndexAll(haystack string, needle string, limit int64) [][]int {
 			break
 		}
 
+		// trim off the portion we already searched, and look from there
 		searchText = searchText[loc+len(needle):]
 		locs = append(locs, []int{loc + offSet, loc + len(needle)})
 
-		// trim off the start, and look from there and keep trimming
+		// We need to keep the offset of the match so we continue searching
 		offSet += loc + len(needle)
+
+		// strings.Index does checks of if the string is empty so we don't need
+		// to explicitly do it ourselves
 		loc = strings.Index(searchText, needle)
+	}
+
+	// Retain compatibility with FindAllIndex method
+	if len(locs) == 0 {
+		return nil
 	}
 
 	return locs
