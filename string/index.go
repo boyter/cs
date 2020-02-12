@@ -9,7 +9,8 @@ import (
 
 // IndexAll extracts all of the locations of a string inside another string
 // up-to the defined limit and does so without regular expressions
-// which makes it considerably faster than FindAllIndex.
+// which makes it faster than FindAllIndex in most situations while
+// not being any slower.
 //
 // Some benchmark results to illustrate the point (find more in index_benchmark_test.go)
 //
@@ -91,59 +92,88 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	// insensitive match there.
 	//
 	// This method tries something else which is used by some regex engines
-	// such as the one in rust where given a string literal if you get
+	// such as the one in Rust where given a string literal if you get
 	// all the case options of that such as turning foo into foo Foo fOo FOo foO FoO fOO FOO
-	// and then searching over those.
+	// and then use Boyer-Moore or some such for those. Of course using something
+	// like Aho-Corasick or Rabin-Karp to get multi match would be a better idea so you
+	// can match all of the input in one pass.
 	//
-	// Note if the needle is over 2 characters long we want to get the first 2
-	// characters which in Go means the first 2 runes as the input.
-	// However this means you are not finding actual matches and as such
-	// you the need to validate a potential match after you have found one
+	// If the needle is over some amount of characters long you chop off the first few
+	// and then search for those. However this means you are not finding actual matches and as such
+	// you the need to validate a potential match after you have found one.
+	// In this case the confirmation match is done using regular expressions
+	// because its faster than checking for all case options for longer needles.
 
 	locs := [][]int{}
-	// Char limit is the cuttoff where we switch from all case permutations
+	// Char limit is the cut-off where we switch from all case permutations
 	// to just the first 3 and then check for an actual match
-	// in my tests 3 speeds things up the most
+	// in my tests 3 speeds things up the most against test data
+	// of many famous books concatenated together and large
+	// amounts of data from /dev/urandom
 	var charLimit = 3
 
 	var searchTerms []string
 	if utf8.RuneCountInString(needle) <= charLimit {
+		// We are below the limit we set, so get all the search
+		// terms and search for that
 		searchTerms = PermuteCaseFolding(needle)
 
+		// TODO - Investigate
+		// This is using IndexAll in a loop which was faster than
+		// any implementation of Aho-Corasick or Boyer-Moore I tried
+		// but in theory Aho-Corasick / Rabin-Karp or even a modified
+		// version of Boyer-Moore should be faster than this
 		for _, term := range searchTerms {
 			locs = append(locs, IndexAll(haystack, term, limit)...)
 
-			//if len(locs) >= limit {
-			//	return locs[:limit]
-			//}
+			if limit > 0 && len(locs) > limit {
+				return locs[:limit]
+			}
 		}
 	} else {
-		// Over the character limit so look for potential matches and only then find real ones
+		// Over the character limit so look for potential matches and only then check to find real ones
+
+		// Note that we have to use runes here to avoid cutting bytes off so
+		// cast things around to ensure it works
 		s := []rune(needle)
-		// Reduce the number of cases
 		searchTerms = PermuteCaseFolding(string(s[:charLimit]))
+
+		// We create a regular expression which is used for validating the match
+		// after we have identified a potential one
 		regexIgnore := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(needle))
 
+		// TODO - Investigate
+		// This is using IndexAll in a loop which was faster than
+		// any implementation of Aho-Corasick or Boyer-Moore I tried
+		// but in theory Aho-Corasick / Rabin-Karp or even a modified
+		// version of Boyer-Moore should be faster than this
 		for _, term := range searchTerms {
 			potentialMatches := IndexAll(haystack, term, limit)
 
 			for _, match := range potentialMatches {
 				// We have a potential match, so now see if it actually matches
+				// by getting the actual value out of our haystack
 				toMatch := haystack[match[0] : match[0]+len(needle)]
 
-				// Use a regular expression here to match because we already cut down the time
-				// needed and its faster than CaseFolding large needles
+				// Use a regular expression to match because we already cut down the time
+				// needed and its faster than CaseFolding large needles and then iterating
+				// over that list, and for especially long needles it will produce billions
+				// of results we need to check
 				if regexIgnore.Match([]byte(toMatch)) {
+					// When we have confirmed a match we add it to our total
+					// but adjust the positions to the match and the length of the
+					// needle to ensure the byte count lines up
 					locs = append(locs, []int{match[0], match[0] + len(needle)})
 
-					//if len(locs) >= limit {
-					//	return locs[:limit]
-					//}
+					if limit > 0 && len(locs) > limit {
+						return locs[:limit]
+					}
 				}
 			}
 		}
 	}
 
+	// Retain compatibility with FindAllIndex method
 	if len(locs) == 0 {
 		return nil
 	}
