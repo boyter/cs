@@ -11,8 +11,8 @@ import (
 //
 // Some benchmark results to illustrate the point (find more in index_benchmark_test.go)
 //
-// BenchmarkFindAllIndex-8                                           	 2458844	       480 ns/op
-// BenchmarkIndexAll-8                                               	14819680	      79.6 ns/op
+// BenchmarkFindAllIndex-8                         2458844	       480.0 ns/op
+// BenchmarkIndexAll-8                            14819680	        79.6 ns/op
 //
 // Note that this method has a limit option allowing you to bail out
 // at some threshold of matches which is useful in situations where
@@ -23,12 +23,12 @@ import (
 //
 // Note that this method is explicitly case sensitive in its matching
 // A return value will be an empty slice if no match TODO correct?
-func IndexAll(fulltext string, term string, limit int64) []int {
-	locs := []int{}
+func IndexAll(haystack string, needle string, limit int64) [][]int {
+	locs := [][]int{}
 
-	searchText := fulltext
+	searchText := haystack
 	offSet := 0
-	loc := strings.Index(searchText, term)
+	loc := strings.Index(searchText, needle)
 
 	if limit == -1 {
 		// Similar to how regex FindAllString works
@@ -48,18 +48,18 @@ func IndexAll(fulltext string, term string, limit int64) []int {
 			break
 		}
 
-		searchText = searchText[loc+len(term):]
-		locs = append(locs, loc+offSet)
+		searchText = searchText[loc+len(needle):]
+		locs = append(locs, []int{loc + offSet, loc + len(needle)})
 
 		// trim off the start, and look from there and keep trimming
-		offSet += loc + len(term)
-		loc = strings.Index(searchText, term)
+		offSet += loc + len(needle)
+		loc = strings.Index(searchText, needle)
 	}
 
 	return locs
 }
 
-func IndexAllIgnoreCaseUnicode(fulltext string, term string, limit int64) []int {
+func IndexAllIgnoreCaseUnicode(fulltext string, term string, limit int64) [][]int {
 	// One of the problems with finding locations ignoring case is that
 	// the different case representations can have different byte counts
 	// which means the locations using strings or bytes Index can be off
@@ -81,7 +81,7 @@ func IndexAllIgnoreCaseUnicode(fulltext string, term string, limit int64) []int 
 	var terms []string
 	terms = PermuteCaseFolding(term)
 
-	locs := []int{}
+	locs := [][]int{}
 	// Now we have all the possible case situations we should search for our
 	// potential matches
 	for _, term := range terms {

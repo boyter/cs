@@ -2,13 +2,14 @@ package string
 
 import (
 	"math"
+	"regexp"
 	"testing"
 )
 
 func TestExtractLocations(t *testing.T) {
 	locations := IndexAll("test that this returns a match", "test", math.MaxInt64)
 
-	if locations[0] != 0 {
+	if locations[0][0] != 0 {
 		t.Error("Expected to find location 0")
 	}
 }
@@ -34,5 +35,18 @@ func TestExtractLocationsLimitThree(t *testing.T) {
 
 	if len(locations) != 3 {
 		t.Error("Expected to find three locations")
+	}
+}
+
+func TestDropInReplacement(t *testing.T) {
+	r := regexp.MustCompile(`test`)
+
+	matches1 := r.FindAllIndex([]byte(test_MatchEndCase), -1)
+	matches2 := IndexAll(test_MatchEndCase, "test", -1)
+
+	for i := 0; i < len(matches1); i++ {
+		if matches1[i][0] != matches2[i][0] || matches1[i][1] != matches2[i][1] {
+			t.Error("Expect results to match", i)
+		}
 	}
 }

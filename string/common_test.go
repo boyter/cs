@@ -92,8 +92,8 @@ func TestPermuteCaseFolding(t *testing.T) {
 func TestPermuteCaseFoldingNumbers(t *testing.T) {
 	folded := PermuteCaseFolding("07123E1")
 
-	if len(folded) != 6 {
-		t.Error("Should get 6 results got", len(folded))
+	if len(folded) != 2 {
+		t.Error("Should get 2 results got", len(folded))
 	}
 }
 
