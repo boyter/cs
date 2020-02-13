@@ -10,6 +10,9 @@ import (
 	"sync"
 )
 
+// Include hidden files and directories in search
+var IncludeHidden = false
+
 var TerminateWalkError = errors.New("Walker terminated")
 
 type File struct {
@@ -134,6 +137,14 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 			}
 		}
 
+		// Ignore hidden files
+		if !IncludeHidden {
+			shouldIgnore, err = IsHidden(file, directory)
+			if err != nil {
+				return err
+			}
+		}
+
 		if !shouldIgnore {
 			for _, p := range f.LocationExcludePattern {
 				if strings.Contains(filepath.Join(directory, file.Name()), p) {
@@ -162,6 +173,14 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 		for _, deny := range f.PathDenylist {
 			if strings.HasSuffix(dir.Name(), deny) {
 				shouldIgnore = true
+			}
+		}
+
+		// Ignore hidden directories
+		if !IncludeHidden {
+			shouldIgnore, err = IsHidden(dir, directory)
+			if err != nil {
+				return err
 			}
 		}
 
