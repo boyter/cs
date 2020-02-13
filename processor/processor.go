@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"github.com/boyter/cs/file"
 	"io/ioutil"
 	"runtime"
 	"strings"
@@ -129,7 +130,7 @@ func (process *Process) StartProcess() {
 	// or in case of SVN go back till we don't find it
 	startDirectory := "."
 	if FindRoot {
-		startDirectory = findRepositoryRoot(startDirectory)
+		startDirectory = file.FindRepositoryRoot(startDirectory)
 	}
 
 	go walkDirectory(startDirectory, fileListQueue)

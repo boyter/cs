@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/processor/snippet"
 	"runtime"
 	"strconv"
@@ -60,7 +61,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// or in case of SVN go back till we don't find it
 	startDirectory := "."
 	if FindRoot {
-		startDirectory = findRepositoryRoot(startDirectory)
+		startDirectory = file.FindRepositoryRoot(startDirectory)
 	}
 
 	go walkDirectory(startDirectory, fileListQueue)

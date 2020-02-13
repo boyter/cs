@@ -1,7 +1,6 @@
 package file
 
 import (
-	sccprocessor "github.com/boyter/scc/processor"
 	"github.com/monochromegane/go-gitignore"
 	"io/ioutil"
 	"os"
@@ -13,15 +12,14 @@ import (
 type File struct {
 	Location  string
 	Filename  string
-	Extension string
 }
 
 type FileWalker struct {
 	walkMutex              sync.Mutex
 	IsWalking              bool
 	TerminateWalking       bool
-	Directory              string
-	FileListQueue          chan *File
+	directory              string
+	fileListQueue          chan *File
 	AllowListExtensions    []string
 	LocationExcludePattern []string
 	PathDenylist           []string
@@ -30,22 +28,24 @@ type FileWalker struct {
 func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 	return FileWalker{
 		walkMutex:              sync.Mutex{},
+		fileListQueue:          fileListQueue,
+		directory:              directory,
 		IsWalking:              false,
 		TerminateWalking:       false,
-		Directory:              directory,
-		FileListQueue:          fileListQueue,
 		AllowListExtensions:    []string{},
 		LocationExcludePattern: []string{},
 		PathDenylist:           []string{},
 	}
 }
 
+// Starts walking the supplied directory with the supplied settings
 func (f *FileWalker) WalkDirectory() error {
 	f.walkMutex.Lock()
 	f.IsWalking = true
 	f.walkMutex.Unlock()
 
-	err := f.WalkDirectoryRecursive(f.Directory, []gitignore.IgnoreMatcher{})
+	err := f.walkDirectoryRecursive(f.directory, []gitignore.IgnoreMatcher{})
+	close(f.fileListQueue)
 
 	f.walkMutex.Lock()
 	f.TerminateWalking = false
@@ -55,7 +55,7 @@ func (f *FileWalker) WalkDirectory() error {
 	return err
 }
 
-func (f *FileWalker) WalkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
+func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
 	// Because this can work in a interactive mode we need a way to be able
 	// to stop walking such as when the user starts a new search which this return should
 	// take care of
@@ -107,39 +107,22 @@ func (f *FileWalker) WalkDirectoryRecursive(directory string, ignores []gitignor
 		}
 
 		if !shouldIgnore {
-			language, ext := sccprocessor.DetectLanguage(file.Name())
-
-			// At this point we have passed all the ignore file checks
-			// so now we are checking if there are extensions we should
-			// be looking for
-			if len(f.AllowListExtensions) != 0 {
-				shouldIgnore = true
-				for _, e := range f.AllowListExtensions {
-					if ext == e {
-						shouldIgnore = false
-					}
-				}
-			}
-
 			for _, p := range f.LocationExcludePattern {
 				if strings.Contains(filepath.Join(directory, file.Name()), p) {
 					shouldIgnore = true
 				}
 			}
 
-			// We need to check the #! because any file without an extension is
-			// considered a possible #! file
-			// TODO we should allow those though and handle it later on
-			if !shouldIgnore && len(language) != 0 && language[0] != "#!" {
-				f.FileListQueue <- &File{
+			if !shouldIgnore {
+				f.fileListQueue <- &File{
 					Location:  filepath.Join(directory, file.Name()),
 					Filename:  file.Name(),
-					Extension: ext,
 				}
 			}
 		}
 	}
 
+	// Now we process the directories
 	for _, dir := range dirs {
 		shouldIgnore := false
 		for _, ignore := range ignores {
@@ -155,7 +138,7 @@ func (f *FileWalker) WalkDirectoryRecursive(directory string, ignores []gitignor
 		}
 
 		if !shouldIgnore {
-			err = f.WalkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores)
+			err = f.walkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores)
 			if err != nil {
 				return err
 			}
@@ -168,7 +151,7 @@ func (f *FileWalker) WalkDirectoryRecursive(directory string, ignores []gitignor
 // Walk the directory backwards looking for .git or .hg
 // directories indicating we should start our search from that
 // location as its the root
-func findRepositoryRoot(startDirectory string) string {
+func FindRepositoryRoot(startDirectory string) string {
 	// Firstly try to determine our real location
 	curdir, err := os.Getwd()
 	if err != nil {
@@ -197,9 +180,11 @@ func findRepositoryRoot(startDirectory string) string {
 
 	// If we didn't find a good match return the supplied directory
 	// so that we start the search from where we started at least
+	// rather than the root
 	return startDirectory
 }
 
+// Check if there is a .git or .hg folder in the supplied directory
 func checkForGitOrMercurial(curdir string) bool {
 	if stat, err := os.Stat(filepath.Join(curdir, ".git")); err == nil && stat.IsDir() {
 		return true
@@ -210,4 +195,27 @@ func checkForGitOrMercurial(curdir string) bool {
 	}
 
 	return false
+}
+
+
+// A custom version of extracting extensions for a file
+// which also has a case insensitive cache in order to save
+// some needless processing
+func GetExtension(name string) string {
+	name = strings.ToLower(name)
+	ext := filepath.Ext(name)
+
+	if ext == "" || strings.LastIndex(name, ".") == 0 {
+		ext = name
+	} else {
+		// Handling multiple dots or multiple extensions only needs to delete the last extension
+		// and then call filepath.Ext.
+		// If there are multiple extensions, it is the value of subExt,
+		// otherwise subExt is an empty string.
+		subExt := filepath.Ext(strings.TrimSuffix(name, ext))
+		ext = strings.TrimPrefix(subExt+ext, ".")
+	}
+
+
+	return ext
 }

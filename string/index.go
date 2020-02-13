@@ -10,7 +10,8 @@ import (
 // IndexAll extracts all of the locations of a string inside another string
 // up-to the defined limit and does so without regular expressions
 // which makes it faster than FindAllIndex in most situations while
-// not being any slower.
+// not being any slower. It performs worst when working against random
+// data.
 //
 // Some benchmark results to illustrate the point (find more in index_benchmark_test.go)
 //
