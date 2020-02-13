@@ -14,6 +14,14 @@ func TestExtractLocations(t *testing.T) {
 	}
 }
 
+func TestExtractLocationsLarge(t *testing.T) {
+	locations := IndexAll("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 test that this returns a match", "test", math.MaxInt64)
+
+	if locations[0][0] != 101 {
+		t.Error("Expected to find location 101")
+	}
+}
+
 func TestExtractLocationsLimit(t *testing.T) {
 	locations := IndexAll("test test", "test", 1)
 
@@ -75,5 +83,21 @@ func TestIndexAllIgnoreCaseUnicodeLongNeedleSingleMatch(t *testing.T) {
 
 	if len(matches) != 1 {
 		t.Error("Expected single matches")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeSingleMatch(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("aaaa", "a", 1)
+
+	if len(matches) != 1 {
+		t.Error("Expected single match")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeTwoMatch(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("aaaa", "a", 2)
+
+	if len(matches) != 2 {
+		t.Error("Expected two matches")
 	}
 }

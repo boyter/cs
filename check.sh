@@ -8,7 +8,7 @@ echo "Running go fmt..."
 gofmt -s -w ./..
 
 echo "Running unit tests..."
-go test ./... || exit
+go test -cover ./... || exit
 
 # Race Detection
 echo "Running race detection..."
