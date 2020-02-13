@@ -1,6 +1,7 @@
 package file
 
 import (
+	"errors"
 	"github.com/monochromegane/go-gitignore"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"sync"
 )
 
+var TerminateWalkError = errors.New("Walker terminated")
+
 type File struct {
 	Location string
 	Filename string
@@ -16,13 +19,13 @@ type File struct {
 
 type FileWalker struct {
 	walkMutex              sync.Mutex
-	isWalking              bool
 	terminateWalking       bool
+	isWalking              bool
 	directory              string
 	fileListQueue          chan *File
-	AllowListExtensions    []string
-	LocationExcludePattern []string
-	PathDenylist           []string
+	LocationExcludePattern []string // Case insensitive patterns which exclude files
+	PathDenylist           []string // Paths to always ignore such as .git,.svn and .hg
+	EnableIgnoreFiles      bool     // Should .gitignore or .ignore files be respected?
 }
 
 func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
@@ -32,25 +35,34 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		directory:              directory,
 		terminateWalking:       false,
 		isWalking:              false,
-		AllowListExtensions:    []string{}, // What extensions are allowed
 		LocationExcludePattern: []string{}, //
 		PathDenylist:           []string{},
+		EnableIgnoreFiles:      true,
 	}
 }
 
-func (f *FileWalker) Terminate() {
-	f.walkMutex.Lock()
-	defer f.walkMutex.Unlock()
-	f.terminateWalking = true
-}
-
+// Call to get the state of the file walker and determine
+// if we are walking or not
 func (f *FileWalker) Walking() bool {
 	f.walkMutex.Lock()
 	defer f.walkMutex.Unlock()
 	return f.isWalking
 }
 
+// Call to have the walker break out of walking and return as
+// soon as it possibly can. This is needed because
+// this walker needs to work in a TUI interactive mode and
+// as such we need to be able to end old processes
+func (f *FileWalker) Terminate() {
+	f.walkMutex.Lock()
+	defer f.walkMutex.Unlock()
+	f.terminateWalking = true
+}
+
 // Starts walking the supplied directory with the supplied settings
+// and putting files that mach into the supplied slice
+// Returns usual ioutil errors if there is a file issue
+// and a TerminateWalkError if terminate is called while walking
 func (f *FileWalker) WalkDirectory() error {
 	f.walkMutex.Lock()
 	f.isWalking = true
@@ -60,7 +72,6 @@ func (f *FileWalker) WalkDirectory() error {
 	close(f.fileListQueue)
 
 	f.walkMutex.Lock()
-	f.terminateWalking = false
 	f.isWalking = false
 	f.walkMutex.Unlock()
 
@@ -68,15 +79,11 @@ func (f *FileWalker) WalkDirectory() error {
 }
 
 func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
-	// Because this can work in a interactive mode we need a way to be able
-	// to stop walking such as when the user starts a new search which this return should
-	// take care of
 	f.walkMutex.Lock()
+	defer f.walkMutex.Unlock()
 	if f.terminateWalking == true {
-		f.walkMutex.Unlock()
-		return nil
+		return TerminateWalkError
 	}
-	f.walkMutex.Unlock()
 
 	fileInfos, err := ioutil.ReadDir(directory)
 
@@ -100,21 +107,30 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 	// Pull out all of the ignore and gitignore files and add them
 	// to out collection of ignores to be applied for this pass
-	// and later on
-	for _, file := range files {
-		if file.Name() == ".gitignore" || file.Name() == ".ignore" {
-			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
-			if err == nil {
-				ignores = append(ignores, ignore)
+	// and any subdirectories
+	if f.EnableIgnoreFiles {
+		for _, file := range files {
+			if file.Name() == ".gitignore" || file.Name() == ".ignore" {
+				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+				if err == nil {
+					ignores = append(ignores, ignore)
+				}
 			}
 		}
 	}
 
+	// Process files first to start feeding whatever process is consuming
+	// the output before traversing into directories for more files
 	for _, file := range files {
 		shouldIgnore := false
-		for _, ignore := range ignores {
-			if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
-				shouldIgnore = true
+
+		// Check against the ignore files we have if the file we are looking at
+		// should be ignored
+		if f.EnableIgnoreFiles {
+			for _, ignore := range ignores {
+				if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
+					shouldIgnore = true
+				}
 			}
 		}
 
@@ -160,9 +176,11 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	return nil
 }
 
-// Walk the directory backwards looking for .git or .hg
+// Walk the supplied directory backwards looking for .git or .hg
 // directories indicating we should start our search from that
-// location as its the root
+// location as its the root.
+// Returns the first directory below supplied with .git or .hg in it
+// otherwise the supplied directory
 func FindRepositoryRoot(startDirectory string) string {
 	// Firstly try to determine our real location
 	curdir, err := os.Getwd()
