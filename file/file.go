@@ -1,4 +1,4 @@
-package processor
+package file
 
 import (
 	sccprocessor "github.com/boyter/scc/processor"
@@ -10,32 +10,61 @@ import (
 	"sync"
 )
 
-var WalkMutex = sync.Mutex{}          // We only ever want 1 file walker operating
-var IsWalking = NewBool(false)        // The state indicating if we are walking
-var TerminateWalking = NewBool(false) // The flag to indicate we should stop
+type File struct {
+	Location  string
+	Filename  string
+	Extension string
+}
 
-func walkDirectory(directory string, fileListQueue chan *FileJob) error {
-	WalkMutex.Lock()
-	defer WalkMutex.Unlock()
+type FileWalker struct {
+	walkMutex              sync.Mutex
+	IsWalking              bool
+	TerminateWalking       bool
+	Directory              string
+	FileListQueue          chan *File
+	AllowListExtensions    []string
+	LocationExcludePattern []string
+	PathDenylist           []string
+}
 
-	IsWalking.SetTo(true)
-	err := walkDirectoryRecursive(directory, []gitignore.IgnoreMatcher{}, fileListQueue)
-	close(fileListQueue)
-	TerminateWalking.SetTo(false)
-	IsWalking.SetTo(false)
+func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
+	return FileWalker{
+		walkMutex:              sync.Mutex{},
+		IsWalking:              false,
+		TerminateWalking:       false,
+		Directory:              directory,
+		FileListQueue:          fileListQueue,
+		AllowListExtensions:    []string{},
+		LocationExcludePattern: []string{},
+		PathDenylist:           []string{},
+	}
+}
+
+func (f *FileWalker) WalkDirectory() error {
+	f.walkMutex.Lock()
+	f.IsWalking = true
+	f.walkMutex.Unlock()
+
+	err := f.WalkDirectoryRecursive(f.Directory, []gitignore.IgnoreMatcher{})
+
+	f.walkMutex.Lock()
+	f.TerminateWalking = false
+	f.IsWalking = false
+	f.walkMutex.Unlock()
+
 	return err
 }
 
-// Walks a directory recursively using gitignore/ignore files to ignore files and directories
-// as well as using extension checks to ensure only files that should be processed are
-// let though.
-func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher, fileListQueue chan *FileJob) error {
+func (f *FileWalker) WalkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
 	// Because this can work in a interactive mode we need a way to be able
 	// to stop walking such as when the user starts a new search which this return should
 	// take care of
-	if TerminateWalking.IsSet() == true {
+	f.walkMutex.Lock()
+	if f.TerminateWalking == true {
+		f.walkMutex.Unlock()
 		return nil
 	}
+	f.walkMutex.Unlock()
 
 	fileInfos, err := ioutil.ReadDir(directory)
 
@@ -60,13 +89,11 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 	// Pull out all of the ignore and gitignore files and add them
 	// to out collection of ignores to be applied for this pass
 	// and later on
-	if Ignore == false {
-		for _, file := range files {
-			if file.Name() == ".gitignore" || file.Name() == ".ignore" {
-				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
-				if err == nil {
-					ignores = append(ignores, ignore)
-				}
+	for _, file := range files {
+		if file.Name() == ".gitignore" || file.Name() == ".ignore" {
+			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+			if err == nil {
+				ignores = append(ignores, ignore)
 			}
 		}
 	}
@@ -85,16 +112,16 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 			// At this point we have passed all the ignore file checks
 			// so now we are checking if there are extensions we should
 			// be looking for
-			if len(AllowListExtensions) != 0 {
+			if len(f.AllowListExtensions) != 0 {
 				shouldIgnore = true
-				for _, e := range AllowListExtensions {
+				for _, e := range f.AllowListExtensions {
 					if ext == e {
 						shouldIgnore = false
 					}
 				}
 			}
 
-			for _, p := range LocationExcludePattern {
+			for _, p := range f.LocationExcludePattern {
 				if strings.Contains(filepath.Join(directory, file.Name()), p) {
 					shouldIgnore = true
 				}
@@ -104,11 +131,10 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 			// considered a possible #! file
 			// TODO we should allow those though and handle it later on
 			if !shouldIgnore && len(language) != 0 && language[0] != "#!" {
-				fileListQueue <- &FileJob{
+				f.FileListQueue <- &File{
 					Location:  filepath.Join(directory, file.Name()),
 					Filename:  file.Name(),
 					Extension: ext,
-					Locations: map[string][]int{},
 				}
 			}
 		}
@@ -122,14 +148,14 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 			}
 		}
 
-		for _, deny := range PathDenylist {
+		for _, deny := range f.PathDenylist {
 			if strings.HasSuffix(dir.Name(), deny) {
 				shouldIgnore = true
 			}
 		}
 
 		if !shouldIgnore {
-			err = walkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores, fileListQueue)
+			err = f.WalkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores)
 			if err != nil {
 				return err
 			}
