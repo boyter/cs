@@ -16,8 +16,8 @@ type File struct {
 
 type FileWalker struct {
 	walkMutex              sync.Mutex
-	IsWalking              bool
-	TerminateWalking       bool
+	isWalking              bool
+	terminateWalking       bool
 	directory              string
 	fileListQueue          chan *File
 	AllowListExtensions    []string
@@ -30,26 +30,38 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		walkMutex:              sync.Mutex{},
 		fileListQueue:          fileListQueue,
 		directory:              directory,
-		IsWalking:              false,
-		TerminateWalking:       false,
-		AllowListExtensions:    []string{},
-		LocationExcludePattern: []string{},
+		terminateWalking:       false,
+		isWalking:              false,
+		AllowListExtensions:    []string{}, // What extensions are allowed
+		LocationExcludePattern: []string{}, //
 		PathDenylist:           []string{},
 	}
+}
+
+func (f *FileWalker) Terminate() {
+	f.walkMutex.Lock()
+	defer f.walkMutex.Unlock()
+	f.terminateWalking = true
+}
+
+func (f *FileWalker) Walking() bool {
+	f.walkMutex.Lock()
+	defer f.walkMutex.Unlock()
+	return f.isWalking
 }
 
 // Starts walking the supplied directory with the supplied settings
 func (f *FileWalker) WalkDirectory() error {
 	f.walkMutex.Lock()
-	f.IsWalking = true
+	f.isWalking = true
 	f.walkMutex.Unlock()
 
 	err := f.walkDirectoryRecursive(f.directory, []gitignore.IgnoreMatcher{})
 	close(f.fileListQueue)
 
 	f.walkMutex.Lock()
-	f.TerminateWalking = false
-	f.IsWalking = false
+	f.terminateWalking = false
+	f.isWalking = false
 	f.walkMutex.Unlock()
 
 	return err
@@ -60,7 +72,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	// to stop walking such as when the user starts a new search which this return should
 	// take care of
 	f.walkMutex.Lock()
-	if f.TerminateWalking == true {
+	if f.terminateWalking == true {
 		f.walkMutex.Unlock()
 		return nil
 	}
