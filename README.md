@@ -60,3 +60,5 @@ DEBUG|grep_regex::literal|/home/bboyter/.cargo/registry/src/github.com-1ecc6299d
 
 
  head -c200000000 /dev/urandom > 200mb.txt
+ 
+ https://about.sourcegraph.com/blog/going-beyond-regular-expressions-with-structural-code-search/

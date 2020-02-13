@@ -10,8 +10,8 @@ import (
 )
 
 type File struct {
-	Location  string
-	Filename  string
+	Location string
+	Filename string
 }
 
 type FileWalker struct {
@@ -115,8 +115,8 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 			if !shouldIgnore {
 				f.fileListQueue <- &File{
-					Location:  filepath.Join(directory, file.Name()),
-					Filename:  file.Name(),
+					Location: filepath.Join(directory, file.Name()),
+					Filename: file.Name(),
 				}
 			}
 		}
@@ -197,7 +197,6 @@ func checkForGitOrMercurial(curdir string) bool {
 	return false
 }
 
-
 // A custom version of extracting extensions for a file
 // which also has a case insensitive cache in order to save
 // some needless processing
@@ -215,7 +214,6 @@ func GetExtension(name string) string {
 		subExt := filepath.Ext(strings.TrimSuffix(name, ext))
 		ext = strings.TrimPrefix(subExt+ext, ".")
 	}
-
 
 	return ext
 }
