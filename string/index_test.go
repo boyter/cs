@@ -46,6 +46,14 @@ func TestExtractLocationsLimitThree(t *testing.T) {
 	}
 }
 
+func TestExtractLocationsNegativeLimit(t *testing.T) {
+	locations := IndexAll("test test test", "test", -1)
+
+	if len(locations) != 3 {
+		t.Error("Expected to find three locations")
+	}
+}
+
 func TestDropInReplacement(t *testing.T) {
 	r := regexp.MustCompile(`test`)
 
@@ -99,5 +107,13 @@ func TestIndexAllIgnoreCaseUnicodeTwoMatch(t *testing.T) {
 
 	if len(matches) != 2 {
 		t.Error("Expected two matches")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeNegativeLimit(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("aaaa", "a", -1)
+
+	if len(matches) != 4 {
+		t.Error("Expected four matches")
 	}
 }
