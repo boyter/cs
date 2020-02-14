@@ -17,5 +17,6 @@ cs
 
 # IDE
 .idea/
+.vscode
 
 sc.pprof

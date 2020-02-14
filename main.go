@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/processor"
 	sccprocessor "github.com/boyter/scc/processor"
 	"github.com/spf13/cobra"
@@ -121,6 +122,12 @@ func main() {
 		"include-min",
 		false,
 		"include minified files",
+	)
+	flags.BoolVar(
+		&file.IncludeHidden,
+		"include-hidden",
+		false,
+		"include hidden files",
 	)
 	flags.IntVar(
 		&processor.MinifiedLineByteLength,
