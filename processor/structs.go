@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Unlicense
 package processor
 
 // FileJob is a struct used to hold all of the results of processing internally before sent to the formatter

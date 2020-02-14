@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Unlicense
 // +build windows
 
 package file

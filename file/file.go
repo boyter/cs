@@ -1,3 +1,8 @@
+// Package file provides file operations specific to code repositories
+// such as walking the file tree obeying .ignore and .gitignore files
+// or looking for the root directory assuming already in a git project
+// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Unlicense
 package file
 
 import (
@@ -10,6 +15,7 @@ import (
 	"sync"
 )
 
+// TODO remove this global
 // Include hidden files and directories in search
 var IncludeHidden = false
 
@@ -255,8 +261,8 @@ func checkForGitOrMercurial(curdir string) bool {
 }
 
 // A custom version of extracting extensions for a file
-// which also has a case insensitive cache in order to save
-// some needless processing
+// which deals with extensions specific to code such as
+// .travis.yml and the like
 func GetExtension(name string) string {
 	name = strings.ToLower(name)
 	ext := filepath.Ext(name)
