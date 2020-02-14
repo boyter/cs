@@ -20,6 +20,6 @@ func TestCleanSearchString(t *testing.T) {
 }
 
 func TestProcess(t *testing.T) {
-	p := NewProcess()
+	p := NewProcess(".")
 	p.StartProcess()
 }

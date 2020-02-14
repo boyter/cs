@@ -25,7 +25,7 @@ func main() {
 			processor.SearchString = args
 			sccprocessor.ProcessConstants()
 
-			p := processor.NewProcess()
+			p := processor.NewProcess(".")
 
 			// If there are arguments we want to print straight out to the console
 			// otherwise we should enter interactive tui mode

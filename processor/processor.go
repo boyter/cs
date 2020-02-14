@@ -35,10 +35,13 @@ func CleanSearchString() {
 }
 
 type Process struct {
+	Directory string // What directory are we searching
 }
 
-func NewProcess() Process {
-	return Process{}
+func NewProcess(directory string) Process {
+	return Process{
+		Directory: directory,
+	}
 }
 
 // Process is the main entry point of the command line output it sets everything up and starts running
@@ -50,12 +53,13 @@ func (process *Process) StartProcess() {
 
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it
-	startDirectory := "."
 	if FindRoot {
-		startDirectory = file.FindRepositoryRoot(startDirectory)
+		process.Directory = file.FindRepositoryRoot(process.Directory)
 	}
 
-	go walkDirectory(startDirectory, fileListQueue)
+	//fileWalker := file.NewFileWalker(process.Directory, fileListQueue)
+
+	go walkDirectory(process.Directory, fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
