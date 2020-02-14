@@ -29,6 +29,7 @@ type FileWalker struct {
 	LocationExcludePattern []string // Case insensitive patterns which exclude files
 	PathDenylist           []string // Paths to always ignore such as .git,.svn and .hg
 	EnableIgnoreFiles      bool     // Should .gitignore or .ignore files be respected?
+	IgnoreHidden           bool     // Should hidden files and directories be included/walked
 }
 
 func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
@@ -38,9 +39,10 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		directory:              directory,
 		terminateWalking:       false,
 		isWalking:              false,
-		LocationExcludePattern: []string{}, //
+		LocationExcludePattern: []string{},
 		PathDenylist:           []string{},
-		EnableIgnoreFiles:      true,
+		EnableIgnoreFiles:      false,
+		IgnoreHidden:           false,
 	}
 }
 
@@ -161,15 +163,21 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 		}
 	}
 
-	// Now we process the directories
+	// Now we process the directories after hopefully giving the
+	// channel some files to process
 	for _, dir := range dirs {
 		shouldIgnore := false
+
+		// Check against the ignore files we have if the file we are looking at
+		// should be ignored
 		for _, ignore := range ignores {
 			if ignore.Match(filepath.Join(directory, dir.Name()), dir.IsDir()) {
 				shouldIgnore = true
 			}
 		}
 
+		// Confirm if there are any files in the path deny list which usually includes
+		// things like .git .hg and .svn
 		for _, deny := range f.PathDenylist {
 			if strings.HasSuffix(dir.Name(), deny) {
 				shouldIgnore = true

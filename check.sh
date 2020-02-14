@@ -8,13 +8,13 @@ echo "Running go fmt..."
 gofmt -s -w ./..
 
 echo "Running unit tests..."
-go test -cover ./... || exit
+go test -cover -race ./... || exit
 
 # Race Detection
 echo "Running race detection..."
 if  go run --race . test 2>&1 >/dev/null | grep -q "Found" ; then
     echo -e "${RED}======================================================="
-    echo -e "FAILED race detection run 'go run --race .' to identify"
+    echo -e "FAILED race detection run 'go run --race . test' to identify"
     echo -e "=======================================================${NC}"
     exit
 else
