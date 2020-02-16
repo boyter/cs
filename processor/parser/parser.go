@@ -39,7 +39,15 @@ func ParseArguments(args []string) []SearchParams {
 			if ind != 0 {
 			}
 		} else if strings.HasSuffix(arg, "~1") {
+			searchParams = append(searchParams, SearchParams{
+				Term: arg,
+				Type: Fuzzy1,
+			})
 		} else if strings.HasSuffix(arg, "~2") {
+			searchParams = append(searchParams, SearchParams{
+				Term: arg,
+				Type: Fuzzy2,
+			})
 		} else {
 			searchParams = append(searchParams, SearchParams{
 				Term: arg,
