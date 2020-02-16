@@ -34,6 +34,13 @@ func ParseArguments(args []string) []SearchParams {
 	for ind, arg := range cleanArgs {
 		if strings.HasPrefix(arg, `"`) {
 		} else if strings.HasPrefix(arg, `/`) {
+			// If we end with / not prefixed with a \ we are done
+			if strings.HasSuffix(arg, `/`) {
+				searchParams = append(searchParams, SearchParams{
+					Term: arg,
+					Type: Regex,
+				})
+			}
 		} else if arg == "NOT" {
 			// If we start with NOT we cannot negate so ignore
 			if ind != 0 {
