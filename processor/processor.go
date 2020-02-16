@@ -57,7 +57,6 @@ func (process *Process) StartProcess() {
 		process.Directory = file.FindRepositoryRoot(process.Directory)
 	}
 
-
 	// Walk Directory -> WhiteLister -> Reader/Scanner -> Searcher -> Summarise
 
 	//fileWalker := file.NewFileWalker(process.Directory, fileListQueue)
