@@ -61,3 +61,19 @@ func TestParseArgumentsRegex(t *testing.T) {
 		t.Error("Expected single match")
 	}
 }
+
+func TestParseArgumentsQuoted(t *testing.T) {
+	res := ParseArguments([]string{`"test"`})
+
+	if res[0].Term != `"test"` || res[0].Type != Quoted {
+		t.Error("Expected single match")
+	}
+}
+
+func TestParseArgumentsQuotedEmpty(t *testing.T) {
+	res := ParseArguments([]string{`""`})
+
+	if res[0].Term != `""` || res[0].Type != Default {
+		t.Error("Expected single match")
+	}
+}

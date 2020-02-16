@@ -33,6 +33,12 @@ func ParseArguments(args []string) []SearchParams {
 	// With the arguments cleaned up parse out what we need
 	for ind, arg := range cleanArgs {
 		if strings.HasPrefix(arg, `"`) {
+			if strings.HasSuffix(arg, `"`) {
+				searchParams = append(searchParams, SearchParams{
+					Term: arg,
+					Type: Quoted,
+				})
+			}
 		} else if strings.HasPrefix(arg, `/`) {
 			// If we end with / not prefixed with a \ we are done
 			if strings.HasSuffix(arg, `/`) {
