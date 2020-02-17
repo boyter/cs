@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-// WriteColoured takes in some content and locations and then inserts in/out
+// HighlightString takes in some content and locations and then inserts in/out
 // strings which can be used for highlighting around matching terms. For example
 // you could pass in "test" and have it return "<strong>te</strong>st"
 // TODO locations should be modified to take in the output from IndexAll which is [][]int
-func WriteHighlights(content string, locations map[string][]int, in string, out string) string {
+func HighlightString(content string, locations map[string][]int, in string, out string) string {
 	var str strings.Builder
 
 	end := -1
