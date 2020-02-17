@@ -23,37 +23,23 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 
 		// Find which of the locations match
 		// and if so write the start string
-		for ind, val := range locations {
+		for _, val := range locations {
 
-			// We have a match
-			if i == ind {
+			// We have a match where the outer index matches
+			// against the val[0] which contains the location of the match
+			if i == val[0] {
 				str.WriteString(in)
 
-				y := i + val[1] - 1
+				// Determine the expected end location for this match
+				// and only if its further than the expected end do we
+				// change to deal with overlaps if say we are trying to match
+				// on t and tes against test where we want tes as the longest
+				// match to be the end that's written
+				y := i + val[1] - 1 // val[1] in this case is the length of the match
 				if y > end {
 					end = y
 				}
 			}
-
-
-			//for _, v := range value {
-			//	if i == v {
-			//		// We only write the found string once per match and
-			//		// only if we are not in the middle of one
-			//		if !found && end <= 0 {
-			//			str.WriteString(in)
-			//			found = true
-			//		}
-			//
-			//		// Go for the greatest value of end
-			//		// and always check if it should be pushed out
-			//		// so we can cover cases where overlaps occur
-			//		y := v + len(key) - 1
-			//		if y > end {
-			//			end = y
-			//		}
-			//	}
-			//}
 		}
 
 		str.WriteString(string(x))
