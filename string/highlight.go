@@ -1,6 +1,5 @@
 package string
 
-
 import (
 	"strings"
 )
@@ -62,4 +61,3 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 
 	return str.String()
 }
-
