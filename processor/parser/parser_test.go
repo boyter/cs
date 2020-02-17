@@ -54,6 +54,18 @@ func TestParseArgumentsNOTFirst(t *testing.T) {
 	}
 }
 
+func TestParseArgumentsNOTSecond(t *testing.T) {
+	res := ParseArguments([]string{"test", "NOT"})
+
+	if res[0].Term != `test` || res[0].Type != Default {
+		t.Error("Expected single match")
+	}
+
+	if res[1].Term != `NOT` || res[1].Type != Negated {
+		t.Error("Expected single match")
+	}
+}
+
 func TestParseArgumentsRegex(t *testing.T) {
 	res := ParseArguments([]string{"/test/"})
 
@@ -73,7 +85,31 @@ func TestParseArgumentsQuoted(t *testing.T) {
 func TestParseArgumentsQuotedEmpty(t *testing.T) {
 	res := ParseArguments([]string{`""`})
 
-	if res[0].Term != `""` || res[0].Type != Default {
+	if res[0].Term != `""` || res[0].Type != Quoted {
+		t.Error("Expected single match")
+	}
+}
+
+func TestParseArgumentsQuotedMultiple(t *testing.T) {
+	res := ParseArguments([]string{`"test`, `something"`})
+
+	if res[0].Term != `"test something"` || res[0].Type != Quoted {
+		t.Error("Expected single match")
+	}
+}
+
+func TestParseArgumentsRegexMultiple(t *testing.T) {
+	res := ParseArguments([]string{`/test`, `something/`})
+
+	if res[0].Term != `/test something/` || res[0].Type != Regex {
+		t.Error("Expected single match")
+	}
+}
+
+func TestParseArgumentsMultiple(t *testing.T) {
+	res := ParseArguments([]string{`test~1`, `NOT`, `/test`, `something/`})
+
+	if res[0].Type != Fuzzy1 && res[1].Type != Negated && res[2].Type != Regex {
 		t.Error("Expected single match")
 	}
 }
