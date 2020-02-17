@@ -13,13 +13,13 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 	var str strings.Builder
 
 	end := -1
-	//found := false
+	found := false
 
 	// Range over string which is rune aware so even if we get invalid
 	// locations we should hopefully ignore them as the byte offset wont
 	// match
 	for i, x := range content {
-		//found = false
+		found = false
 
 		// Find which of the locations match
 		// and if so write the start string
@@ -28,7 +28,12 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 			// We have a match where the outer index matches
 			// against the val[0] which contains the location of the match
 			if i == val[0] {
-				str.WriteString(in)
+				// We only write the found string once per match and
+				// only if we are not in the middle of one
+				if !found && end <= 0 {
+					str.WriteString(in)
+					found = true
+				}
 
 				// Determine the expected end location for this match
 				// and only if its further than the expected end do we
