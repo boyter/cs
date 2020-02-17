@@ -9,51 +9,51 @@ import (
 // strings which can be used for highlighting around matching terms. For example
 // you could pass in "test" and have it return "<strong>te</strong>st"
 // TODO locations should be modified to take in the output from IndexAll which is [][]int
-func HighlightString(content string, locations map[string][]int, in string, out string) string {
+func HighlightString(content string, locations [][]int, in string, out string) string {
 	var str strings.Builder
 
 	end := -1
-	found := false
-
-	// Cheap and nasty cache to avoid looping the map too much when we range over content
-	locationLookup := map[int]int{}
-	for _, value := range locations {
-		for _, v := range value {
-			locationLookup[v] = 0
-		}
-	}
+	//found := false
 
 	// Range over string which is rune aware so even if we get invalid
 	// locations we should hopefully ignore them as the byte offset wont
 	// match
 	for i, x := range content {
-		found = false
+		//found = false
 
-		_, ok := locationLookup[i]
+		// Find which of the locations match
+		// and if so write the start string
+		for ind, val := range locations {
 
-		if ok {
-			// Find which of the locations match
-			// and if so write the start string
-			for key, value := range locations {
-				for _, v := range value {
-					if i == v {
-						// We only write the found string once per match and
-						// only if we are not in the middle of one
-						if !found && end <= 0 {
-							str.WriteString(in)
-							found = true
-						}
+			// We have a match
+			if i == ind {
+				str.WriteString(in)
 
-						// Go for the greatest value of end
-						// and always check if it should be pushed out
-						// so we can cover cases where overlaps occur
-						y := v + len(key) - 1
-						if y > end {
-							end = y
-						}
-					}
+				y := i + val[1] - 1
+				if y > end {
+					end = y
 				}
 			}
+
+
+			//for _, v := range value {
+			//	if i == v {
+			//		// We only write the found string once per match and
+			//		// only if we are not in the middle of one
+			//		if !found && end <= 0 {
+			//			str.WriteString(in)
+			//			found = true
+			//		}
+			//
+			//		// Go for the greatest value of end
+			//		// and always check if it should be pushed out
+			//		// so we can cover cases where overlaps occur
+			//		y := v + len(key) - 1
+			//		if y > end {
+			//			end = y
+			//		}
+			//	}
+			//}
 		}
 
 		str.WriteString(string(x))
