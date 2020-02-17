@@ -1,4 +1,4 @@
-package parser
+package processor
 
 import (
 	"strings"
@@ -13,15 +13,15 @@ const (
 	Fuzzy2  int64 = 5
 )
 
-type SearchParams struct {
+type searchParams struct {
 	Term string
 	Type int64
 }
 
 // Cheap and nasty parser. Needs to be reworked
 // to provide real boolean logic with AND OR NOT
-// but does enough for this
-func ParseArguments(args []string) []SearchParams {
+// but does enough for now
+func parseArguments(args []string) []searchParams {
 	cleanArgs := []string{}
 
 	// Clean the arguments to avoid redundant spaces and the like
@@ -29,15 +29,16 @@ func ParseArguments(args []string) []SearchParams {
 		cleanArgs = append(cleanArgs, strings.TrimSpace(arg))
 	}
 
-	searchParams := []SearchParams{}
+	params := []searchParams{}
 	startIndex := 0
 	mode := Default
 
 	// With the arguments cleaned up parse out what we need
+	// note that this is very ugly
 	for ind, arg := range cleanArgs {
 		if strings.HasPrefix(arg, `"`) {
 			if strings.HasSuffix(arg, `"`) {
-				searchParams = append(searchParams, SearchParams{
+				params = append(params, searchParams{
 					Term: arg,
 					Type: Quoted,
 				})
@@ -46,8 +47,7 @@ func ParseArguments(args []string) []SearchParams {
 				startIndex = ind
 			}
 		} else if mode == Quoted && strings.HasSuffix(arg, `"`) {
-			// quote
-			searchParams = append(searchParams, SearchParams{
+			params = append(params, searchParams{
 				Term: strings.Join(cleanArgs[startIndex:ind+1], " "),
 				Type: Quoted,
 			})
@@ -55,7 +55,7 @@ func ParseArguments(args []string) []SearchParams {
 		} else if strings.HasPrefix(arg, `/`) {
 			// If we end with / not prefixed with a \ we are done
 			if strings.HasSuffix(arg, `/`) {
-				searchParams = append(searchParams, SearchParams{
+				params = append(params, searchParams{
 					Term: arg,
 					Type: Regex,
 				})
@@ -65,7 +65,7 @@ func ParseArguments(args []string) []SearchParams {
 			}
 		} else if mode == Regex && strings.HasSuffix(arg, `/`) {
 			// quote
-			searchParams = append(searchParams, SearchParams{
+			params = append(params, searchParams{
 				Term: strings.Join(cleanArgs[startIndex:ind+1], " "),
 				Type: Regex,
 			})
@@ -73,28 +73,42 @@ func ParseArguments(args []string) []SearchParams {
 		} else if arg == "NOT" {
 			// If we start with NOT we cannot negate so ignore
 			if ind != 0 {
-				searchParams = append(searchParams, SearchParams{
+				params = append(params, searchParams{
 					Term: arg,
 					Type: Negated,
 				})
 			}
 		} else if strings.HasSuffix(arg, "~1") {
-			searchParams = append(searchParams, SearchParams{
+			params = append(params, searchParams{
 				Term: arg,
 				Type: Fuzzy1,
 			})
 		} else if strings.HasSuffix(arg, "~2") {
-			searchParams = append(searchParams, SearchParams{
+			params = append(params, searchParams{
 				Term: arg,
 				Type: Fuzzy2,
 			})
 		} else {
-			searchParams = append(searchParams, SearchParams{
+			params = append(params, searchParams{
 				Term: arg,
 				Type: Default,
 			})
 		}
 	}
 
-	return searchParams
+	// If the user didn't end properly that's ok lets do it for them
+	if mode == Regex {
+		params = append(params, searchParams{
+			Term: strings.Join(cleanArgs[startIndex:], " ") + "/",
+			Type: Regex,
+		})
+	}
+	if mode == Quoted {
+		params = append(params, searchParams{
+			Term: strings.Join(cleanArgs[startIndex:], " ") + `"`,
+			Type: Quoted,
+		})
+	}
+
+	return params
 }
