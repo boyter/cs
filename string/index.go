@@ -60,7 +60,7 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 
 		// trim off the portion we already searched, and look from there
 		searchText = searchText[loc+len(needle):]
-		locs = append(locs, []int{loc + offSet, loc + len(needle)})
+		locs = append(locs, []int{loc + offSet, loc + offSet + len(needle)})
 
 		// We need to keep the offset of the match so we continue searching
 		offSet += loc + len(needle)

@@ -8,7 +8,7 @@ import (
 // HighlightString takes in some content and locations and then inserts in/out
 // strings which can be used for highlighting around matching terms. For example
 // you could pass in "test" and have it return "<strong>te</strong>st"
-// TODO locations should be modified to take in the output from IndexAll which is [][]int
+// locations accepts output from regex.FindAllIndex IndexAllIgnoreCaseUnicode or IndexAll
 func HighlightString(content string, locations [][]int, in string, out string) string {
 	var str strings.Builder
 
@@ -20,6 +20,9 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 	// match
 	for i, x := range content {
 		found = false
+
+		// TODO be sure to profile the below, because previously needed
+		// a small lookup cache to cut down on the work done here
 
 		// Find which of the locations match
 		// and if so write the start string
@@ -50,7 +53,7 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 		str.WriteString(string(x))
 
 		// If at the end, and its not -1 meaning the first char
-		// which should never happen then write the end string
+		// which should never happen (I hope!) then write the end string
 		if i == end && end != -1 {
 			str.WriteString(out)
 			end = 0

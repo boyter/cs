@@ -80,6 +80,19 @@ func TestDropInReplacementNil(t *testing.T) {
 	}
 }
 
+func TestDropInReplacementMultiple(t *testing.T) {
+	r := regexp.MustCompile(`1`)
+
+	matches1 := r.FindAllIndex([]byte(`111`), -1)
+	matches2 := IndexAll(`111`, "1", -1)
+
+	for i := 0; i < len(matches1); i++ {
+		if matches1[i][0] != matches2[i][0] || matches1[i][1] != matches2[i][1] {
+			t.Error("Expect results to match", i)
+		}
+	}
+}
+
 func TestIndexAllIgnoreCaseUnicodeLongNeedleNoMatch(t *testing.T) {
 	matches := IndexAllIgnoreCaseUnicode("aaaaabbbbb", "aaaaaa", -1)
 
@@ -117,5 +130,18 @@ func TestIndexAllIgnoreCaseUnicodeNegativeLimit(t *testing.T) {
 
 	if len(matches) != 4 {
 		t.Error("Expected four matches")
+	}
+}
+
+func TestDropInReplacementMultipleIndexAllIgnoreCaseUnicode(t *testing.T) {
+	r := regexp.MustCompile(`1`)
+
+	matches1 := r.FindAllIndex([]byte(`111`), -1)
+	matches2 := IndexAllIgnoreCaseUnicode(`111`, "1", -1)
+
+	for i := 0; i < len(matches1); i++ {
+		if matches1[i][0] != matches2[i][0] || matches1[i][1] != matches2[i][1] {
+			t.Error("Expect results to match", i)
+		}
 	}
 }

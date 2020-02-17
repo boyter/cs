@@ -3,11 +3,14 @@
 
 package string
 
-import "testing"
+import (
+	"regexp"
+	"testing"
+)
 
 func TestHighlightStringSimple(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,4})
+	loc = append(loc, []int{0, 4})
 
 	got := HighlightString("this", loc, "[in]", "[out]")
 
@@ -19,7 +22,7 @@ func TestHighlightStringSimple(t *testing.T) {
 
 func TestHighlightStringCheckInOut(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,4})
+	loc = append(loc, []int{0, 4})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -31,7 +34,7 @@ func TestHighlightStringCheckInOut(t *testing.T) {
 
 func TestHighlightStringCheck2(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,4})
+	loc = append(loc, []int{0, 4})
 
 	got := HighlightString("bing", loc, "__", "__")
 
@@ -43,8 +46,8 @@ func TestHighlightStringCheck2(t *testing.T) {
 
 func TestHighlightStringCheckTwoWords(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,4})
-	loc = append(loc, []int{5,4})
+	loc = append(loc, []int{0, 4})
+	loc = append(loc, []int{5, 4})
 
 	got := HighlightString("this this", loc, "__", "__")
 
@@ -56,9 +59,9 @@ func TestHighlightStringCheckTwoWords(t *testing.T) {
 
 func TestHighlightStringCheckMixedWords(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,4})
-	loc = append(loc, []int{5,4})
-	loc = append(loc, []int{10,9})
+	loc = append(loc, []int{0, 4})
+	loc = append(loc, []int{5, 4})
+	loc = append(loc, []int{10, 9})
 
 	got := HighlightString("this this something", loc, "__", "__")
 
@@ -70,8 +73,8 @@ func TestHighlightStringCheckMixedWords(t *testing.T) {
 
 func TestHighlightStringOverlapStart(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,1})
-	loc = append(loc, []int{0,4})
+	loc = append(loc, []int{0, 1})
+	loc = append(loc, []int{0, 4})
 
 	got := HighlightString("THIS", loc, "__", "__")
 
@@ -83,8 +86,8 @@ func TestHighlightStringOverlapStart(t *testing.T) {
 
 func TestHighlightStringOverlapMiddle(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,4})
-	loc = append(loc, []int{1,1})
+	loc = append(loc, []int{0, 4})
+	loc = append(loc, []int{1, 1})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -96,8 +99,8 @@ func TestHighlightStringOverlapMiddle(t *testing.T) {
 
 func TestHighlightStringNoOverlapMiddleNextSame(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,1})
-	loc = append(loc, []int{1,1})
+	loc = append(loc, []int{0, 1})
+	loc = append(loc, []int{1, 1})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -109,8 +112,8 @@ func TestHighlightStringNoOverlapMiddleNextSame(t *testing.T) {
 
 func TestHighlightStringOverlapMiddleLonger(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{0,2})
-	loc = append(loc, []int{1,3})
+	loc = append(loc, []int{0, 2})
+	loc = append(loc, []int{1, 3})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -122,12 +125,46 @@ func TestHighlightStringOverlapMiddleLonger(t *testing.T) {
 
 func TestBugOne(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{10,8})
+	loc = append(loc, []int{10, 8})
 
 	got := HighlightString("this is unexpected", loc, "__", "__")
 
 	expected := "this is un__expected__"
 	if got != expected {
 		t.Error("Expected", expected, "got", got)
+	}
+}
+
+func TestIntegrationRegex(t *testing.T) {
+	r := regexp.MustCompile(`1`)
+	haystack := "111"
+
+	loc := r.FindAllIndex([]byte(haystack), -1)
+	got := HighlightString(haystack, loc, "__", "__")
+
+	if got != "__1____1____1__" {
+		t.Error("Expected", "__1____1____1__", "got", got)
+	}
+}
+
+func TestIntegrationIndexAll(t *testing.T) {
+	haystack := "111"
+
+	loc := IndexAll(haystack, "1", -1)
+	got := HighlightString(haystack, loc, "__", "__")
+
+	if got != "__1____1____1__" {
+		t.Error("Expected", "__1____1____1__", "got", got)
+	}
+}
+
+func TestIntegrationIndexAllIgnoreCaseUnicode(t *testing.T) {
+	haystack := "111"
+
+	loc := IndexAllIgnoreCaseUnicode(haystack, "1", -1)
+	got := HighlightString(haystack, loc, "__", "__")
+
+	if got != "__1____1____1__" {
+		t.Error("Expected", "__1____1____1__", "got", got)
 	}
 }
