@@ -43,7 +43,7 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 				// change to deal with overlaps if say we are trying to match
 				// on t and tes against test where we want tes as the longest
 				// match to be the end that's written
-				y := i + val[1] - 1 // val[1] in this case is the length of the match
+				y := val[1] - 1 // val[1] in this case is the length of the match
 				if y > end {
 					end = y
 				}

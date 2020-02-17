@@ -47,7 +47,7 @@ func TestHighlightStringCheck2(t *testing.T) {
 func TestHighlightStringCheckTwoWords(t *testing.T) {
 	loc := [][]int{}
 	loc = append(loc, []int{0, 4})
-	loc = append(loc, []int{5, 4})
+	loc = append(loc, []int{5, 9})
 
 	got := HighlightString("this this", loc, "__", "__")
 
@@ -60,8 +60,8 @@ func TestHighlightStringCheckTwoWords(t *testing.T) {
 func TestHighlightStringCheckMixedWords(t *testing.T) {
 	loc := [][]int{}
 	loc = append(loc, []int{0, 4})
-	loc = append(loc, []int{5, 4})
-	loc = append(loc, []int{10, 9})
+	loc = append(loc, []int{5, 9})
+	loc = append(loc, []int{10, 19})
 
 	got := HighlightString("this this something", loc, "__", "__")
 
@@ -87,7 +87,7 @@ func TestHighlightStringOverlapStart(t *testing.T) {
 func TestHighlightStringOverlapMiddle(t *testing.T) {
 	loc := [][]int{}
 	loc = append(loc, []int{0, 4})
-	loc = append(loc, []int{1, 1})
+	loc = append(loc, []int{1, 2})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -100,7 +100,7 @@ func TestHighlightStringOverlapMiddle(t *testing.T) {
 func TestHighlightStringNoOverlapMiddleNextSame(t *testing.T) {
 	loc := [][]int{}
 	loc = append(loc, []int{0, 1})
-	loc = append(loc, []int{1, 1})
+	loc = append(loc, []int{1, 2})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -113,7 +113,7 @@ func TestHighlightStringNoOverlapMiddleNextSame(t *testing.T) {
 func TestHighlightStringOverlapMiddleLonger(t *testing.T) {
 	loc := [][]int{}
 	loc = append(loc, []int{0, 2})
-	loc = append(loc, []int{1, 3})
+	loc = append(loc, []int{1, 4})
 
 	got := HighlightString("this", loc, "__", "__")
 
@@ -125,7 +125,7 @@ func TestHighlightStringOverlapMiddleLonger(t *testing.T) {
 
 func TestBugOne(t *testing.T) {
 	loc := [][]int{}
-	loc = append(loc, []int{10, 8})
+	loc = append(loc, []int{10, 18})
 
 	got := HighlightString("this is unexpected", loc, "__", "__")
 
