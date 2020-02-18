@@ -32,9 +32,9 @@ type FileWalker struct {
 	isWalking              bool
 	directory              string
 	fileListQueue          chan *File
-	LocationExcludePattern []string // Case insensitive patterns which exclude files
-	PathDenylist           []string // Paths to always ignore such as .git,.svn and .hg
-	EnableIgnoreFiles      bool     // Should .gitignore or .ignore files be respected?
+	LocationExcludePattern []string // Case sensitive patterns which exclude files
+	PathExclude            []string // Paths to always ignore such as .git,.svn and .hg
+	EnableIgnoreFile       bool     // Should .gitignore or .ignore files be respected?
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
 }
 
@@ -46,8 +46,8 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		terminateWalking:       false,
 		isWalking:              false,
 		LocationExcludePattern: []string{},
-		PathDenylist:           []string{},
-		EnableIgnoreFiles:      false,
+		PathExclude:            []string{},
+		EnableIgnoreFile:       false,
 		IncludeHidden:          false,
 	}
 }
@@ -119,7 +119,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	// Pull out all of the ignore and gitignore files and add them
 	// to out collection of ignores to be applied for this pass
 	// and any subdirectories
-	if f.EnableIgnoreFiles {
+	if f.EnableIgnoreFile {
 		for _, file := range files {
 			if file.Name() == ".gitignore" || file.Name() == ".ignore" {
 				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
@@ -137,7 +137,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 		// Check against the ignore files we have if the file we are looking at
 		// should be ignored
-		if f.EnableIgnoreFiles {
+		if f.EnableIgnoreFile {
 			for _, ignore := range ignores {
 				if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
 					shouldIgnore = true
@@ -184,7 +184,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 		// Confirm if there are any files in the path deny list which usually includes
 		// things like .git .hg and .svn
-		for _, deny := range f.PathDenylist {
+		for _, deny := range f.PathExclude {
 			if strings.HasSuffix(dir.Name(), deny) {
 				shouldIgnore = true
 			}

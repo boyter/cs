@@ -43,7 +43,7 @@ var Format = ""
 // FileOutput sets the file that output should be written to
 var FileOutput = ""
 
-// PathDenylist sets the paths that should be skipped
+// PathExclude sets the paths that should be skipped
 var PathDenylist = []string{}
 
 // Allow ignoring files by location

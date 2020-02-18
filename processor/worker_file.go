@@ -9,17 +9,25 @@ import (
 	"sync/atomic"
 )
 
+type FileReaderWorker2 struct {
+	input     chan *file.File
+	output    chan *fileJob
+	FileCount int64 // Count of the number of files this has read
+}
+
+func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker2 {
+	return FileReaderWorker2{
+		input:     input,
+		output:    output,
+		FileCount: 0,
+	}
+}
+
 // This is responsible for spinning up all of the jobs
 // that read files from disk into memory
 // TODO make this spawn goroutines
-func fileReaderWorker(input chan *file.File, output chan *fileJob) {
-	//var wg sync.WaitGroup
-	TotalCount = 0 // TODO make this somewhere that isnt a global
-	//for i := 0; i < FileReadJobWorkers; i++ {
-	//	wg.Add(1)
-	//
-	//	go func() {
-	for res := range input {
+func (f *FileReaderWorker2) Start() {
+	for res := range f.input {
 		fi, err := os.Stat(res.Location)
 		if err != nil {
 			continue
@@ -44,8 +52,8 @@ func fileReaderWorker(input chan *file.File, output chan *fileJob) {
 		}
 
 		if err == nil {
-			atomic.AddInt64(&TotalCount, 1)
-			output <- &fileJob{
+			atomic.AddInt64(&f.FileCount, 1)
+			f.output <- &fileJob{
 				Filename:  res.Filename,
 				Extension: "",
 				Location:  res.Location,
@@ -59,11 +67,6 @@ func fileReaderWorker(input chan *file.File, output chan *fileJob) {
 			}
 		}
 	}
-	//	wg.Done()
-	//}()
-	close(output)
+
+	close(f.output)
 }
-//
-//wg.Wait()
-//close(output)
-//}

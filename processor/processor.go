@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/boyter/cs/file"
 	"io/ioutil"
+	"runtime"
 	"strings"
 )
 
@@ -57,13 +58,18 @@ func (process *Process) StartProcess() {
 		process.Directory = file.FindRepositoryRoot(process.Directory)
 	}
 
-	// Walk Directory -> WhiteLister/Reader/Scanner -> Searcher -> Extractor -> Summarise
+	// Walk Directory -> Filter -> Reader/Scanner/Filter -> Searcher -> Extractor -> Summarise
 
-	//fileQueue := make(chan *file.File, 1000) // Files ready to be read from disk NB we buffer here because CLI runs still finished or the process is cancelled
-	//fileWalker := file.NewFileWalker(process.Directory, fileQueue)
-	//_ = fileWalker.WalkDirectory()
+	fileQueue := make(chan *file.File, 1000)                // Files ready to be read from disk NB we buffer here because CLI runs still finished or the process is cancelled
+	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
+
+	fileWalker := file.NewFileWalker(process.Directory, fileQueue)
+	go fileWalker.WalkDirectory()
+	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
+	go fileReader.Start()
 
 
+	// Old way below
 	go walkDirectory(process.Directory, fileListQueue)
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
