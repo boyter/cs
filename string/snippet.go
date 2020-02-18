@@ -1,13 +1,11 @@
-// SPDX-License-Identifier: MIT
-// SPDX-License-Identifier: Unlicense
-package snippet
+package string
 
 import (
-	"bytes"
 	"math"
 	"sort"
 	"strings"
 )
+
 
 type LocationType struct {
 	Term     string
@@ -19,64 +17,6 @@ type SnipLocation struct {
 	DiffScore int
 }
 
-// Extracts all of the locations of a string inside another string
-// upto the defined limit and does so without regular expressions
-// which  makes it about 3x more efficient
-func ExtractLocation(word []byte, fulltext []byte, limit int) []int {
-	locs := []int{}
-
-	searchText := fulltext
-	offSet := 0
-	loc := bytes.Index(searchText, word)
-
-	count := 0
-	for loc != -1 {
-		count++
-
-		if count == limit {
-			break
-		}
-
-		searchText = searchText[loc+len(word):]
-		locs = append(locs, loc+offSet)
-
-		// trim off the start, and look from there and keep trimming
-		offSet += loc + len(word)
-		loc = bytes.Index(searchText, word)
-	}
-
-	sort.Ints(locs)
-	return locs
-}
-
-// This method is about 3x more efficient then using regex to find
-// all the locations assuming you are matching plain strings
-//
-// BenchmarkExtractLocationsRegex-8     	   50000	     30159 ns/op
-// BenchmarkExtractLocationsNoRegex-8   	  200000	     11915 ns/op
-func ExtractLocations(words [][]byte, fulltext []byte) []int {
-	locs := []int{}
-
-	fulltext = bytes.ToLower(fulltext)
-
-	for _, w := range words {
-		for _, l := range ExtractLocation(w, fulltext, 20) {
-			locs = append(locs, l)
-		}
-	}
-
-	sort.Ints(locs)
-
-	// If no words were found then we show the beginning of the text
-	// by setting the location to 0
-	// Note this should not happen generally as you would only try to snip
-	// things for which you know a match is made
-	if len(locs) == 0 {
-		locs = append(locs, 0)
-	}
-
-	return locs
-}
 
 // Work out which is the most relevant portion to display
 // This is done by looping over each match and finding the smallest distance between two found
@@ -149,7 +89,6 @@ func determineSnipLocations(locations []LocationType, previousCount int) (int, [
 		return snipLocations[i].DiffScore > snipLocations[j].DiffScore
 	})
 
-	//fmt.Println(">>>>> ", startPos, snipLocations)
 	return startPos, snipLocations
 }
 
@@ -178,6 +117,7 @@ func CalculatePrevCount(relLength int, divisor int) int {
 	return t
 }
 
+// Extracts out a relevant portion of text based on the supplied locations and text length
 func ExtractRelevant(fulltext string, locations []LocationType, relLength int, prevCount int, indicator string) string {
 	textLength := len(fulltext)
 
@@ -242,3 +182,4 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 
 	return relText
 }
+
