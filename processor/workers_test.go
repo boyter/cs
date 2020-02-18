@@ -10,7 +10,7 @@ func TestProcessMatchesSingleMatch(t *testing.T) {
 		[]byte("match"),
 	}
 
-	res := FileJob{
+	res := fileJob{
 		Locations: map[string][]int{},
 	}
 
@@ -32,7 +32,7 @@ func TestProcessMatchesTwoMatch(t *testing.T) {
 		[]byte("this"),
 	}
 
-	res := FileJob{
+	res := fileJob{
 		Locations: map[string][]int{},
 	}
 
@@ -55,7 +55,7 @@ func TestProcessMatchesTwoAndMatch(t *testing.T) {
 		[]byte("this"),
 	}
 
-	res := FileJob{
+	res := fileJob{
 		Locations: map[string][]int{},
 	}
 
@@ -78,7 +78,7 @@ func TestProcessMatchesTwoNotMatch(t *testing.T) {
 		[]byte("this"),
 	}
 
-	res := FileJob{
+	res := fileJob{
 		Locations: map[string][]int{},
 	}
 
@@ -99,7 +99,7 @@ func TestProcessMatchesFuzzyOne(t *testing.T) {
 		[]byte("this~1"),
 	}
 
-	res := FileJob{
+	res := fileJob{
 		Locations: map[string][]int{},
 	}
 
@@ -120,7 +120,7 @@ func TestProcessMatchesFuzzyTwo(t *testing.T) {
 		[]byte("this~2"),
 	}
 
-	res := FileJob{
+	res := fileJob{
 		Locations: map[string][]int{},
 	}
 
@@ -138,10 +138,10 @@ func TestProcessMatchesFuzzyTwo(t *testing.T) {
 func TestFileReaderWorker(t *testing.T) {
 	ResultLimit = 100
 
-	input := make(chan *FileJob, 10)
-	output := make(chan *FileJob, 10)
+	input := make(chan *fileJob, 10)
+	output := make(chan *fileJob, 10)
 
-	input <- &FileJob{
+	input <- &fileJob{
 		Filename:  "workers.go",
 		Extension: "go",
 		Location:  "./workers.go",
@@ -156,7 +156,7 @@ func TestFileReaderWorker(t *testing.T) {
 
 	FileReaderWorker(input, output)
 
-	out := []*FileJob{}
+	out := []*fileJob{}
 	for o := range output {
 		out = append(out, o)
 	}
@@ -169,10 +169,10 @@ func TestFileReaderWorker(t *testing.T) {
 func TestFileProcessorWorker(t *testing.T) {
 	ResultLimit = 100
 
-	input := make(chan *FileJob, 10)
-	output := make(chan *FileJob, 10)
+	input := make(chan *fileJob, 10)
+	output := make(chan *fileJob, 10)
 
-	input <- &FileJob{
+	input <- &fileJob{
 		Filename:  "workers.go",
 		Extension: "go",
 		Location:  "./workers.go",
@@ -187,7 +187,7 @@ func TestFileProcessorWorker(t *testing.T) {
 
 	FileProcessorWorker(input, output)
 
-	out := []*FileJob{}
+	out := []*fileJob{}
 	for o := range output {
 		out = append(out, o)
 	}

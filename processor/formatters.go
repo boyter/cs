@@ -14,14 +14,14 @@ import (
 	"github.com/fatih/color"
 )
 
-func fileSummarize(input chan *FileJob) string {
+func fileSummarize(input chan *fileJob) string {
 	switch {
 	case strings.ToLower(Format) == "json":
 		return toJSON(input)
 	}
 
 	// Collect results so we can rank them
-	results := []*FileJob{}
+	results := []*fileJob{}
 	for res := range input {
 		results = append(results, res)
 	}
@@ -49,9 +49,9 @@ func fileSummarize(input chan *FileJob) string {
 	return ""
 }
 
-func toJSON(input chan *FileJob) string {
+func toJSON(input chan *fileJob) string {
 	// Collect results so we can rank them
-	results := []*FileJob{}
+	results := []*fileJob{}
 	for res := range input {
 		results = append(results, res)
 	}
@@ -70,13 +70,13 @@ func toJSON(input chan *FileJob) string {
 		return results[i].Score > results[j].Score
 	})
 
-	r := []JsonResult{}
+	r := []jsonResult{}
 
 	for _, res := range results {
 		locations := GetResultLocations(res)
 		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
 
-		r = append(r, JsonResult{
+		r = append(r, jsonResult{
 			Filename:  res.Filename,
 			Extension: res.Extension,
 			Location:  res.Location,

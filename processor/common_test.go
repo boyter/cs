@@ -14,7 +14,7 @@ func TestRemoveIntDuplicates(t *testing.T) {
 
 func TestGetResultLocationsZeroLocations(t *testing.T) {
 
-	locations := GetResultLocations(&FileJob{
+	locations := GetResultLocations(&fileJob{
 		Filename:  "test",
 		Extension: "test",
 		Location:  "test",
@@ -35,7 +35,7 @@ func TestGetResultLocationsThreeResults(t *testing.T) {
 	loc := map[string][]int{}
 	loc["test"] = []int{1, 2, 3}
 
-	locations := GetResultLocations(&FileJob{
+	locations := GetResultLocations(&fileJob{
 		Filename:  "test",
 		Extension: "test",
 		Location:  "test",

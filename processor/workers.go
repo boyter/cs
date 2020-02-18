@@ -23,7 +23,7 @@ var MatchLimit = 100
 
 // This is responsible for spinning up all of the jobs
 // that read files from disk into memory
-func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
+func FileReaderWorker(input chan *fileJob, output chan *fileJob) {
 	var wg sync.WaitGroup
 	TotalCount = 0
 	for i := 0; i < FileReadJobWorkers; i++ {
@@ -78,7 +78,7 @@ func FileReaderWorker(input chan *FileJob, output chan *FileJob) {
 }
 
 // Does the actual processing of stats and as such contains the hot path CPU call
-func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
+func FileProcessorWorker(input chan *fileJob, output chan *fileJob) {
 	var wg sync.WaitGroup
 
 	for i := 0; i < FileProcessJobWorkers; i++ {
@@ -131,7 +131,7 @@ func FileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	close(output)
 }
 
-func processMatches(res *FileJob, content []byte) bool {
+func processMatches(res *fileJob, content []byte) bool {
 	for i, term := range SearchBytes {
 		// Currently only NOT does anything as the rest are just ignored
 		if bytes.Equal(term, []byte("AND")) || bytes.Equal(term, []byte("OR")) || bytes.Equal(term, []byte("NOT")) {

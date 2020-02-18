@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Unlicense
 package processor
 
-// FileJob is a struct used to hold all of the results of processing internally before sent to the formatter
-type FileJob struct {
+// fileJob is a struct used to hold all of the results of processing internally before sent to the formatter
+type fileJob struct {
 	Filename  string
 	Extension string
 	Location  string
@@ -16,7 +16,7 @@ type FileJob struct {
 	Minified  bool
 }
 
-type JsonResult struct {
+type jsonResult struct {
 	Filename  string  `json:"filename"`
 	Extension string  `json:"extension"`
 	Location  string  `json:"location"`

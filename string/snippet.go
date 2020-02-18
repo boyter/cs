@@ -157,7 +157,7 @@ func ExtractRelevant(fulltext string, locations [][]int, relLength int, prevCoun
 		startPos = 0
 	}
 
-	relText := SubString(fulltext, startPos, endPos)
+	relText := subString(fulltext, startPos, endPos)
 
 	if startPos+relLength < textLength {
 		t := strings.LastIndex(relText, " ")
@@ -195,9 +195,11 @@ func ExtractRelevant(fulltext string, locations [][]int, relLength int, prevCoun
 }
 
 // Gets a substring of a string rune aware without allocating additional memory at the expense
-// of some additional CPU for a loop over the top which is probably worth it
+// of some additional CPU for a loop over the top which is probably worth it.
+// Literally copy/pasted from below link
 // https://stackoverflow.com/questions/28718682/how-to-get-a-substring-from-a-string-of-runes-in-golang
-func SubString(s string, start int, end int) string {
+// TODO pretty sure this messes with the cuts but need to check
+func subString(s string, start int, end int) string {
 	start_str_idx := 0
 	i := 0
 	for j := range s {

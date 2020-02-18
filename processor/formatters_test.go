@@ -47,9 +47,9 @@ func TestGetFormattedTime(t *testing.T) {
 
 func TestToJson(t *testing.T) {
 	ResultLimit = 100
-	fileListQueue := make(chan *FileJob, 100)
+	fileListQueue := make(chan *fileJob, 100)
 
-	fileListQueue <- &FileJob{
+	fileListQueue <- &fileJob{
 		Filename:  "",
 		Extension: "",
 		Location:  "",
@@ -71,9 +71,9 @@ func TestToJson(t *testing.T) {
 
 func TestToJsonMultiple(t *testing.T) {
 	ResultLimit = 100
-	fileListQueue := make(chan *FileJob, 100)
+	fileListQueue := make(chan *fileJob, 100)
 
-	fileListQueue <- &FileJob{
+	fileListQueue <- &fileJob{
 		Filename:  "Something",
 		Extension: "",
 		Location:  "",
@@ -86,7 +86,7 @@ func TestToJsonMultiple(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		fileListQueue <- &FileJob{
+		fileListQueue <- &fileJob{
 			Filename:  strconv.Itoa(i),
 			Extension: "",
 			Location:  "",
@@ -110,9 +110,9 @@ func TestToJsonMultiple(t *testing.T) {
 func TestFileSummerize(t *testing.T) {
 	ResultLimit = 100
 	Format = "text"
-	fileListQueue := make(chan *FileJob, 100)
+	fileListQueue := make(chan *fileJob, 100)
 
-	fileListQueue <- &FileJob{
+	fileListQueue <- &fileJob{
 		Filename:  "Something",
 		Extension: "",
 		Location:  "",
@@ -125,7 +125,7 @@ func TestFileSummerize(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		fileListQueue <- &FileJob{
+		fileListQueue <- &fileJob{
 			Filename:  strconv.Itoa(i),
 			Extension: "",
 			Location:  "",

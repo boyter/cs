@@ -42,7 +42,7 @@ func RemoveIntDuplicates(elements []int) []int {
 	return result
 }
 
-func GetResultLocations(res *FileJob) []snippet.LocationType {
+func GetResultLocations(res *fileJob) []snippet.LocationType {
 	locations := []snippet.LocationType{}
 	for k, v := range res.Locations {
 		for _, i := range v {

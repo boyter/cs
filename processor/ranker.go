@@ -15,7 +15,7 @@ import (
 // Note that this method will evolve over time
 // and as such you should never rely on the returned results being
 // the same over time
-func rankResults(searchTerms [][]byte, results []*FileJob) []*FileJob {
+func rankResults(searchTerms [][]byte, results []*fileJob) []*fileJob {
 	results = rankResultsTFIDF(searchTerms, results)
 	results = rankResultsLocation(searchTerms, results)
 	return results
@@ -31,7 +31,7 @@ const (
 // file location field.
 // This is not using TF-IDF or any fancy algorithm just basic checks
 // and boosts
-func rankResultsLocation(searchTerms [][]byte, results []*FileJob) []*FileJob {
+func rankResultsLocation(searchTerms [][]byte, results []*fileJob) []*fileJob {
 	for i := 0; i < len(results); i++ {
 		loc := bytes.ToLower([]byte(results[i].Location))
 		foundTerms := 0
@@ -78,7 +78,7 @@ func rankResultsLocation(searchTerms [][]byte, results []*FileJob) []*FileJob {
 // have counts of terms for documents that don't match
 // so the IDF value is not correctly calculated
 // https://en.wikipedia.org/wiki/Tf-idf
-func rankResultsTFIDF(searchTerms [][]byte, results []*FileJob) []*FileJob {
+func rankResultsTFIDF(searchTerms [][]byte, results []*fileJob) []*fileJob {
 	idf := map[string]int{}
 	for _, r := range results {
 		for k := range r.Locations {
@@ -105,7 +105,7 @@ func rankResultsTFIDF(searchTerms [][]byte, results []*FileJob) []*FileJob {
 // and then sort based on location to stop any undeterministic ordering happening
 // as since the location includes the filename we should never have two matches
 // that are 100% equal based on the two criteria we use.
-func sortResults(results []*FileJob) {
+func sortResults(results []*fileJob) {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Score == results[j].Score {
 			return strings.Compare(results[i].Location, results[j].Location) < 0

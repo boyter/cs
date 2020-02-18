@@ -8,7 +8,7 @@ func TestRanker(t *testing.T) {
 	locations := map[string][]int{}
 	locations["test"] = []int{1, 2, 3}
 
-	results := []*FileJob{
+	results := []*fileJob{
 		{
 			Filename:  "test.go",
 			Extension: "go",
@@ -33,7 +33,7 @@ func TestRanker(t *testing.T) {
 }
 
 func TestRankResultsLocation(t *testing.T) {
-	results := []*FileJob{
+	results := []*fileJob{
 		{
 			Filename: "test.go",
 			Location: "/this/matches/something/test.go",
@@ -48,7 +48,7 @@ func TestRankResultsLocation(t *testing.T) {
 }
 
 func TestRankResultsLocationScoreCheck(t *testing.T) {
-	results := []*FileJob{
+	results := []*fileJob{
 		{
 			Filename: "test1.go",
 			Location: "/this/matches/something/test1.go",

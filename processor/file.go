@@ -16,7 +16,7 @@ var WalkMutex = sync.Mutex{}          // We only ever want 1 file walker operati
 var IsWalking = NewBool(false)        // The state indicating if we are walking
 var TerminateWalking = NewBool(false) // The flag to indicate we should stop
 
-func walkDirectory(directory string, fileListQueue chan *FileJob) error {
+func walkDirectory(directory string, fileListQueue chan *fileJob) error {
 	WalkMutex.Lock()
 	defer WalkMutex.Unlock()
 
@@ -31,7 +31,7 @@ func walkDirectory(directory string, fileListQueue chan *FileJob) error {
 // Walks a directory recursively using gitignore/ignore files to ignore files and directories
 // as well as using extension checks to ensure only files that should be processed are
 // let though.
-func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher, fileListQueue chan *FileJob) error {
+func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher, fileListQueue chan *fileJob) error {
 	// Because this can work in a interactive mode we need a way to be able
 	// to stop walking such as when the user starts a new search which this return should
 	// take care of
@@ -106,7 +106,7 @@ func walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher,
 			// considered a possible #! file
 			// TODO we should allow those though and handle it later on
 			if !shouldIgnore && len(language) != 0 && language[0] != "#!" {
-				fileListQueue <- &FileJob{
+				fileListQueue <- &fileJob{
 					Location:  filepath.Join(directory, file.Name()),
 					Filename:  file.Name(),
 					Extension: ext,

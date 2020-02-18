@@ -55,9 +55,9 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	CleanSearchString()
 	TotalCount = 0
 
-	fileListQueue := make(chan *FileJob, runtime.NumCPU())           // Files ready to be read from disk
-	fileReadContentJobQueue := make(chan *FileJob, runtime.NumCPU()) // Files ready to be processed
-	fileSummaryJobQueue := make(chan *FileJob, runtime.NumCPU())     // Files ready to be summarised
+	fileListQueue := make(chan *fileJob, runtime.NumCPU())           // Files ready to be read from disk
+	fileReadContentJobQueue := make(chan *fileJob, runtime.NumCPU()) // Files ready to be processed
+	fileSummaryJobQueue := make(chan *fileJob, runtime.NumCPU())     // Files ready to be summarised
 
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it
@@ -70,7 +70,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
 
-	results := []*FileJob{}
+	results := []*fileJob{}
 	reset := makeTimestampMilli()
 
 	var spinLocation int
@@ -106,7 +106,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	drawResults(app, results, textView, searchTerm, "")
 }
 
-func drawResults(app *tview.Application, results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
+func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, inProgress string) {
 	rankResults(SearchBytes, results)
 	sortResults(results)
 
