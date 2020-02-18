@@ -6,12 +6,7 @@ import (
 	"strings"
 )
 
-type LocationType struct {
-	Term     string
-	Location int
-}
-
-type SnipLocation struct {
+type snipLocation struct {
 	Location  int
 	DiffScore int
 }
@@ -27,7 +22,7 @@ type SnipLocation struct {
 // Fast Generation of Result Snippets in Web Search tend to work using sentences.
 //
 // This is designed to work with source code to be fast.
-func determineSnipLocations(locations [][]int, previousCount int) (int, []SnipLocation) {
+func determineSnipLocations(locations [][]int, previousCount int) (int, []snipLocation) {
 
 	// Need to assume we need to sort the locations as there may be multiple calls to
 	// FindAll in the same slice
@@ -43,7 +38,7 @@ func determineSnipLocations(locations [][]int, previousCount int) (int, []SnipLo
 	startPos := locations[0][0]
 	locCount := len(locations)
 	smallestDiff := math.MaxInt32
-	snipLocations := []SnipLocation{}
+	snipLocations := []snipLocation{}
 
 	var diff int
 	if locCount > 2 {
@@ -67,7 +62,7 @@ func determineSnipLocations(locations [][]int, previousCount int) (int, []SnipLo
 				}
 			}
 
-			snipLocations = append(snipLocations, SnipLocation{
+			snipLocations = append(snipLocations, snipLocation{
 				Location:  locations[i][0],
 				DiffScore: diff,
 			})
@@ -127,6 +122,13 @@ func CalculatePrevCount(relLength int, divisor int) int {
 }
 
 // Extracts out a relevant portion of text based on the supplied locations and text length
+// returning the extracted string as well as the start and end position in bytes of the snippet
+// in the full string
+//
+// Please note that testing this is... hard. This is because what is considered relevant also happens
+// to differ between people. As such this is not tested as much as other methods and you should not
+// rely on the results being static over time as the internals will be modified to produce better
+// results where possible
 func ExtractRelevant(fulltext string, locations [][]int, relLength int, prevCount int, indicator string) (string, int, int) {
 	textLength := len(fulltext)
 
