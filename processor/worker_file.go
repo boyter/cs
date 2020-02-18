@@ -12,7 +12,7 @@ import (
 type FileReaderWorker2 struct {
 	input     chan *file.File
 	output    chan *fileJob
-	FileCount int64 // Count of the number of files this has read
+	FileCount int64 // Count of the number of files that have been read
 }
 
 func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker2 {
@@ -62,7 +62,7 @@ func (f *FileReaderWorker2) Start() {
 				Hash:      nil,
 				Binary:    false,
 				Score:     0,
-				Locations: nil,
+				Locations: map[string][]int{},
 				Minified:  false,
 			}
 		}

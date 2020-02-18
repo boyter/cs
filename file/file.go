@@ -90,11 +90,14 @@ func (f *FileWalker) WalkDirectory() error {
 }
 
 func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
+	// NB have to call unlock not using defer because method is recursive
+	// and will deadlock if not done manually
 	f.walkMutex.Lock()
-	defer f.walkMutex.Unlock()
 	if f.terminateWalking == true {
+		f.walkMutex.Unlock()
 		return TerminateWalkError
 	}
+	f.walkMutex.Unlock()
 
 	fileInfos, err := ioutil.ReadDir(directory)
 
@@ -168,6 +171,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 			}
 		}
 	}
+
 
 	// Now we process the directories after hopefully giving the
 	// channel some files to process
