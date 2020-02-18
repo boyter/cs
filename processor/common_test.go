@@ -5,7 +5,7 @@ import (
 )
 
 func TestRemoveIntDuplicates(t *testing.T) {
-	clean := RemoveIntDuplicates([]int{1, 1})
+	clean := removeIntDuplicates([]int{1, 1})
 
 	if len(clean) != 1 {
 		t.Error("Should have no duplicates")

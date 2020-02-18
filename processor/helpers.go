@@ -4,6 +4,7 @@ package processor
 
 import (
 	"time"
+	str "github.com/boyter/cs/string"
 )
 
 // Returns the current time as a millisecond timestamp
@@ -55,7 +56,7 @@ func makeFuzzyDistanceOne(term string) []string {
 		}
 	}
 
-	return RemoveStringDuplicates(vals)
+	return str.RemoveStringDuplicates(vals)
 }
 
 // Similar to fuzzy 1 but in this case we add letters
@@ -70,7 +71,7 @@ func makeFuzzyDistanceTwo(term string) []string {
 		}
 	}
 
-	return RemoveStringDuplicates(vals)
+	return str.RemoveStringDuplicates(vals)
 }
 
 func min(a, b int64) int64 {

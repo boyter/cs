@@ -1,5 +1,6 @@
 package processor
 
+// TODO delete
 // Totally stolen from https://github.com/tevino/abool
 
 import "sync/atomic"
