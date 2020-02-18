@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-
 type LocationType struct {
 	Term     string
 	Location int
@@ -16,7 +15,6 @@ type SnipLocation struct {
 	Location  int
 	DiffScore int
 }
-
 
 // Work out which is the most relevant portion to display
 // This is done by looping over each match and finding the smallest distance between two found
@@ -29,10 +27,20 @@ type SnipLocation struct {
 // Fast Generation of Result Snippets in Web Search tend to work using sentences.
 //
 // This is designed to work with source code to be fast.
-//
-// NB makes the assumption that the locations are already sorted
-func determineSnipLocations(locations []LocationType, previousCount int) (int, []SnipLocation) {
-	startPos := locations[0].Location
+func determineSnipLocations(locations [][]int, previousCount int) (int, []SnipLocation) {
+
+	// Need to assume we need to sort the locations as there may be multiple calls to
+	// FindAll in the same slice
+	sort.Slice(locations, func(i, j int) bool {
+		// If equal then sort based on how long a match they are
+		if locations[i][0] == locations[j][0] {
+			return locations[i][1] > locations[j][1]
+		}
+
+		return locations[i][0] > locations[j][0]
+	})
+
+	startPos := locations[0][0]
 	locCount := len(locations)
 	smallestDiff := math.MaxInt32
 	snipLocations := []SnipLocation{}
@@ -46,20 +54,21 @@ func determineSnipLocations(locations []LocationType, previousCount int) (int, [
 			// We don't need to worry about the +1 out of bounds here
 			// because we never loop the last term as the result
 			// should be 100% the same as the previous iteration
-			diff = locations[i+1].Location - locations[i].Location
+			diff = locations[i+1][0] - locations[i][0]
 
 			if i != locCount-1 {
-				// If the term after this one is different reduce the weight so its considered more relevant
+				// If the term after this one is different size reduce the diff so it is considered more relevant
 				// this is to make terms like "a" all next to each other worth less than "a" next to "apple"
 				// so we should in theory choose that section of text to be the most relevant consider
 				// this a boost based on diversity of the text we are snipping
-				if locations[i].Term != locations[i+1].Term {
-					diff = (diff / 2) - len(locations[i].Term) - len(locations[i+1].Term)
+				// NB this would be better if it had the actual term
+				if locations[i][1]-locations[i][0] != locations[i+1][1]-locations[i+1][0] {
+					diff = (diff / 2) - (locations[i][1] - locations[i][0]) - (locations[i+1][1] - locations[i+1][0])
 				}
 			}
 
 			snipLocations = append(snipLocations, SnipLocation{
-				Location:  locations[i].Location,
+				Location:  locations[i][0],
 				DiffScore: diff,
 			})
 
@@ -68,7 +77,7 @@ func determineSnipLocations(locations []LocationType, previousCount int) (int, [
 			// to have better context as the terms should appear together or at least close
 			if smallestDiff > diff {
 				smallestDiff = diff
-				startPos = locations[i].Location
+				startPos = locations[i][0]
 			}
 		}
 	}
@@ -80,7 +89,7 @@ func determineSnipLocations(locations []LocationType, previousCount int) (int, [
 	}
 
 	// Sort the snip locations based firstly on their diffscore IE
-	// which one we think is the best match and
+	// which one we think is the best match
 	sort.Slice(snipLocations, func(i, j int) bool {
 		if snipLocations[i].DiffScore == snipLocations[j].DiffScore {
 			return snipLocations[i].Location > snipLocations[j].Location
@@ -118,11 +127,11 @@ func CalculatePrevCount(relLength int, divisor int) int {
 }
 
 // Extracts out a relevant portion of text based on the supplied locations and text length
-func ExtractRelevant(fulltext string, locations []LocationType, relLength int, prevCount int, indicator string) string {
+func ExtractRelevant(fulltext string, locations [][]int, relLength int, prevCount int, indicator string) (string, int, int) {
 	textLength := len(fulltext)
 
 	if textLength <= relLength {
-		return fulltext
+		return fulltext, 0, textLength
 	}
 
 	startPos, _ := determineSnipLocations(locations, prevCount)
@@ -146,7 +155,7 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		startPos = 0
 	}
 
-	relText := fulltext[startPos:endPos]
+	relText := SubString(fulltext, startPos, endPos)
 
 	if startPos+relLength < textLength {
 		t := strings.LastIndex(relText, " ")
@@ -180,6 +189,23 @@ func ExtractRelevant(fulltext string, locations []LocationType, relLength int, p
 		relText = indicator + relText[indicatorPos+indicatorLen:]
 	}
 
-	return relText
+	return relText, startPos, endPos
 }
 
+// Gets a substring of a string rune aware without allocating additional memory at the expense
+// of some additional CPU for a loop over the top which is probably worth it
+// https://stackoverflow.com/questions/28718682/how-to-get-a-substring-from-a-string-of-runes-in-golang
+func SubString(s string, start int, end int) string {
+	start_str_idx := 0
+	i := 0
+	for j := range s {
+		if i == start {
+			start_str_idx = j
+		}
+		if i == end {
+			return s[start_str_idx:j]
+		}
+		i++
+	}
+	return s[start_str_idx:]
+}

@@ -107,8 +107,8 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 }
 
 func drawResults(app *tview.Application, results []*FileJob, textView *tview.TextView, searchTerm string, inProgress string) {
-	RankResults(SearchBytes, results)
-	SortResults(results)
+	rankResults(SearchBytes, results)
+	sortResults(results)
 
 	if int64(len(results)) >= TotalCount {
 		results = results[:TotalCount]
