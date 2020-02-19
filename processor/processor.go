@@ -65,9 +65,12 @@ func (process *Process) StartProcess() {
 
 	fileWalker := file.NewFileWalker(process.Directory, fileQueue)
 	fileWalker.PathExclude = PathDenylist
+	fileWalker.EnableIgnoreFile = true
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
 	fileSearcher.SearchString = SearchString
+	fileSearcher.MatchLimit = MatchLimit
+	fileSearcher.IncludeMinified = IncludeMinified
 	resultSummarizer := NewResultSummarizer(summaryQueue)
 
 	go fileWalker.WalkDirectory()
