@@ -39,7 +39,7 @@ func parseArguments(args []string) []searchParams {
 		if strings.HasPrefix(arg, `"`) {
 			if strings.HasSuffix(arg, `"`) {
 				params = append(params, searchParams{
-					Term: arg,
+					Term: arg[1:len(arg)-1],
 					Type: Quoted,
 				})
 			} else {
@@ -47,8 +47,9 @@ func parseArguments(args []string) []searchParams {
 				startIndex = ind
 			}
 		} else if mode == Quoted && strings.HasSuffix(arg, `"`) {
+			t := strings.Join(cleanArgs[startIndex:ind+1], " ")
 			params = append(params, searchParams{
-				Term: strings.Join(cleanArgs[startIndex:ind+1], " "),
+				Term: t[1:len(t)-1],
 				Type: Quoted,
 			})
 			mode = Default
@@ -56,7 +57,7 @@ func parseArguments(args []string) []searchParams {
 			// If we end with / not prefixed with a \ we are done
 			if strings.HasSuffix(arg, `/`) {
 				params = append(params, searchParams{
-					Term: arg,
+					Term: arg[1:len(arg)-1],
 					Type: Regex,
 				})
 			} else {
@@ -64,9 +65,9 @@ func parseArguments(args []string) []searchParams {
 				startIndex = ind
 			}
 		} else if mode == Regex && strings.HasSuffix(arg, `/`) {
-			// quote
+			t := strings.Join(cleanArgs[startIndex:ind+1], " ")
 			params = append(params, searchParams{
-				Term: strings.Join(cleanArgs[startIndex:ind+1], " "),
+				Term: t[1:len(t)-1],
 				Type: Regex,
 			})
 			mode = Default
@@ -80,12 +81,12 @@ func parseArguments(args []string) []searchParams {
 			}
 		} else if strings.HasSuffix(arg, "~1") {
 			params = append(params, searchParams{
-				Term: arg,
+				Term: strings.TrimRight(arg, "~1"),
 				Type: Fuzzy1,
 			})
 		} else if strings.HasSuffix(arg, "~2") {
 			params = append(params, searchParams{
-				Term: arg,
+				Term: strings.TrimRight(arg, "~2"),
 				Type: Fuzzy2,
 			})
 		} else {
@@ -98,14 +99,16 @@ func parseArguments(args []string) []searchParams {
 
 	// If the user didn't end properly that's ok lets do it for them
 	if mode == Regex {
+		t := strings.Join(cleanArgs[startIndex:], " ")
 		params = append(params, searchParams{
-			Term: strings.Join(cleanArgs[startIndex:], " ") + "/",
+			Term: t[1:],
 			Type: Regex,
 		})
 	}
 	if mode == Quoted {
+		t := strings.Join(cleanArgs[startIndex:], " ")
 		params = append(params, searchParams{
-			Term: strings.Join(cleanArgs[startIndex:], " ") + `"`,
+			Term: t[1:],
 			Type: Quoted,
 		})
 	}

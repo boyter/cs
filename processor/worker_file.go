@@ -64,6 +64,7 @@ func (f *FileReaderWorker2) Start() {
 				Score:     0,
 				Locations: map[string][]int{},
 				Minified:  false,
+				MatchLocations: map[string][][]int{},
 			}
 		}
 	}

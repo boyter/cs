@@ -3,8 +3,9 @@ package processor
 import (
 	"bytes"
 	"github.com/boyter/cs/processor/snippet"
-	"strings"
 	str "github.com/boyter/cs/string"
+	"gopkg.in/src-d/enry.v1/regex"
+	"strings"
 )
 
 type SearcherWorker struct {
@@ -39,7 +40,7 @@ func (f *SearcherWorker) Start() {
 
 	for res := range f.input {
 		// Check for the presence of a nul byte indicating that this
-		// is likely a binary file
+		// is likely a binary file and if so ignore it
 		if !f.IncludeBinary {
 			if bytes.IndexByte(res.Content, '\x00') != -1 {
 				res.Binary = true
@@ -64,8 +65,37 @@ func (f *SearcherWorker) Start() {
 
 		for _, needle := range f.searchParams {
 			switch needle.Type {
-			case Default:
-				str.IndexAll(string(res.Content), needle.Term, f.MatchLimit)
+			case Default, Quoted:
+				if f.CaseSensitive {
+					res.MatchLocations[needle.Term] = str.IndexAll(string(res.Content), needle.Term, f.MatchLimit)
+				} else {
+					res.MatchLocations[needle.Term] = str.IndexAllIgnoreCaseUnicode(string(res.Content), needle.Term, f.MatchLimit)
+				}
+			case Regex:
+				r := regex.MustCompile(needle.Term)
+				res.MatchLocations[needle.Term] = r.FindAllIndex(res.Content, f.MatchLimit)
+			case Fuzzy1:
+				terms := makeFuzzyDistanceOne(strings.TrimRight(needle.Term, "~1"))
+				matchLocations := [][]int{}
+				for _, t := range terms {
+					if f.CaseSensitive {
+						matchLocations = append(matchLocations, str.IndexAll(string(res.Content), t, f.MatchLimit)...)
+					} else {
+						matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
+					}
+				}
+				res.MatchLocations[needle.Term] = matchLocations
+			case Fuzzy2:
+				terms := makeFuzzyDistanceTwo(strings.TrimRight(needle.Term, "~2"))
+				matchLocations := [][]int{}
+				for _, t := range terms {
+					if f.CaseSensitive {
+						matchLocations = append(matchLocations, str.IndexAll(string(res.Content), t, f.MatchLimit)...)
+					} else {
+						matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
+					}
+				}
+				res.MatchLocations[needle.Term] = matchLocations
 			}
 		}
 

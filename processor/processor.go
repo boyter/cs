@@ -67,6 +67,7 @@ func (process *Process) StartProcess() {
 	fileWalker.PathExclude = PathDenylist
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
+	fileSearcher.SearchString = SearchString
 
 	go fileWalker.WalkDirectory()
 	go fileReader.Start()
