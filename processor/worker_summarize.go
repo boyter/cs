@@ -2,9 +2,8 @@ package processor
 
 import (
 	"fmt"
-	"github.com/boyter/cs/processor/snippet"
-	"github.com/fatih/color"
 	str "github.com/boyter/cs/string"
+	"github.com/fatih/color"
 )
 
 type ResultSummarizer struct {
@@ -33,9 +32,7 @@ func (f *ResultSummarizer) Start() string {
 		}
 	}
 
-	// Rank results then sort for display
-	rankResults(SearchBytes, results)
-	sortResults(results)
+	rankResults2(results)
 
 	for _, res := range results {
 		fmtBegin := "\033[1;31m"
@@ -49,7 +46,7 @@ func (f *ResultSummarizer) Start() string {
 		}
 
 		coloredContent := str.HighlightString(string(res.Content), locs, fmtBegin, fmtEnd)
-		relevant, _, _ := str.ExtractRelevant(coloredContent, locs, int(SnippetLength), snippet.CalculatePrevCount(int(SnippetLength), 6), "…")
+		relevant, _, _ := str.ExtractRelevant(coloredContent, locs, int(SnippetLength), str.CalculatePrevCount(int(SnippetLength), 6), "…")
 
 		fmt.Println(relevant)
 		fmt.Println("")
