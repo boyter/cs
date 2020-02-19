@@ -39,7 +39,7 @@ func (f *SearcherWorker) Start() {
 	f.searchParams = parseArguments(f.SearchString)
 
 	for res := range f.input {
-		// Check for the presence of a nul byte indicating that this
+		// Check for the presence of a null byte indicating that this
 		// is likely a binary file and if so ignore it
 		if !f.IncludeBinary {
 			if bytes.IndexByte(res.Content, '\x00') != -1 {
@@ -63,6 +63,8 @@ func (f *SearcherWorker) Start() {
 			}
 		}
 
+		// TODO needs to deal with NOT logic
+		// TODO also need to try against the filename IE even with not text matches it should count
 		for _, needle := range f.searchParams {
 			switch needle.Type {
 			case Default, Quoted:
@@ -97,6 +99,10 @@ func (f *SearcherWorker) Start() {
 				}
 				res.MatchLocations[needle.Term] = matchLocations
 			}
+
+			// Without ranking this score favors the most matches which is
+			// basic but better than nothing
+			res.Score += float64(len(res.MatchLocations[needle.Term]))
 		}
 
 		if res.Score != 0 {

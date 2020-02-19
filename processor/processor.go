@@ -47,7 +47,7 @@ func NewProcess(directory string) Process {
 
 // Process is the main entry point of the command line output it sets everything up and starts running
 func (process *Process) StartProcess() {
-	CleanSearchString()
+	//CleanSearchString()
 	//fileListQueue := make(chan *fileJob)                                        // Files ready to be read from disk
 	//fileReadContentJobQueue := make(chan *fileJob, FileReadContentJobQueueSize) // Files ready to be processed
 	//fileSummaryJobQueue := make(chan *fileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
@@ -59,7 +59,7 @@ func (process *Process) StartProcess() {
 	}
 
 
-	fileQueue := make(chan *file.File, 1000)    // Files ready to be read from disk NB we buffer here because CLI runs still finished or the process is cancelled
+	fileQueue := make(chan *file.File, 1000)    // Files ready to be read from disk NB we buffer here because CLI runs till finished or the process is cancelled
 	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
@@ -68,16 +68,18 @@ func (process *Process) StartProcess() {
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
 	fileSearcher.SearchString = SearchString
+	resultSummarizer := NewResultSummarizer(summaryQueue)
 
 	go fileWalker.WalkDirectory()
 	go fileReader.Start()
 	go fileSearcher.Start()
+	result := resultSummarizer.Start()
 
 	// Old way below
 	//go walkDirectory(process.Directory, fileListQueue)
 	//go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
 	//go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
-	result := fileSummarize(summaryQueue)
+	//result := fileSummarize(summaryQueue)
 
 	if FileOutput == "" {
 		fmt.Println(result)

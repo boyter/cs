@@ -14,6 +14,7 @@ import (
 	"github.com/fatih/color"
 )
 
+
 func fileSummarize(input chan *fileJob) string {
 	switch {
 	case strings.ToLower(Format) == "json":
