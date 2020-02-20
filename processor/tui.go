@@ -13,10 +13,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	str "github.com/boyter/cs/string"
+
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 )
 
+// Simple debounce function allowing us to wait on user input slightly
 func debounce(interval time.Duration, input chan string, app *tview.Application, textView *tview.TextView, cb func(app *tview.Application, textView *tview.TextView, arg string)) {
 	var item string
 	timer := time.NewTimer(interval)
@@ -32,32 +35,42 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 
 var IsCollecting = NewBool(false) // The state indicating if we are collecting results
 
+// Variables we need to keep around between searches, but are recreated on each new one
+var tuiFileWalker file.FileWalker
+var tuiFileReaderWorker FileReaderWorker2
+var tuiSearcherWorker SearcherWorker
+
+
+// If we are here that means we actually need to perform a search
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// At this point we need to stop the background process that is running then wait for the
 	// result collection to finish IE the part that collects results for display
-	if IsWalking.IsSet() == true {
-		TerminateWalking.SetTo(true)
+	if tuiFileWalker.Walking() {
+		tuiFileWalker.Terminate()
 	}
 
+	// The walker has stopped which means eventually the pipeline
+	// should flush and the channel will be closed but until then
+	// loop forever checking
 	for {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 10)
 		if IsCollecting.IsSet() == false {
 			break
 		}
 	}
 
+	// If the searchterm is empty then we draw out nothing and return
 	if strings.TrimSpace(searchTerm) == "" {
 		drawText(app, textView, "")
 		return
 	}
 
 	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
-	CleanSearchString()
 	TotalCount = 0
 
-	fileListQueue := make(chan *fileJob, runtime.NumCPU())           // Files ready to be read from disk
-	fileReadContentJobQueue := make(chan *fileJob, runtime.NumCPU()) // Files ready to be processed
-	fileSummaryJobQueue := make(chan *fileJob, runtime.NumCPU())     // Files ready to be summarised
+	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
+	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
+	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it
@@ -66,13 +79,29 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		startDirectory = file.FindRepositoryRoot(startDirectory)
 	}
 
-	go walkDirectory(startDirectory, fileListQueue)
-	go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
-	go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
+	tuiFileWalker = file.NewFileWalker(startDirectory, fileQueue)
+	tuiFileWalker.EnableIgnoreFile = true
+	tuiFileWalker.PathExclude = PathDenylist
 
+	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
+
+	tuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
+	tuiSearcherWorker.SearchString = SearchString
+	tuiSearcherWorker.MatchLimit = 100
+
+	go tuiFileWalker.Start()
+	go tuiFileReaderWorker.Start()
+	go tuiSearcherWorker.Start()
+
+
+	// Updated with results as we get them NB this is
+	// painted as we go TODO add lock for access to this
 	results := []*fileJob{}
+
+	// Counts when we last painted on the screen
 	reset := makeTimestampMilli()
 
+	// Used to display a spinner indicating a search is happening
 	var spinLocation int
 	update := true
 	spinString := `\|/-`
@@ -80,7 +109,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// NB this is not safe because results has no lock
 	go func() {
 		for update {
-			// Every 50 ms redraw
+			// Every 50 ms redraw the current set of results
 			if makeTimestampMilli()-reset >= 50 {
 				drawResults(app, results, textView, searchTerm, string(spinString[spinLocation]))
 				reset = makeTimestampMilli()
@@ -91,15 +120,13 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 				}
 			}
 
-			if update {
-				time.Sleep(10 * time.Millisecond)
-			}
+			time.Sleep(5 * time.Millisecond)
 		}
 	}()
 
 	IsCollecting.SetTo(true)
 	defer IsCollecting.SetTo(false)
-	for res := range fileSummaryJobQueue {
+	for res := range summaryQueue {
 		results = append(results, res)
 	}
 	update = false
@@ -107,12 +134,11 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 }
 
 func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, inProgress string) {
-	rankResults(SearchBytes, results)
-	sortResults(results)
+	rankResults2(100, results)
 
-	if int64(len(results)) >= TotalCount {
-		results = results[:TotalCount]
-	}
+	//if int64(len(results)) >= TotalCount {
+	//	results = results[:TotalCount]
+	//}
 
 	pResults := results
 	if len(results) > 20 {
@@ -131,12 +157,17 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 		//}
 		//resultText += "\n"
 
-		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
-		locations := GetResultLocations(res)
-		coloredContent := snippet.WriteHighlights(res.Content, res.Locations, "[red]", "[white]")
-		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		// Combine all the locations such that we can highlight correctly
+		l := [][]int{}
+		for _, value := range res.MatchLocations {
+			l = append(l, value...)
+		}
 
-		resultText += rel + "\n\n"
+		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
+		coloredContent := str.HighlightString(string(res.Content), l, "[red]", "[white]")
+		relevant, _, _ := str.ExtractRelevant(coloredContent, l, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+
+		resultText += relevant + "\n\n"
 	}
 
 	drawText(app, textView, resultText)
