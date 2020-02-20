@@ -64,7 +64,7 @@ func (process *Process) StartProcess() {
 
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
 	fileSearcher.SearchString = SearchString
-	fileSearcher.MatchLimit = MatchLimit
+	fileSearcher.MatchLimit = 100
 	fileSearcher.IncludeMinified = IncludeMinified
 
 	resultSummarizer := NewResultSummarizer(summaryQueue)

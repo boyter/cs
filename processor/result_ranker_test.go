@@ -24,7 +24,7 @@ package processor
 //
 //
 //
-//	ranked := rankResultsTFIDF2(results)
+//	ranked := rankResultsTFIDF(results)
 //	sortResults(ranked)
 //
 //	if len(ranked) != 1 {

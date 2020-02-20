@@ -5,12 +5,10 @@ package processor
 import (
 	"fmt"
 	"github.com/boyter/cs/file"
-	"github.com/boyter/cs/processor/snippet"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	str "github.com/boyter/cs/string"
@@ -66,7 +64,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	}
 
 	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
-	TotalCount = 0
 
 	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
 	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
@@ -110,7 +107,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		for update {
 			// Every 50 ms redraw the current set of results
 			if makeTimestampMilli()-reset >= 50 {
-				drawResults(app, results, textView, searchTerm, string(spinString[spinLocation]))
+				drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), string(spinString[spinLocation]))
 				reset = makeTimestampMilli()
 				spinLocation++
 
@@ -129,11 +126,11 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		results = append(results, res)
 	}
 	update = false
-	drawResults(app, results, textView, searchTerm, "")
+	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(),"")
 }
 
-func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, inProgress string) {
-	rankResults2(100, results)
+func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
+	rankResults(int(fileCount), results)
 
 	//if int64(len(results)) >= TotalCount {
 	//	results = results[:TotalCount]
@@ -145,7 +142,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	}
 
 	var resultText string
-	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, atomic.LoadInt64(&TotalCount), inProgress)
+	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, fileCount, inProgress)
 
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
@@ -164,7 +161,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		coloredContent := str.HighlightString(string(res.Content), l, "[red]", "[white]")
-		relevant, _, _ := str.ExtractRelevant(coloredContent, l, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		relevant, _, _ := str.ExtractRelevant(coloredContent, l, int(SnippetLength), str.GetPrevCount(int(SnippetLength)), "…")
 
 		resultText += relevant + "\n\n"
 	}

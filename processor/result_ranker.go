@@ -14,10 +14,10 @@ import (
 // Note that this method will evolve over time
 // and as such you should never rely on the returned results being
 // the same
-func rankResults2(corpusCount int, results []*fileJob) []*fileJob {
-	results = rankResultsTFIDF2(corpusCount, results)
-	results = rankResultsLocation2(results)
-	sortResults2(results)
+func rankResults(corpusCount int, results []*fileJob) []*fileJob {
+	results = rankResultsTFIDF(corpusCount, results)
+	results = rankResultsLocation(results)
+	sortResults(results)
 	return results
 }
 
@@ -31,7 +31,7 @@ const (
 // file location field.
 // This is not using TF-IDF or any fancy algorithm just basic checks
 // and boosts
-func rankResultsLocation2(results []*fileJob) []*fileJob {
+func rankResultsLocation(results []*fileJob) []*fileJob {
 	for i := 0; i < len(results); i++ {
 		loc := strings.ToLower(results[i].Location)
 		foundTerms := 0
@@ -81,7 +81,7 @@ func rankResultsLocation2(results []*fileJob) []*fileJob {
 //
 // NB loops in here use increment to avoid duffcopy
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
-func rankResultsTFIDF2(corpusCount int, results []*fileJob) []*fileJob {
+func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 	// Calculate the document frequency for all words
 	documentFrequencies := map[string]int{}
 	for i := 0; i < len(results); i++ {
@@ -129,7 +129,7 @@ func rankResultsTFIDF2(corpusCount int, results []*fileJob) []*fileJob {
 // and then sort based on location to stop any undeterministic ordering happening
 // as since the location includes the filename we should never have two matches
 // that are 100% equal based on the two criteria we use.
-func sortResults2(results []*fileJob) {
+func sortResults(results []*fileJob) {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Score == results[j].Score {
 			return strings.Compare(results[i].Location, results[j].Location) < 0
