@@ -3,10 +3,10 @@
 package processor
 
 import (
+	str "github.com/boyter/cs/string"
 	"math"
 	"sort"
 	"strings"
-	str "github.com/boyter/cs/string"
 )
 
 // Takes in the search terms and results and applies chained
@@ -33,10 +33,9 @@ const (
 // and boosts
 func rankResultsLocation(results []*fileJob) []*fileJob {
 	for i := 0; i < len(results); i++ {
-		loc := strings.ToLower(results[i].Location)
 		foundTerms := 0
 		for key, _ := range results[i].MatchLocations {
-			locs := str.IndexAllIgnoreCaseUnicode(key, loc, -1)
+			locs := str.IndexAllIgnoreCaseUnicode(results[i].Location, key, -1)
 
 			// Boost the rank slightly based on number of matches and on
 			// how long a match it is as we should reward longer matches
