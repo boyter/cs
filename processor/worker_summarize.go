@@ -9,6 +9,7 @@ import (
 type ResultSummarizer struct {
 	input chan *fileJob
 	ResultLimit int64
+	FileReaderWorker *FileReaderWorker2
 }
 
 func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
@@ -32,7 +33,8 @@ func (f *ResultSummarizer) Start() string {
 		}
 	}
 
-	rankResults2(results)
+	// Add one here so even if we get the same value it produces some sort of result
+	rankResults2(int(f.FileReaderWorker.GetFileCount()), results)
 
 	for _, res := range results {
 		fmtBegin := "\033[1;31m"

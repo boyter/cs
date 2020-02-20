@@ -37,6 +37,7 @@ func CleanSearchString() {
 
 type Process struct {
 	Directory string // What directory are we searching
+	FindRoot bool
 }
 
 func NewProcess(directory string) Process {
@@ -47,17 +48,11 @@ func NewProcess(directory string) Process {
 
 // Process is the main entry point of the command line output it sets everything up and starts running
 func (process *Process) StartProcess() {
-	//CleanSearchString()
-	//fileListQueue := make(chan *fileJob)                                        // Files ready to be read from disk
-	//fileReadContentJobQueue := make(chan *fileJob, FileReadContentJobQueueSize) // Files ready to be processed
-	//fileSummaryJobQueue := make(chan *fileJob, FileSummaryJobQueueSize)         // Files ready to be summarised
-
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it
-	if FindRoot {
+	if process.FindRoot {
 		process.Directory = file.FindRepositoryRoot(process.Directory)
 	}
-
 
 	fileQueue := make(chan *file.File, 1000)    // Files ready to be read from disk NB we buffer here because CLI runs till finished or the process is cancelled
 	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
@@ -72,17 +67,13 @@ func (process *Process) StartProcess() {
 	fileSearcher.MatchLimit = MatchLimit
 	fileSearcher.IncludeMinified = IncludeMinified
 	resultSummarizer := NewResultSummarizer(summaryQueue)
+	resultSummarizer.FileReaderWorker = &fileReader
 
-	go fileWalker.WalkDirectory()
+	go fileWalker.Start()
 	go fileReader.Start()
 	go fileSearcher.Start()
 	result := resultSummarizer.Start()
 
-	// Old way below
-	//go walkDirectory(process.Directory, fileListQueue)
-	//go FileReaderWorker(fileListQueue, fileReadContentJobQueue)
-	//go FileProcessorWorker(fileReadContentJobQueue, fileSummaryJobQueue)
-	//result := fileSummarize(summaryQueue)
 
 	if FileOutput == "" {
 		fmt.Println(result)

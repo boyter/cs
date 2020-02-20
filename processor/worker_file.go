@@ -12,15 +12,19 @@ import (
 type FileReaderWorker2 struct {
 	input     chan *file.File
 	output    chan *fileJob
-	FileCount int64 // Count of the number of files that have been read
+	fileCount int64 // Count of the number of files that have been read
 }
 
 func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker2 {
 	return FileReaderWorker2{
 		input:     input,
 		output:    output,
-		FileCount: 0,
+		fileCount: 0,
 	}
+}
+
+func (f *FileReaderWorker2) GetFileCount() int64 {
+	return atomic.LoadInt64(&f.fileCount)
 }
 
 // This is responsible for spinning up all of the jobs
@@ -52,18 +56,18 @@ func (f *FileReaderWorker2) Start() {
 		}
 
 		if err == nil {
-			atomic.AddInt64(&f.FileCount, 1)
+			atomic.AddInt64(&f.fileCount, 1)
 			f.output <- &fileJob{
-				Filename:  res.Filename,
-				Extension: "",
-				Location:  res.Location,
-				Content:   content,
-				Bytes:     0,
-				Hash:      nil,
-				Binary:    false,
-				Score:     0,
-				Locations: map[string][]int{},
-				Minified:  false,
+				Filename:       res.Filename,
+				Extension:      "",
+				Location:       res.Location,
+				Content:        content,
+				Bytes:          0,
+				Hash:           nil,
+				Binary:         false,
+				Score:          0,
+				Locations:      map[string][]int{},
+				Minified:       false,
 				MatchLocations: map[string][][]int{},
 			}
 		}

@@ -22,7 +22,7 @@ func TestNewFileWalker(t *testing.T) {
 	fileListQueue := make(chan *File, 1000) // NB we set buffered to ensure we get everything
 	curdir, _ := os.Getwd()
 	walker := NewFileWalker(curdir, fileListQueue)
-	_ = walker.WalkDirectory()
+	_ = walker.Start()
 
 	count := 0
 	for range fileListQueue {

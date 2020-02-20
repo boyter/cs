@@ -66,17 +66,21 @@ func (f *SearcherWorker) Start() {
 		// TODO needs to deal with NOT logic
 		// TODO also need to try against the filename IE even with not text matches it should count
 		for _, needle := range f.searchParams {
+			didSearch := false
 			switch needle.Type {
 			case Default, Quoted:
+				didSearch = true
 				if f.CaseSensitive {
 					res.MatchLocations[needle.Term] = str.IndexAll(string(res.Content), needle.Term, f.MatchLimit)
 				} else {
 					res.MatchLocations[needle.Term] = str.IndexAllIgnoreCaseUnicode(string(res.Content), needle.Term, f.MatchLimit)
 				}
 			case Regex:
+				didSearch = true
 				r := regex.MustCompile(needle.Term)
 				res.MatchLocations[needle.Term] = r.FindAllIndex(res.Content, f.MatchLimit)
 			case Fuzzy1:
+				didSearch = true
 				terms := makeFuzzyDistanceOne(strings.TrimRight(needle.Term, "~1"))
 				matchLocations := [][]int{}
 				for _, t := range terms {
@@ -88,6 +92,7 @@ func (f *SearcherWorker) Start() {
 				}
 				res.MatchLocations[needle.Term] = matchLocations
 			case Fuzzy2:
+				didSearch = true
 				terms := makeFuzzyDistanceTwo(strings.TrimRight(needle.Term, "~2"))
 				matchLocations := [][]int{}
 				for _, t := range terms {
@@ -100,9 +105,20 @@ func (f *SearcherWorker) Start() {
 				res.MatchLocations[needle.Term] = matchLocations
 			}
 
-			// Without ranking this score favors the most matches which is
-			// basic but better than nothing
-			res.Score += float64(len(res.MatchLocations[needle.Term]))
+			// We currently ignore things such as NOT and as such
+			// we don't want to break out if we run into them
+			// so only update the score IF there was a search
+			// which also makes this by default an AND search
+			if didSearch {
+				if len(res.MatchLocations[needle.Term]) == 0 {
+					res.Score = 0
+					break
+				}
+
+				// Without ranking this score favors the most matches which is
+				// basic but better than nothing
+				res.Score += float64(len(res.MatchLocations[needle.Term]))
+			}
 		}
 
 		if res.Score != 0 {

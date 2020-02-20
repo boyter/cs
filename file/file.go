@@ -74,7 +74,7 @@ func (f *FileWalker) Terminate() {
 // and putting files that mach into the supplied slice
 // Returns usual ioutil errors if there is a file issue
 // and a TerminateWalkError if terminate is called while walking
-func (f *FileWalker) WalkDirectory() error {
+func (f *FileWalker) Start() error {
 	f.walkMutex.Lock()
 	f.isWalking = true
 	f.walkMutex.Unlock()
