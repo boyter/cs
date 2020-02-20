@@ -3,7 +3,7 @@ package processor
 import (
 	"fmt"
 	str "github.com/boyter/cs/string"
-	"strings"
+	"github.com/fatih/color"
 )
 
 type ResultSummarizer struct {
@@ -19,7 +19,7 @@ func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
 	}
 }
 
-func (f *ResultSummarizer) Start() string {
+func (f *ResultSummarizer) Start() {
 	// First step is to collect results so we can rank them
 	results := []*fileJob{}
 	for res := range f.input {
@@ -36,12 +36,11 @@ func (f *ResultSummarizer) Start() string {
 	// Add one here so even if we get the same value it produces some sort of result
 	rankResults2(int(f.FileReaderWorker.GetFileCount()), results)
 
-	var strb strings.Builder
 	fmtBegin := "\033[1;31m"
 	fmtEnd := "\033[0m"
 
 	for _, res := range results {
-		strb.WriteString(Magenta(fmt.Sprintf("%s (%.3f)\n", res.Location, res.Score)))
+		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
 		// Combine all the locations such that we can highlight correctly
 		l := [][]int{}
@@ -53,11 +52,9 @@ func (f *ResultSummarizer) Start() string {
 		// TODO account for cutting off the highlight portions
 		relevant, _, _ := str.ExtractRelevant(coloredContent, l, int(SnippetLength), str.CalculatePrevCount(int(SnippetLength), 6), "…")
 
-		strb.WriteString(relevant)
-		strb.WriteString("\n\n")
+		fmt.Println(relevant)
+		fmt.Println("\n\n")
 	}
-
-	return strb.String()
 }
 
 var (

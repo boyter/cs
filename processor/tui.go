@@ -33,13 +33,13 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 	}
 }
 
+// TODO replace this with bool + mutex
 var IsCollecting = NewBool(false) // The state indicating if we are collecting results
 
 // Variables we need to keep around between searches, but are recreated on each new one
 var tuiFileWalker file.FileWalker
 var tuiFileReaderWorker FileReaderWorker2
 var tuiSearcherWorker SearcherWorker
-
 
 // If we are here that means we actually need to perform a search
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
@@ -51,7 +51,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	// The walker has stopped which means eventually the pipeline
 	// should flush and the channel will be closed but until then
-	// loop forever checking
+	// loop forever checking waiting for this to happen
 	for {
 		time.Sleep(time.Millisecond * 10)
 		if IsCollecting.IsSet() == false {
@@ -92,7 +92,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	go tuiFileWalker.Start()
 	go tuiFileReaderWorker.Start()
 	go tuiSearcherWorker.Start()
-
 
 	// Updated with results as we get them NB this is
 	// painted as we go TODO add lock for access to this

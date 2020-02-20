@@ -3,9 +3,7 @@
 package processor
 
 import (
-	"fmt"
 	"github.com/boyter/cs/file"
-	"io/ioutil"
 	"runtime"
 	"strings"
 )
@@ -75,13 +73,5 @@ func (process *Process) StartProcess() {
 	go fileWalker.Start()
 	go fileReader.Start()
 	go fileSearcher.Start()
-	result := resultSummarizer.Start()
-
-
-	if FileOutput == "" {
-		fmt.Println(result)
-	} else {
-		_ = ioutil.WriteFile(FileOutput, []byte(result), 0600)
-		fmt.Println("results written to " + FileOutput)
-	}
+	resultSummarizer.Start()
 }
