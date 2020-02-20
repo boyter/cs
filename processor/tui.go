@@ -31,8 +31,9 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 	}
 }
 
-// TODO replace this with bool + mutex
-var IsCollecting = NewBool(false) // The state indicating if we are collecting results
+// The state indicating if we are collecting results
+var isCollecting = false
+var isCollectingMutex sync.Mutex
 
 // Variables we need to keep around between searches, but are recreated on each new one
 var tuiFileWalker file.FileWalker
@@ -52,9 +53,12 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// loop forever checking waiting for this to happen
 	for {
 		time.Sleep(time.Millisecond * 10)
-		if IsCollecting.IsSet() == false {
+		isCollectingMutex.Lock()
+		if isCollecting == false {
+			isCollectingMutex.Unlock()
 			break
 		}
+		isCollectingMutex.Unlock()
 	}
 
 	// If the searchterm is empty then we draw out nothing and return
@@ -120,11 +124,15 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		}
 	}()
 
-	IsCollecting.SetTo(true)
-	defer IsCollecting.SetTo(false)
+	isCollectingMutex.Lock()
+	isCollecting = true
+	isCollectingMutex.Unlock()
 	for res := range summaryQueue {
 		results = append(results, res)
 	}
+	isCollectingMutex.Lock()
+	isCollecting = false
+	isCollectingMutex.Unlock()
 	update = false
 	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(),"")
 }

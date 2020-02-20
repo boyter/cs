@@ -14,37 +14,44 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 	end := -1
 	found := false
 
+	// Profiles show that most time is spent looking against the locations
+	// so we generated a cache quickly to speed that process up
+	highlightCache := map[int]bool{}
+	for _, val := range locations {
+		highlightCache[val[0]] = true
+	}
+
 	// Range over string which is rune aware so even if we get invalid
 	// locations we should hopefully ignore them as the byte offset wont
 	// match
 	for i, x := range content {
 		found = false
 
-		// TODO be sure to profile the below, because previously needed
-		// a small lookup cache to cut down on the work done here
-
+		_, ok := highlightCache[i]
 		// Find which of the locations match
 		// and if so write the start string
-		for _, val := range locations {
+		if ok {
+			for _, val := range locations {
 
-			// We have a match where the outer index matches
-			// against the val[0] which contains the location of the match
-			if i == val[0] {
-				// We only write the found string once per match and
-				// only if we are not in the middle of one
-				if !found && end <= 0 {
-					str.WriteString(in)
-					found = true
-				}
+				// We have a match where the outer index matches
+				// against the val[0] which contains the location of the match
+				if i == val[0] {
+					// We only write the found string once per match and
+					// only if we are not in the middle of one
+					if !found && end <= 0 {
+						str.WriteString(in)
+						found = true
+					}
 
-				// Determine the expected end location for this match
-				// and only if its further than the expected end do we
-				// change to deal with overlaps if say we are trying to match
-				// on t and tes against test where we want tes as the longest
-				// match to be the end that's written
-				y := val[1] - 1 // val[1] in this case is the length of the match
-				if y > end {
-					end = y
+					// Determine the expected end location for this match
+					// and only if its further than the expected end do we
+					// change to deal with overlaps if say we are trying to match
+					// on t and tes against test where we want tes as the longest
+					// match to be the end that's written
+					y := val[1] - 1 // val[1] in this case is the length of the match
+					if y > end {
+						end = y
+					}
 				}
 			}
 		}

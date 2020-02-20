@@ -5,6 +5,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
+	"sync"
+
 	//"sync"
 	"sync/atomic"
 )
@@ -29,49 +32,57 @@ func (f *FileReaderWorker2) GetFileCount() int64 {
 
 // This is responsible for spinning up all of the jobs
 // that read files from disk into memory
-// TODO make this spawn goroutines
 func (f *FileReaderWorker2) Start() {
-	for res := range f.input {
-		fi, err := os.Stat(res.Location)
-		if err != nil {
-			continue
-		}
+	var wg sync.WaitGroup
 
-		var content []byte
-		var s int64 = 1024000
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			for res := range f.input {
+				fi, err := os.Stat(res.Location)
+				if err != nil {
+					continue
+				}
 
-		// TODO we should NOT do this and instead use a scanner later on
-		// Only read up to ~1MB of a file because anything beyond that is probably pointless
-		if fi.Size() < s {
-			content, err = ioutil.ReadFile(res.Location)
-		} else {
-			r, err := os.Open(res.Location)
-			if err != nil {
-				continue
+				var content []byte
+				var s int64 = 1024000
+
+				// TODO we should NOT do this and instead use a scanner later on
+				// Only read up to ~1MB of a file because anything beyond that is probably pointless
+				if fi.Size() < s {
+					content, err = ioutil.ReadFile(res.Location)
+				} else {
+					r, err := os.Open(res.Location)
+					if err != nil {
+						continue
+					}
+
+					var tmp [1024000]byte
+					_, _ = io.ReadFull(r, tmp[:])
+					_ = r.Close()
+				}
+
+				if err == nil {
+					atomic.AddInt64(&f.fileCount, 1)
+					f.output <- &fileJob{
+						Filename:       res.Filename,
+						Extension:      "",
+						Location:       res.Location,
+						Content:        content,
+						Bytes:          0,
+						Hash:           nil,
+						Binary:         false,
+						Score:          0,
+						Locations:      map[string][]int{},
+						Minified:       false,
+						MatchLocations: map[string][][]int{},
+					}
+				}
 			}
-
-			var tmp [1024000]byte
-			_, _ = io.ReadFull(r, tmp[:])
-			_ = r.Close()
-		}
-
-		if err == nil {
-			atomic.AddInt64(&f.fileCount, 1)
-			f.output <- &fileJob{
-				Filename:       res.Filename,
-				Extension:      "",
-				Location:       res.Location,
-				Content:        content,
-				Bytes:          0,
-				Hash:           nil,
-				Binary:         false,
-				Score:          0,
-				Locations:      map[string][]int{},
-				Minified:       false,
-				MatchLocations: map[string][][]int{},
-			}
-		}
+			wg.Done()
+		}()
 	}
 
+	wg.Wait()
 	close(f.output)
 }
