@@ -133,6 +133,31 @@ func TestIndexAllIgnoreCaseUnicodeNegativeLimit(t *testing.T) {
 	}
 }
 
+
+func TestIndexAllIgnoreCaseUnicodeOutOfRange(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("veryuni", "unique", -1)
+
+	if len(matches) != 0 {
+		t.Error("Expected zero matches")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeOutOfRange2(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("veryuni", "uniq", -1)
+
+	if len(matches) != 0 {
+		t.Error("Expected zero matches")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeOutOfRange3(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("ve", "ee", -1)
+
+	if len(matches) != 0 {
+		t.Error("Expected zero matches")
+	}
+}
+
 func TestDropInReplacementMultipleIndexAllIgnoreCaseUnicode(t *testing.T) {
 	r := regexp.MustCompile(`1`)
 

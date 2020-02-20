@@ -156,6 +156,10 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 			for _, match := range potentialMatches {
 				// We have a potential match, so now see if it actually matches
 				// by getting the actual value out of our haystack
+				if len(haystack) < match[0] + len(needle) {
+					continue
+				}
+
 				toMatch := haystack[match[0] : match[0]+len(needle)]
 
 				// Use a regular expression to match because we already cut down the time
