@@ -37,37 +37,42 @@ func parseArguments(args []string) []searchParams {
 	// note that this is very ugly
 	for ind, arg := range cleanArgs {
 		if strings.HasPrefix(arg, `"`) {
-			if strings.HasSuffix(arg, `"`) {
-				params = append(params, searchParams{
-					Term: arg[1:len(arg)-1],
-					Type: Quoted,
-				})
-			} else {
-				mode = Quoted
-				startIndex = ind
+			if len(arg) != 1 {
+				if strings.HasSuffix(arg, `"`) {
+					params = append(params, searchParams{
+						Term: arg[1 : len(arg)-1],
+						Type: Quoted,
+					})
+				} else {
+					mode = Quoted
+					startIndex = ind
+				}
 			}
 		} else if mode == Quoted && strings.HasSuffix(arg, `"`) {
+
 			t := strings.Join(cleanArgs[startIndex:ind+1], " ")
 			params = append(params, searchParams{
-				Term: t[1:len(t)-1],
+				Term: t[1 : len(t)-1],
 				Type: Quoted,
 			})
 			mode = Default
 		} else if strings.HasPrefix(arg, `/`) {
-			// If we end with / not prefixed with a \ we are done
-			if strings.HasSuffix(arg, `/`) {
-				params = append(params, searchParams{
-					Term: arg[1:len(arg)-1],
-					Type: Regex,
-				})
-			} else {
-				mode = Regex
-				startIndex = ind
+			if len(arg) != 1 {
+				// If we end with / not prefixed with a \ we are done
+				if strings.HasSuffix(arg, `/`) {
+					params = append(params, searchParams{
+						Term: arg[1 : len(arg)-1],
+						Type: Regex,
+					})
+				} else {
+					mode = Regex
+					startIndex = ind
+				}
 			}
 		} else if mode == Regex && strings.HasSuffix(arg, `/`) {
 			t := strings.Join(cleanArgs[startIndex:ind+1], " ")
 			params = append(params, searchParams{
-				Term: t[1:len(t)-1],
+				Term: t[1 : len(t)-1],
 				Type: Regex,
 			})
 			mode = Default

@@ -129,3 +129,19 @@ func TestParseArgumentsNotClosedQuoted(t *testing.T) {
 		t.Error("Expected single match")
 	}
 }
+
+func TestParseArgumentsSingleRegex(t *testing.T) {
+	res := parseArguments([]string{`/`})
+
+	if len(res) != 0 {
+		t.Error("Expected no match")
+	}
+}
+
+func TestParseArgumentsSingleQuote(t *testing.T) {
+	res := parseArguments([]string{`"`})
+
+	if len(res) != 0 {
+		t.Error("Expected no match")
+	}
+}
