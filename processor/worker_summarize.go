@@ -33,7 +33,6 @@ func (f *ResultSummarizer) Start() {
 		}
 	}
 
-	// Add one here so even if we get the same value it produces some sort of result
 	rankResults(int(f.FileReaderWorker.GetFileCount()), results)
 
 	fmtBegin := "\033[1;31m"

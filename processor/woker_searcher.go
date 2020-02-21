@@ -2,6 +2,7 @@ package processor
 
 import (
 	"bytes"
+	"errors"
 	str "github.com/boyter/cs/string"
 	"gopkg.in/src-d/enry.v1/regex"
 	"runtime"
@@ -79,9 +80,11 @@ func (f *SearcherWorker) Start() {
 							res.MatchLocations[needle.Term] = str.IndexAllIgnoreCaseUnicode(string(res.Content), needle.Term, f.MatchLimit)
 						}
 					case Regex:
-						didSearch = true
-						r := regex.MustCompile(needle.Term)
-						res.MatchLocations[needle.Term] = r.FindAllIndex(res.Content, f.MatchLimit)
+						x, err := f.RegexSearch(needle, res)
+						if err == nil {
+							didSearch = true
+							res.MatchLocations[needle.Term] = x
+						}
 					case Fuzzy1:
 						didSearch = true
 						terms := makeFuzzyDistanceOne(strings.TrimRight(needle.Term, "~1"))
@@ -135,4 +138,16 @@ func (f *SearcherWorker) Start() {
 
 	wg.Wait()
 	close(f.output)
+}
+
+func (f *SearcherWorker) RegexSearch(needle searchParams, res *fileJob) (x [][]int, err error) {
+	defer func() {
+		// recover from panic if one occured. Set err to nil otherwise.
+		if (recover() != nil) {
+			err = errors.New("array index out of bounds")
+		}
+	}()
+
+	r := regex.MustCompile(needle.Term)
+	return r.FindAllIndex(res.Content, f.MatchLimit), nil
 }

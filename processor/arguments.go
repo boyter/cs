@@ -1,7 +1,5 @@
 package processor
 
-import "runtime"
-
 // Flags set via the CLI which control how the output is displayed
 
 // Files indicates if there should be file output or not when formatting
@@ -54,18 +52,6 @@ var CaseSensitive = false
 
 // Allow turning on case sensitive search
 var FindRoot = false
-
-// FileReadJobWorkers is the number of processes that read files off disk into memory
-var FileReadJobWorkers = runtime.NumCPU() * 4
-
-// FileReadContentJobQueueSize is a queue of files ready to be processed
-var FileReadContentJobQueueSize = runtime.NumCPU()
-
-// FileProcessJobWorkers is the number of workers that process the file collecting stats
-var FileProcessJobWorkers = runtime.NumCPU()
-
-// FileSummaryJobQueueSize is the queue used to hold processed file statistics before formatting
-var FileSummaryJobQueueSize = runtime.NumCPU()
 
 // AllowListExtensions is a list of extensions which are whitelisted to be processed
 var AllowListExtensions = []string{}
