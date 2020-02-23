@@ -36,6 +36,7 @@ type FileWalker struct {
 	PathExclude            []string // Paths to always ignore such as .git,.svn and .hg
 	EnableIgnoreFile       bool     // Should .gitignore or .ignore files be respected?
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
+	InstanceId int
 }
 
 func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {

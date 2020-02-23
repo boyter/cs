@@ -5,7 +5,6 @@ package main
 import (
 	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/processor"
-	sccprocessor "github.com/boyter/scc/processor"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -23,8 +22,6 @@ func main() {
 		Version: processor.Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
-			sccprocessor.ProcessConstants()
-
 			p := processor.NewProcess(".")
 
 			// If there are arguments we want to print straight out to the console
