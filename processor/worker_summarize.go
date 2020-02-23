@@ -49,7 +49,7 @@ func (f *ResultSummarizer) Start() {
 
 		coloredContent := str.HighlightString(string(res.Content), l, fmtBegin, fmtEnd)
 		// TODO account for cutting off the highlight portions
-		relevant, _, _ := str.ExtractRelevant(coloredContent, l, int(SnippetLength), str.CalculatePrevCount(int(SnippetLength), 6), "…")
+		relevant, _, _ := str.ExtractSnippet(coloredContent, l, int(SnippetLength), "…")
 
 		fmt.Println(relevant)
 		fmt.Println("")

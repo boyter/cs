@@ -99,15 +99,15 @@ func determineSnipLocations(locations [][]int, previousCount int) (int, []snipLo
 // A 1/6 ratio on tends to work pretty well and puts the terms
 // in the middle of the extract hence this method is the default to
 // use
-func GetPrevCount(relLength int) int {
-	return CalculatePrevCount(relLength, 6)
+func getPrevCount(relLength int) int {
+	return calculatePrevCount(relLength, 6)
 }
 
 // This attempts to work out given the length of the text we want to display
 // how much before we should cut. This is so we can land the highlighted text
 // in the middle of the display rather than as the first part so there is
 // context
-func CalculatePrevCount(relLength int, divisor int) int {
+func calculatePrevCount(relLength int, divisor int) int {
 	if divisor <= 0 {
 		divisor = 6
 	}
@@ -121,15 +121,13 @@ func CalculatePrevCount(relLength int, divisor int) int {
 	return t
 }
 
-// Extracts out a relevant portion of text based on the supplied locations and text length
-// returning the extracted string as well as the start and end position in bytes of the snippet
-// in the full string
-//
-// Please note that testing this is... hard. This is because what is considered relevant also happens
-// to differ between people. As such this is not tested as much as other methods and you should not
-// rely on the results being static over time as the internals will be modified to produce better
-// results where possible
-func ExtractRelevant(fulltext string, locations [][]int, relLength int, prevCount int, indicator string) (string, int, int) {
+
+// This is very loosely based on how snippet extraction works in http://www.sphider.eu/ which
+// you can read about https://boyter.org/2013/04/building-a-search-result-extract-generator-in-php/ and
+// http://stackoverflow.com/questions/1436582/how-to-generate-excerpt-with-most-searched-words-in-php
+// This isn't a direct port because some functionality does not port directly but is a fairly faithful
+// port
+func extractRelevantV1(fulltext string, locations [][]int, relLength int, prevCount int, indicator string) (string, int, int) {
 	textLength := len(fulltext)
 
 	if textLength <= relLength {
@@ -192,6 +190,19 @@ func ExtractRelevant(fulltext string, locations [][]int, relLength int, prevCoun
 	}
 
 	return relText, startPos, endPos
+}
+
+// Extracts out a relevant portion of text based on the supplied locations and text length
+// returning the extracted string as well as the start and end position in bytes of the snippet
+// in the full string. Locations is designed to work with IndexAll, IndexAllIgnoreCaseUnicode
+// and regex.FindAllIndex outputs.
+//
+// Please note that testing this is... hard. This is because what is considered relevant also happens
+// to differ between people. As such this is not tested as much as other methods and you should not
+// rely on the results being static over time as the internals will be modified to produce better
+// results where possible
+func ExtractSnippet(fulltext string, locations [][]int, relLength int, indicator string) (string, int, int) {
+	return extractRelevantV1(fulltext, locations, relLength, getPrevCount(relLength), indicator)
 }
 
 // Gets a substring of a string rune aware without allocating additional memory at the expense

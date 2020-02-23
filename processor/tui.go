@@ -176,7 +176,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
 		coloredContent := str.HighlightString(string(res.Content), l, "[red]", "[white]")
-		relevant, _, _ := str.ExtractRelevant(coloredContent, l, int(SnippetLength), str.GetPrevCount(int(SnippetLength)), "…")
+		relevant, _, _ := str.ExtractSnippet(coloredContent, l, int(SnippetLength), "…")
 
 		resultText += relevant + "\n\n"
 	}

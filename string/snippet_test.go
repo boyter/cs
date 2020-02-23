@@ -10,7 +10,7 @@ func TestExtractRelevant(t *testing.T) {
 	locations = append(locations, []int{31, 35})
 
 	fulltext := "this is some text (╯°□°）╯︵ ┻━┻) the thing we want is here"
-	relevant, startPos, endPos := ExtractRelevant(fulltext, locations, 30, 20, "...")
+	relevant, startPos, endPos := extractRelevantV1(fulltext, locations, 30, 20, "...")
 
 	if len(relevant) == 0 && startPos == 0 && endPos == len(fulltext) {
 		t.Error("Expected some value")
@@ -60,7 +60,7 @@ func fileSummarize(input chan *FileJob) string {
 
 		locations := GetResultLocations(res)
 		coloredContent := printer.WriteHighlights(res.Content, res.Locations, fmtBegin, fmtEnd)
-		rel := snippet.ExtractRelevant(coloredContent, locations, int(SnippetLength), snippet.CalculatePrevCount(int(SnippetLength), 6), "…")
+		rel := snippet.extractRelevantV1(coloredContent, locations, int(SnippetLength), snippet.CalculatePrevCount(int(SnippetLength), 6), "…")
 
 		fmt.Println(rel)
 		fmt.Println("")
@@ -94,7 +94,7 @@ func toJSON(input chan *FileJob) string {
 
 	for _, res := range results {
 		locations := GetResultLocations(res)
-		rel := snippet.ExtractRelevant(string(res.Content), locations, int(SnippetLength), snippet.GetPrevCount(int(SnippetLength)), "…")
+		rel := snippet.extractRelevantV1(string(res.Content), locations, int(SnippetLength), snippet.getPrevCount(int(SnippetLength)), "…")
 
 		r = append(r, JsonResult{
 			Filename:  res.Filename,
@@ -146,7 +146,7 @@ func printError(msg string) {
 
 	locations := IndexAllIgnoreCaseUnicode(fulltext, `printer`, -1)
 
-	relevant, _, _ := ExtractRelevant(fulltext, locations, 300, 50, "...")
+	relevant, _, _ := extractRelevantV1(fulltext, locations, 300, 50, "...")
 
 	if !strings.Contains(strings.ToLower(relevant), "printer") {
 		t.Error("Expected printer to exist somewhere")
@@ -154,7 +154,7 @@ func printError(msg string) {
 }
 
 func TestGetPrevCount(t *testing.T) {
-	got := GetPrevCount(300)
+	got := getPrevCount(300)
 
 	if got != 50 {
 		t.Error("Expected 50 got", got)
