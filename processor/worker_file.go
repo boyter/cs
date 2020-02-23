@@ -16,6 +16,7 @@ type FileReaderWorker2 struct {
 	input     chan *file.File
 	output    chan *fileJob
 	fileCount int64 // Count of the number of files that have been read
+	InstanceId int
 }
 
 func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker2 {

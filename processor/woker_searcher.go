@@ -22,6 +22,7 @@ type SearcherWorker struct {
 	IncludeBinary   bool
 	CaseSensitive   bool
 	MatchLimit      int
+	InstanceId int
 }
 
 func NewSearcherWorker(input chan *fileJob, output chan *fileJob) SearcherWorker {

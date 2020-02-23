@@ -67,6 +67,7 @@ func (process *Process) StartProcess() {
 	fileSearcher.MatchLimit = 100
 	fileSearcher.IncludeMinified = IncludeMinified
 	fileSearcher.CaseSensitive = CaseSensitive
+	fileSearcher.IncludeBinary = DisableCheckBinary
 
 	resultSummarizer := NewResultSummarizer(summaryQueue)
 	resultSummarizer.FileReaderWorker = &fileReader

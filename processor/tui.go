@@ -39,6 +39,7 @@ var isCollectingMutex sync.Mutex
 var tuiFileWalker file.FileWalker
 var tuiFileReaderWorker FileReaderWorker2
 var tuiSearcherWorker SearcherWorker
+var instanceCount int
 
 // If we are here that means we actually need to perform a search
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
@@ -52,7 +53,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// should flush and the channel will be closed but until then
 	// loop forever checking waiting for this to happen
 	for {
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 20)
 		isCollectingMutex.Lock()
 		if isCollecting == false {
 			isCollectingMutex.Unlock()
@@ -69,10 +70,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
 
-	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
-	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
-	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
-
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it
 	startDirectory := "."
@@ -80,15 +77,25 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		startDirectory = file.FindRepositoryRoot(startDirectory)
 	}
 
+	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
+	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
+	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
+
+
 	tuiFileWalker = file.NewFileWalker(startDirectory, fileQueue)
 	tuiFileWalker.EnableIgnoreFile = true
 	tuiFileWalker.PathExclude = PathDenylist
+	tuiFileWalker.InstanceId = instanceCount
 
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
+	tuiFileReaderWorker.InstanceId = instanceCount
 
 	tuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
 	tuiSearcherWorker.SearchString = SearchString
 	tuiSearcherWorker.MatchLimit = 100
+	tuiSearcherWorker.InstanceId = instanceCount
+
+	instanceCount++
 
 	go tuiFileWalker.Start()
 	go tuiFileReaderWorker.Start()
@@ -150,7 +157,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	}
 
 	var resultText string
-	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, fileCount, inProgress)
+	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s instance count %d\n\n", len(results), searchTerm, fileCount, inProgress, instanceCount)
 
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
