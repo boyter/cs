@@ -81,13 +81,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 // NB loops in here use increment to avoid duffcopy
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
 func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
-	// Calculate the document frequency for all words
-	documentFrequencies := map[string]int{}
-	for i := 0; i < len(results); i++ {
-		for k := range results[i].MatchLocations {
-			documentFrequencies[k] = documentFrequencies[k] + len(results[i].MatchLocations)
-		}
-	}
+	documentFrequencies := calculateDocumentFrequency(results)
 
 	// Get the number of docs with each word in it, which is just the number of results because we are AND only
 	// and as such EACH document must contain all the words although they may have different counts of each word
@@ -122,6 +116,19 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 	}
 
 	return results
+}
+
+// TODO add test for this
+func calculateDocumentFrequency(results []*fileJob) map[string]int {
+	// Calculate the document frequency for all words
+	documentFrequencies := map[string]int{}
+	for i := 0; i < len(results); i++ {
+		for k := range results[i].MatchLocations {
+			documentFrequencies[k] = documentFrequencies[k] + len(results[i].MatchLocations[k])
+		}
+	}
+
+	return documentFrequencies
 }
 
 // Sort a slice of filejob results based on their score for displaying

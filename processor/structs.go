@@ -12,7 +12,6 @@ type fileJob struct {
 	Hash           []byte
 	Binary         bool
 	Score          float64
-	Locations      map[string][]int
 	MatchLocations map[string][][]int
 	Minified       bool
 }

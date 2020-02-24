@@ -30,7 +30,7 @@ func NewSearcherWorker(input chan *fileJob, output chan *fileJob) SearcherWorker
 		input:        input,
 		output:       output,
 		SearchString: []string{},
-		MatchLimit:   100, // sensible default
+		MatchLimit:   -1, // sensible default
 	}
 }
 

@@ -5,6 +5,7 @@ package string
 import (
 	"math"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -133,7 +134,6 @@ func TestIndexAllIgnoreCaseUnicodeNegativeLimit(t *testing.T) {
 	}
 }
 
-
 func TestIndexAllIgnoreCaseUnicodeOutOfRange(t *testing.T) {
 	matches := IndexAllIgnoreCaseUnicode("veryuni", "unique", -1)
 
@@ -168,5 +168,17 @@ func TestDropInReplacementMultipleIndexAllIgnoreCaseUnicode(t *testing.T) {
 		if matches1[i][0] != matches2[i][0] || matches1[i][1] != matches2[i][1] {
 			t.Error("Expect results to match", i)
 		}
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeSpace(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode(prideAndPrejudice, "ten thousand a year", -1)
+	m := IndexAll(strings.ToLower(prideAndPrejudice), "ten thousand a year", -1)
+
+	r := regexp.MustCompile(`(?i)ten thousand a year`)
+	index := r.FindAllIndex([]byte(prideAndPrejudice), -1)
+
+	if len(matches) != len(m) || len(matches) != len(index) {
+		t.Error("Expected 2 got", len(matches))
 	}
 }

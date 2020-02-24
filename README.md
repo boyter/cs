@@ -26,7 +26,7 @@ https://github.com/BurntSushi/ripgrep/issues/95
 
 "ten thousand a year"
 
-interesting bug
+interesting bug where nothing is displayed
 
 # bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]
 $ cs javascript
@@ -65,6 +65,23 @@ DEBUG|grep_regex::literal|/home/bboyter/.cargo/registry/src/github.com-1ecc6299d
  
  Look into using the below to read  PDF, DOC, DOCX, XML, HTML, RTF, into plain text for searching
  https://github.com/sajari/docconv
+ 
+ package main
+ 
+ import (
+     "fmt"
+     "log"
+ 
+     "code.sajari.com/docconv"
+ )
+ 
+ func main() {
+     res, err := docconv.ConvertPath("your-file.pdf")
+     if err != nil {
+         log.Fatal(err)
+     }
+     fmt.Println(res)
+ }
 
 
 https://github.com/sourcegraph/src-cli
@@ -91,3 +108,22 @@ A number of term-weighting schemes have derived from tf–idf. One of them is TF
 
 Ill be blowed. I wrote this years ago https://boyter.org/2013/04/building-a-search-result-extract-generator-in-php/ based on an even older stackoverflow answer. Turns out it was picked up by a bunch of PHP projects https://github.com/msaari/relevanssi/blob/master/lib/excerpts-highlights.php https://github.com/bolt/bolt/blob/master/src/Helpers/Excerpt.php and https://github.com/Flowpack/Flowpack.SimpleSearch/blob/master/Classes/Search/MysqlQueryBuilder.php
 Whats interesting to me is that Relevanssi is the wordpress plugin that improves your search results and has 100,000+ installs. Which probably means the most successful code in terms of spread and use is in PHP and I have NEVER been paid to write PHP ever in my life.
+
+
+Mostly about ranking/highlighting snippet extraction links
+
+https://www.hathitrust.org/blogs/large-scale-search/practical-relevance-ranking-11-million-books-part-3-document-length-normali
+https://www.quora.com/How-does-BM25-work
+https://github.com/apache/lucene-solr/blob/master/lucene/highlighter/src/java/org/apache/lucene/search/uhighlight/UnifiedHighlighter.java
+https://lucene.apache.org/core/7_0_0/highlighter/org/apache/lucene/search/vectorhighlight/package-summary.html
+https://www.compose.com/articles/how-scoring-works-in-elasticsearch/
+https://blog.softwaremill.com/6-not-so-obvious-things-about-elasticsearch-422491494aa4
+https://github.com/elastic/elasticsearch/blob/master/docs/reference/search/request/highlighting.asciidoc#unified-highlighter
+https://www.elastic.co/guide/en/elasticsearch/reference/6.8/search-request-highlighting.html#unified-highlighter
+http://www.public.asu.edu/~candan/papers/wi07.pdf
+https://faculty.ist.psu.edu/jessieli/Publications/WWW10-ZLi-KeywordExtract.pdf
+https://www.researchgate.net/publication/221299008_Fast_generation_of_result_snippets_in_web_search
+https://arxiv.org/pdf/1904.03061.pdf
+https://web.archive.org/web/20141230232527/http://rcrezende.blogspot.com/2010/08/smallest-relevant-text-snippet-for.html
+https://stackoverflow.com/questions/282002/c-sharp-finding-relevant-document-snippets-for-search-result-display
+https://stackoverflow.com/questions/2829303/given-a-document-select-a-relevant-snippet

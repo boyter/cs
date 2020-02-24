@@ -1,6 +1,7 @@
-package string
+package processor
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -121,20 +122,23 @@ func calculatePrevCount(relLength int, divisor int) int {
 	return t
 }
 
-
 // This is very loosely based on how snippet extraction works in http://www.sphider.eu/ which
 // you can read about https://boyter.org/2013/04/building-a-search-result-extract-generator-in-php/ and
 // http://stackoverflow.com/questions/1436582/how-to-generate-excerpt-with-most-searched-words-in-php
 // This isn't a direct port because some functionality does not port directly but is a fairly faithful
 // port
-func extractRelevantV1(fulltext string, locations [][]int, relLength int, prevCount int, indicator string) (string, int, int) {
+func extractRelevantV1(fulltext string, locations [][]int, relLength int, indicator string) Snippet {
 	textLength := len(fulltext)
 
 	if textLength <= relLength {
-		return fulltext, 0, textLength
+		return Snippet{
+			Content:  fulltext,
+			StartPos: 0,
+			EndPos:   textLength,
+		}
 	}
 
-	startPos, _ := determineSnipLocations(locations, prevCount)
+	startPos, _ := determineSnipLocations(locations, getPrevCount(relLength))
 
 	// If we are about to snip beyond the locations then dial it back
 	// do we don't get a slice exception
@@ -189,7 +193,183 @@ func extractRelevantV1(fulltext string, locations [][]int, relLength int, prevCo
 		relText = indicator + relText[indicatorPos+indicatorLen:]
 	}
 
-	return relText, startPos, endPos
+	return Snippet{
+		Content:  relText,
+		StartPos: startPos,
+		EndPos:   endPos,
+	}
+}
+
+type bestMatch struct {
+	StartPos int
+	EndPos   int
+	Score    int
+}
+
+// Looks though the locations using a sliding window style algorithm
+// where brute force the solution by iterating over every location we have
+// and look for all matches that fall into the supplied length and ranking
+// based on how many we have.
+//
+// Note that this does not have information about what the locations contain
+// and as such is probably not the best algorithm, but should run in constant
+// time which might be beneficial for VERY large amount of matches.
+func extractRelevantV2(fulltext string, locations [][]int, relLength int, indicator string) Snippet {
+	sort.Slice(locations, func(i, j int) bool {
+		return locations[i][0] < locations[j][0]
+	})
+
+	wrapLength := relLength
+	bestMatches := []bestMatch{}
+
+	// Slide around looking for matches that fit in the length
+	for i := 0; i < len(locations); i++ {
+		m := bestMatch{
+			StartPos: locations[i][0],
+			EndPos:   locations[i][1],
+			Score:    1,
+		}
+
+		// Slide left
+		j := i - 1
+		for {
+			if j < 0 {
+				break
+			}
+
+			diff := locations[i][0] - locations[j][0]
+			if diff > wrapLength {
+				break
+			}
+
+			m.StartPos = locations[j][0]
+			m.Score++
+			j--
+		}
+
+		// Slide right
+		j = i + 1
+		for {
+			if j >= len(locations) {
+				break
+			}
+
+			diff := locations[j][1] - locations[i][0]
+			if diff > wrapLength {
+				break
+			}
+
+			m.EndPos = locations[j][1]
+			m.Score++
+			j++
+		}
+
+		bestMatches = append(bestMatches, m)
+	}
+
+	// Sort our matches by score
+	sort.Slice(bestMatches, func(i, j int) bool {
+		return bestMatches[i].Score > bestMatches[j].Score
+	})
+
+	startPos := bestMatches[0].StartPos
+	endPos := bestMatches[0].EndPos
+
+	if endPos-startPos < relLength {
+		startPos -= relLength / 2
+		endPos += relLength / 2
+
+		if startPos < 0 {
+			startPos = 0
+		}
+
+		if endPos > len(fulltext) {
+			endPos = len(fulltext)
+		}
+	}
+
+	return Snippet{
+		Content:  indicator + subString(fulltext, startPos, endPos) + indicator,
+		StartPos: startPos,
+		EndPos:   endPos,
+	}
+}
+
+// Looks though the locations using a sliding window style algorithm
+// where brute force the solution by iterating over every location we have
+// and look for all matches that fall into the supplied length and ranking
+// based on how many we have.
+//
+// Note that this does not have information about what the locations contain
+// and as such is probably not the best algorithm, but should run in constant
+// time which might be beneficial for VERY large amount of matches.
+func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
+	// The best things to display in order
+	//
+	// 1. The least common terms
+	// 2. A mix of terms
+	// 3. All of the terms
+	// 3. Lots of each terms
+	//
+	// Where a least common term in a mix of terms with there being many of them
+	// is a better match to display then a single term in a pile.
+	// This is because a search for "ten thousand a year" should match the following
+	//
+	//      circulation within five minutes after his entrance, of his having
+	//      ten thousand a year. The gentlemen pronounced him to be a fine
+	//      figure of a man, the ladies declared he was much handsomer than
+	//
+	// from Pride and Prejudice should rank higher than the chapter listing which
+	// by virtue of having lots of a at the start of the content is a better match.
+	//
+	// This means we want to exploit the TF/IDF results that the ranking uses where
+	// possible in order to know the least common terms across all documents.
+	// It also means this snippet extraction is very specific to this application hence
+	// it is private.
+	//
+	// It also means that the snippet extraction can only run when we rank results
+	// which means we need to collect the results, process the snippets as quickly as possible
+	// as people are drumming fingers waiting on this.
+
+	//bestMatches := []bestMatch{}
+
+	for key, value := range res.MatchLocations {
+		// For this word determine its weight
+		// then check all other locations
+		for ke, val := range res.MatchLocations {
+			// We don't check against any word that is us
+			if ke != key {
+				// Find all locations that fit into the potential space
+				// so those that start 300 chars before our match
+				// and those that end 300 chars after our match
+				for _, v1 := range value {
+					fmt.Println(v1)
+
+					for _, v2 := range val {
+						if v1[0] >= (v2[0] - relLength) {
+							fmt.Println("possible match", key, ke, v1, v2)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// first  [1, 20, 30]
+	// second [5, 25]
+	// third  [27]
+
+	// first 1
+	// iterate second
+	//
+
+	return Snippet{}
+}
+
+type Snippet struct {
+	Content  string
+	StartPos int
+	EndPos   int
 }
 
 // Extracts out a relevant portion of text based on the supplied locations and text length
@@ -201,8 +381,18 @@ func extractRelevantV1(fulltext string, locations [][]int, relLength int, prevCo
 // to differ between people. As such this is not tested as much as other methods and you should not
 // rely on the results being static over time as the internals will be modified to produce better
 // results where possible
-func ExtractSnippet(fulltext string, locations [][]int, relLength int, indicator string) (string, int, int) {
-	return extractRelevantV1(fulltext, locations, relLength, getPrevCount(relLength), indicator)
+func extractSnippets(fulltext string, locations [][]int, relLength int, indicator string) []Snippet {
+
+	v1 := extractRelevantV1(fulltext, locations, relLength, indicator)
+	v2 := extractRelevantV2(fulltext, locations, relLength, indicator)
+
+	v1.Content = "extractRelevantV1: " + v1.Content
+	v2.Content = "extractRelevantV2: " + v2.Content
+
+	return []Snippet{
+		v1,
+		v2,
+	}
 }
 
 // Gets a substring of a string rune aware without allocating additional memory at the expense

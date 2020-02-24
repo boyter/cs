@@ -38,6 +38,8 @@ func (f *ResultSummarizer) Start() {
 	fmtBegin := "\033[1;31m"
 	fmtEnd := "\033[0m"
 
+	documentFrequency := calculateDocumentFrequency(results)
+
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
@@ -47,11 +49,15 @@ func (f *ResultSummarizer) Start() {
 			l = append(l, value...)
 		}
 
+		// TODO flip the order of these so we extract the snippet first then highlight
 		coloredContent := str.HighlightString(string(res.Content), l, fmtBegin, fmtEnd)
-		// TODO account for cutting off the highlight portions
-		relevant, _, _ := str.ExtractSnippet(coloredContent, l, int(SnippetLength), "…")
+		snippets := extractSnippets(coloredContent, l, int(SnippetLength), "…")
 
-		fmt.Println(relevant)
-		fmt.Println("")
+		for _, s := range snippets {
+			fmt.Println(s.Content)
+			fmt.Println("----------------------------------------------------")
+		}
+
+		extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
 	}
 }

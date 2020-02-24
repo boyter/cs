@@ -175,10 +175,11 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 		}
 
 		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
+		// TODO flip the order here, so extract the snippet then highlight
 		coloredContent := str.HighlightString(string(res.Content), l, "[red]", "[white]")
-		relevant, _, _ := str.ExtractSnippet(coloredContent, l, int(SnippetLength), "…")
+		snippet := extractSnippets(coloredContent, l, int(SnippetLength), "…")
 
-		resultText += relevant + "\n\n"
+		resultText += snippet[0].Content + "\n\n"
 	}
 
 	drawText(app, textView, resultText)

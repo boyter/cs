@@ -1,4 +1,4 @@
-package string
+package processor
 
 import (
 	"strings"
@@ -10,9 +10,9 @@ func TestExtractRelevant(t *testing.T) {
 	locations = append(locations, []int{31, 35})
 
 	fulltext := "this is some text (╯°□°）╯︵ ┻━┻) the thing we want is here"
-	relevant, startPos, endPos := extractRelevantV1(fulltext, locations, 30, 20, "...")
+	relevant, startPos, endPos := extractRelevantV1(fulltext, locations, 30, "...")
 
-	if len(relevant) == 0 && startPos == 0 && endPos == len(fulltext) {
+	if len(relevant) == 0 || startPos == 0 || endPos == len(fulltext) {
 		t.Error("Expected some value")
 	}
 }
@@ -146,7 +146,7 @@ func printError(msg string) {
 
 	locations := IndexAllIgnoreCaseUnicode(fulltext, `printer`, -1)
 
-	relevant, _, _ := extractRelevantV1(fulltext, locations, 300, 50, "...")
+	relevant, _, _ := extractRelevantV1(fulltext, locations, 300, "...")
 
 	if !strings.Contains(strings.ToLower(relevant), "printer") {
 		t.Error("Expected printer to exist somewhere")
