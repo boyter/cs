@@ -203,7 +203,8 @@ func extractRelevantV1(fulltext string, locations [][]int, relLength int, indica
 type bestMatch struct {
 	StartPos int
 	EndPos   int
-	Score    int
+	Score    float64
+	MatchCount int
 }
 
 // Looks though the locations using a sliding window style algorithm
@@ -219,7 +220,7 @@ func extractRelevantV2(fulltext string, locations [][]int, relLength int, indica
 		return locations[i][0] < locations[j][0]
 	})
 
-	wrapLength := relLength
+	wrapLength := relLength / 2
 	bestMatches := []bestMatch{}
 
 	// Slide around looking for matches that fit in the length
@@ -237,7 +238,7 @@ func extractRelevantV2(fulltext string, locations [][]int, relLength int, indica
 				break
 			}
 
-			diff := locations[i][0] - locations[j][0]
+			diff := locations[j][0] - locations[i][0]
 			if diff > wrapLength {
 				break
 			}
@@ -295,6 +296,127 @@ func extractRelevantV2(fulltext string, locations [][]int, relLength int, indica
 	}
 }
 
+type relevantV3 struct {
+	Word  string
+	Start int
+	End   int
+}
+
+func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
+
+	wrapLength := relLength / 2
+	bestMatches := []bestMatch{}
+
+	rv3 := []relevantV3{}
+	// get all of the locations into a new data structure
+	for k, v := range res.MatchLocations {
+		for _, i := range v {
+			rv3 = append(rv3, relevantV3{
+				Word:  k,
+				Start: i[0],
+				End:   i[1],
+			})
+		}
+	}
+
+	sort.Slice(rv3, func(i, j int) bool {
+		return rv3[i].Start < rv3[j].Start
+	})
+
+	fmt.Println(rv3)
+
+	// Slide around looking for matches that fit in the length
+	for i := 0; i < len(rv3); i++ {
+		m := bestMatch{
+			StartPos: rv3[i].Start,
+			EndPos:   rv3[i].End,
+			MatchCount:    1,
+		}
+
+		// Slide left
+		j := i - 1
+		for {
+			// Ensure we never step outside the bounds of our slice
+			if j < 0 {
+				break
+			}
+
+			// How close is the matches start to our end?
+			diff := rv3[i].End - rv3[j].Start
+
+			// If the diff is greater than the target then break out as there is no
+			// more reason to keep looking as the slice is sorted
+			if diff > wrapLength {
+				//fmt.Println("breaking")
+				break
+			}
+
+			// If we didn't break this is considered a larger match
+			m.StartPos = rv3[j].Start
+			m.MatchCount++
+			j--
+		}
+
+		// Slide right
+		j = i + 1
+		for {
+			// Ensure we never step outside the bounds of our slice
+			if j >= len(rv3) {
+				break
+			}
+
+			// How close is the matches end to our start?
+			diff := rv3[j].End - rv3[i].Start
+
+			// If the diff is greater than the target then break out as there is no
+			// more reason to keep looking as the slice is sorted
+			if diff > wrapLength {
+				break
+			}
+
+			m.EndPos = rv3[j].End
+			m.MatchCount++
+			j++
+		}
+
+		// Now that we have a slice we need to rank it
+		// at this point the m.Score value contains the number of matches
+		// TODO factor in the different words
+		// TODO factor in how unique each word is
+		// TODO factor in how close each word is
+		// TODO factor in how large the snippet is
+		m.Score += float64(m.MatchCount)
+		m.Score += float64(m.EndPos - m.EndPos)
+
+		// Final step, use the document frequencies to determine
+		// the final weight for this match.
+		// If the word is rare we should get a higher number here
+		// TODO It would be factor in the weight values of the surrounding words as well
+		m.Score = m.Score / float64(documentFrequencies[rv3[i].Word])
+		bestMatches = append(bestMatches, m)
+	}
+
+	// Sort our matches by score
+	sort.Slice(bestMatches, func(i, j int) bool {
+		return bestMatches[i].Score > bestMatches[j].Score
+	})
+
+	if len(bestMatches) > 10 {
+		fmt.Println(bestMatches[:10])
+	} else {
+		fmt.Println(bestMatches)
+	}
+
+	startPos := bestMatches[0].StartPos
+	endPos := bestMatches[0].EndPos
+
+	return Snippet{
+		Content:  indicator + string(res.Content[startPos:endPos]) + indicator,
+		StartPos: startPos,
+		EndPos:   endPos,
+	}
+}
+
 // Looks though the locations using a sliding window style algorithm
 // where brute force the solution by iterating over every location we have
 // and look for all matches that fall into the supplied length and ranking
@@ -303,13 +425,14 @@ func extractRelevantV2(fulltext string, locations [][]int, relLength int, indica
 // Note that this does not have information about what the locations contain
 // and as such is probably not the best algorithm, but should run in constant
 // time which might be beneficial for VERY large amount of matches.
-func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
+func extractRelevantV4(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
 	// The best things to display in order
 	//
 	// 1. The least common terms
 	// 2. A mix of terms
 	// 3. All of the terms
-	// 3. Lots of each terms
+	// 4. Lots of each terms
+	// 5. Terms close to each other IE no space between overlaps
 	//
 	// Where a least common term in a mix of terms with there being many of them
 	// is a better match to display then a single term in a pile.
@@ -343,11 +466,16 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 				// so those that start 300 chars before our match
 				// and those that end 300 chars after our match
 				for _, v1 := range value {
-					fmt.Println(v1)
-
 					for _, v2 := range val {
-						if v1[0] >= (v2[0] - relLength) {
-							fmt.Println("possible match", key, ke, v1, v2)
+						// Are they within 300 characters of each other?
+						d := v2[0] - v1[0] // check to the right of v1
+						if d > 0 && d <= 300 {
+							fmt.Println("close match right", key, ke, v1[0], v2[0])
+						}
+
+						d = v1[0] - v2[1]      // check to the left of v1
+						if d > 0 && d <= 300 { // start of v1 close to the end of v2
+							fmt.Println("close match left", key, ke, v1[0], v2[0])
 						}
 					}
 				}

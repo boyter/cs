@@ -151,7 +151,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 		// but in theory Aho-Corasick / Rabin-Karp or even a modified
 		// version of Boyer-Moore should be faster than this
 		for _, term := range searchTerms {
-			potentialMatches := IndexAll(haystack, term, limit)
+			potentialMatches := IndexAll(haystack, term, -1)
 
 			for _, match := range potentialMatches {
 				// We have a potential match, so now see if it actually matches

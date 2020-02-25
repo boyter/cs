@@ -58,6 +58,8 @@ func (f *ResultSummarizer) Start() {
 			fmt.Println("----------------------------------------------------")
 		}
 
-		extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
+
+		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
+		fmt.Println("extractRelevantV3:" +v3.Content)
 	}
 }
