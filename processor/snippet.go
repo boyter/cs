@@ -322,8 +322,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	sort.Slice(rv3, func(i, j int) bool {
 		return rv3[i].Start < rv3[j].Start
 	})
-
-	fmt.Println(rv3)
+	
 
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
