@@ -112,6 +112,9 @@ Whats interesting to me is that Relevanssi is the wordpress plugin that improves
 
 Mostly about ranking/highlighting snippet extraction links
 
+NB problem with most snippet stuff is that it is designed to work on whole words or full word matches not partial matches such as the ones cs supports
+However this is designed to work like that https://www.forrestthewoods.com/blog/reverse_engineering_sublime_texts_fuzzy_match/
+
 https://www.hathitrust.org/blogs/large-scale-search/practical-relevance-ranking-11-million-books-part-3-document-length-normali
 https://www.quora.com/How-does-BM25-work
 https://github.com/apache/lucene-solr/blob/master/lucene/highlighter/src/java/org/apache/lucene/search/uhighlight/UnifiedHighlighter.java

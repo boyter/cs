@@ -2,7 +2,6 @@ package processor
 
 import (
 	"fmt"
-	str "github.com/boyter/cs/string"
 	"github.com/fatih/color"
 )
 
@@ -35,8 +34,8 @@ func (f *ResultSummarizer) Start() {
 
 	rankResults(int(f.FileReaderWorker.GetFileCount()), results)
 
-	fmtBegin := "\033[1;31m"
-	fmtEnd := "\033[0m"
+	//fmtBegin := "\033[1;31m"
+	//fmtEnd := "\033[0m"
 
 	documentFrequency := calculateDocumentFrequency(results)
 
@@ -49,17 +48,17 @@ func (f *ResultSummarizer) Start() {
 			l = append(l, value...)
 		}
 
-		// TODO flip the order of these so we extract the snippet first then highlight
-		coloredContent := str.HighlightString(string(res.Content), l, fmtBegin, fmtEnd)
-		snippets := extractSnippets(coloredContent, l, int(SnippetLength), "…")
-
-		for _, s := range snippets {
-			fmt.Println(s.Content)
-			fmt.Println("----------------------------------------------------")
-		}
+		//// TODO flip the order of these so we extract the snippet first then highlight
+		//coloredContent := str.HighlightString(string(res.Content), l, fmtBegin, fmtEnd)
+		//snippets := extractSnippets(coloredContent, l, int(SnippetLength), "…")
+		//
+		//for _, s := range snippets {
+		//	fmt.Println(s.Content)
+		//	fmt.Println("----------------------------------------------------")
+		//}
 
 
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
-		fmt.Println("extractRelevantV3:" +v3.Content)
+		fmt.Println(v3.Content)
 	}
 }

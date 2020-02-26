@@ -1,10 +1,10 @@
 package processor
 
 import (
-	"fmt"
 	"math"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 type snipLocation struct {
@@ -204,7 +204,7 @@ type bestMatch struct {
 	StartPos int
 	EndPos   int
 	Score    float64
-	MatchCount int
+	Relevant []relevantV3
 }
 
 // Looks though the locations using a sliding window style algorithm
@@ -322,14 +322,13 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	sort.Slice(rv3, func(i, j int) bool {
 		return rv3[i].Start < rv3[j].Start
 	})
-	
 
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
 		m := bestMatch{
 			StartPos: rv3[i].Start,
 			EndPos:   rv3[i].End,
-			MatchCount:    1,
+			Relevant: []relevantV3{rv3[i]},
 		}
 
 		// Slide left
@@ -346,13 +345,12 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			// If the diff is greater than the target then break out as there is no
 			// more reason to keep looking as the slice is sorted
 			if diff > wrapLength {
-				//fmt.Println("breaking")
 				break
 			}
 
 			// If we didn't break this is considered a larger match
 			m.StartPos = rv3[j].Start
-			m.MatchCount++
+			m.Relevant = append(m.Relevant, rv3[j])
 			j--
 		}
 
@@ -374,9 +372,34 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			}
 
 			m.EndPos = rv3[j].End
-			m.MatchCount++
+			m.Relevant = append(m.Relevant, rv3[j])
 			j++
 		}
+
+		// If the match around this isn't long enough expand it out
+		// roughtly based on how large a context we need to add
+		l := m.EndPos - m.StartPos
+
+		if l < relLength {
+			add := (relLength - l) / 2
+			m.StartPos -= add
+			m.EndPos += add
+
+			if m.StartPos < 0 {
+				m.StartPos = 0
+			}
+
+			if m.EndPos > len(res.Content) {
+				m.EndPos = len(res.Content)
+			}
+		}
+
+		// Now we see if there are any nearby spaces to avoid us cutting in the
+		// middle of a word
+		// TODO actually act on this
+		findNearbySpace(res, m.StartPos, 10)
+		findNearbySpace(res, m.EndPos, 10)
+
 
 		// Now that we have a slice we need to rank it
 		// at this point the m.Score value contains the number of matches
@@ -384,14 +407,14 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		// TODO factor in how unique each word is
 		// TODO factor in how close each word is
 		// TODO factor in how large the snippet is
-		m.Score += float64(m.MatchCount)
-		m.Score += float64(m.EndPos - m.EndPos)
+		m.Score += float64(len(m.Relevant))     // Factor in how many matches we have
+		m.Score += float64(m.EndPos - m.EndPos) // Factor in how large the snippet is
 
 		// Final step, use the document frequencies to determine
 		// the final weight for this match.
 		// If the word is rare we should get a higher number here
 		// TODO It would be factor in the weight values of the surrounding words as well
-		m.Score = m.Score / float64(documentFrequencies[rv3[i].Word])
+		m.Score = m.Score / float64(documentFrequencies[rv3[i].Word]) // Factor in how unique the word is
 		bestMatches = append(bestMatches, m)
 	}
 
@@ -400,11 +423,11 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		return bestMatches[i].Score > bestMatches[j].Score
 	})
 
-	if len(bestMatches) > 10 {
-		fmt.Println(bestMatches[:10])
-	} else {
-		fmt.Println(bestMatches)
-	}
+	//if len(bestMatches) > 10 {
+	//	fmt.Println(bestMatches[:10])
+	//} else {
+	//	fmt.Println(bestMatches)
+	//}
 
 	startPos := bestMatches[0].StartPos
 	endPos := bestMatches[0].EndPos
@@ -416,81 +439,36 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	}
 }
 
-// Looks though the locations using a sliding window style algorithm
-// where brute force the solution by iterating over every location we have
-// and look for all matches that fall into the supplied length and ranking
-// based on how many we have.
-//
-// Note that this does not have information about what the locations contain
-// and as such is probably not the best algorithm, but should run in constant
-// time which might be beneficial for VERY large amount of matches.
-func extractRelevantV4(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
-	// The best things to display in order
-	//
-	// 1. The least common terms
-	// 2. A mix of terms
-	// 3. All of the terms
-	// 4. Lots of each terms
-	// 5. Terms close to each other IE no space between overlaps
-	//
-	// Where a least common term in a mix of terms with there being many of them
-	// is a better match to display then a single term in a pile.
-	// This is because a search for "ten thousand a year" should match the following
-	//
-	//      circulation within five minutes after his entrance, of his having
-	//      ten thousand a year. The gentlemen pronounced him to be a fine
-	//      figure of a man, the ladies declared he was much handsomer than
-	//
-	// from Pride and Prejudice should rank higher than the chapter listing which
-	// by virtue of having lots of a at the start of the content is a better match.
-	//
-	// This means we want to exploit the TF/IDF results that the ranking uses where
-	// possible in order to know the least common terms across all documents.
-	// It also means this snippet extraction is very specific to this application hence
-	// it is private.
-	//
-	// It also means that the snippet extraction can only run when we rank results
-	// which means we need to collect the results, process the snippets as quickly as possible
-	// as people are drumming fingers waiting on this.
+// Looks for a nearby whitespace character near this position
+// and return the original position otherwise with a flag
+// indicating if a space was actually found
+func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
+	leftDistance := pos - distance
+	if leftDistance < 0 {
+		leftDistance = 0
+	}
 
-	//bestMatches := []bestMatch{}
-
-	for key, value := range res.MatchLocations {
-		// For this word determine its weight
-		// then check all other locations
-		for ke, val := range res.MatchLocations {
-			// We don't check against any word that is us
-			if ke != key {
-				// Find all locations that fit into the potential space
-				// so those that start 300 chars before our match
-				// and those that end 300 chars after our match
-				for _, v1 := range value {
-					for _, v2 := range val {
-						// Are they within 300 characters of each other?
-						d := v2[0] - v1[0] // check to the right of v1
-						if d > 0 && d <= 300 {
-							fmt.Println("close match right", key, ke, v1[0], v2[0])
-						}
-
-						d = v1[0] - v2[1]      // check to the left of v1
-						if d > 0 && d <= 300 { // start of v1 close to the end of v2
-							fmt.Println("close match left", key, ke, v1[0], v2[0])
-						}
-					}
-				}
-			}
+	// look left
+	// TODO I think this is acceptable for whitespace chars...
+	for i := pos; i >= leftDistance; i-- {
+		if unicode.IsSpace(rune(res.Content[i])) {
+			return i, true
 		}
 	}
 
-	// first  [1, 20, 30]
-	// second [5, 25]
-	// third  [27]
+	rightDistance := pos + distance
+	if rightDistance >= len(res.Content) {
+		rightDistance = len(res.Content)
+	}
 
-	// first 1
-	// iterate second
-	//
+	// look right
+	for i := pos; i < rightDistance; i++ {
+		if unicode.IsSpace(rune(res.Content[i])) {
+			return i, true
+		}
+	}
 
-	return Snippet{}
+	return pos, false
 }
 
 type Snippet struct {
