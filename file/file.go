@@ -49,7 +49,7 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		LocationExcludePattern: []string{},
 		PathExclude:            []string{},
 		EnableIgnoreFile:       false,
-		IncludeHidden:          false,
+		IncludeHidden:          IncludeHidden,
 	}
 }
 
