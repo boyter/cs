@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	str "github.com/boyter/cs/string"
 	"github.com/fatih/color"
 )
 
@@ -34,19 +35,13 @@ func (f *ResultSummarizer) Start() {
 
 	rankResults(int(f.FileReaderWorker.GetFileCount()), results)
 
-	//fmtBegin := "\033[1;31m"
-	//fmtEnd := "\033[0m"
+	fmtBegin := "\033[1;31m"
+	fmtEnd := "\033[0m"
 
 	documentFrequency := calculateDocumentFrequency(results)
 
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
-
-		// Combine all the locations such that we can highlight correctly
-		l := [][]int{}
-		for _, value := range res.MatchLocations {
-			l = append(l, value...)
-		}
 
 		//// TODO flip the order of these so we extract the snippet first then highlight
 		//coloredContent := str.HighlightString(string(res.Content), l, fmtBegin, fmtEnd)
@@ -59,6 +54,23 @@ func (f *ResultSummarizer) Start() {
 
 
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
-		fmt.Println(v3.Content)
+
+		// we have the snippet now we need to highlight it
+		// get all the locations that fall in the snippet length
+		// remove the size of the cut, and highlight
+		l := [][]int{}
+		for _, value := range res.MatchLocations {
+			for _, s := range value {
+				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
+					s[0] = s[0] - v3.StartPos
+					s[1] = s[1] - v3.StartPos
+					l = append(l, s)
+				}
+			}
+		}
+
+		coloredContent := str.HighlightString(string(v3.Content), l, fmtBegin, fmtEnd)
+
+		fmt.Println(coloredContent)
 	}
 }

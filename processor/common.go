@@ -19,8 +19,8 @@ func removeIntDuplicates(elements []int) []int {
 	return result
 }
 
-// Abs returns the absolute value of x.
-func Abs(x int) int {
+// abs returns the absolute value of x.
+func abs(x int) int {
 	if x < 0 {
 		return -x
 	}

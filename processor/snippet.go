@@ -412,14 +412,14 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 			// If the word is within a reasonable distance of this word boost the score
 			// weighted by how common that word is
-			if Abs(mid-p) < (relLength / 3) {
+			if abs(mid-p) < (relLength / 3) {
 				m.Score += 100 / float64(documentFrequencies[v.Word])
 			}
 		}
 
 		// TODO Try to make it phrase heavy such that if words line up next to each other
 		for _, v := range m.Relevant {
-			if Abs(rv3[i].Start-v.End) <= 2 || Abs(rv3[i].End-v.Start) <= 2 {
+			if abs(rv3[i].Start-v.End) <= 2 || abs(rv3[i].End-v.Start) <= 2 {
 				m.Score += 20
 			}
 		}
@@ -456,7 +456,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	endPos := bestMatches[0].EndPos
 
 	return Snippet{
-		Content:  indicator + string(res.Content[startPos:endPos]) + indicator,
+		Content:  string(res.Content[startPos:endPos]),
 		StartPos: startPos,
 		EndPos:   endPos,
 	}
