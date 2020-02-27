@@ -43,21 +43,12 @@ func (f *ResultSummarizer) Start() {
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
-		//// TODO flip the order of these so we extract the snippet first then highlight
-		//coloredContent := str.HighlightString(string(res.Content), l, fmtBegin, fmtEnd)
-		//snippets := extractSnippets(coloredContent, l, int(SnippetLength), "…")
-		//
-		//for _, s := range snippets {
-		//	fmt.Println(s.Content)
-		//	fmt.Println("----------------------------------------------------")
-		//}
-
-
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
 
-		// we have the snippet now we need to highlight it
-		// get all the locations that fall in the snippet length
-		// remove the size of the cut, and highlight
+		// We have the snippet so now we need to highlight it
+		// we get all the locations that fall in the snippet length
+		// and then remove the length of the snippet cut which
+		// makes out location line up with the snippet size
 		l := [][]int{}
 		for _, value := range res.MatchLocations {
 			for _, s := range value {
@@ -69,8 +60,9 @@ func (f *ResultSummarizer) Start() {
 			}
 		}
 
-		coloredContent := str.HighlightString(string(v3.Content), l, fmtBegin, fmtEnd)
+		coloredContent := str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
 
 		fmt.Println(coloredContent)
+		fmt.Println("")
 	}
 }

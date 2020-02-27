@@ -396,8 +396,14 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word
 		// TODO actually act on this
-		//findNearbySpace(res, m.StartPos, 10)
-		//findNearbySpace(res, m.EndPos, 10)
+		space, b := findNearbySpace(res, m.StartPos, 10)
+		if b {
+			m.StartPos = space
+		}
+		space, b = findNearbySpace(res, m.EndPos, 10)
+		if b {
+			m.EndPos = space
+		}
 
 		// Now that we have a slice we need to rank it
 		// at this point the m.Score value contains the number of matches
