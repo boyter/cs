@@ -311,6 +311,11 @@ type relevantV3 struct {
 // TF/IDF ranking with various other checks. Look though the source
 // to see how it actually works as it is a constant work in progress.
 // See test cases to see where it has known good results.
+//
+// Please note that testing this is... hard. This is because what is considered relevant also happens
+// to differ between people. As such this is not tested as much as other methods and you should not
+// rely on the results being static over time as the internals will be modified to produce better
+// results where possible
 func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
 	wrapLength := relLength / 2
 	bestMatches := []bestMatch{}
@@ -442,7 +447,10 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// If the match is bounded by a space boost it slightly
 		// because its likely to be a better match
-		if unicode.IsSpace(rune(res.Content[rv3[i].Start-1])) || unicode.IsSpace(rune(res.Content[rv3[i].End+1])){
+		if rv3[i].Start >= 1 && unicode.IsSpace(rune(res.Content[rv3[i].Start-1])) {
+			m.Score += 5
+		}
+		if rv3[i].End < len(res.Content)-1 && unicode.IsSpace(rune(res.Content[rv3[i].End+1])) {
 			m.Score += 5
 		}
 
@@ -490,7 +498,7 @@ func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 	}
 
 	// look left
-	// TODO I think this is acceptable for whitespace chars...
+	// TODO check but I think this is acceptable for whitespace chars...
 	for i := pos; i >= leftDistance; i-- {
 		if unicode.IsSpace(rune(res.Content[i])) {
 			return i, true
@@ -518,28 +526,6 @@ type Snippet struct {
 	EndPos   int
 }
 
-// Extracts out a relevant portion of text based on the supplied locations and text length
-// returning the extracted string as well as the start and end position in bytes of the snippet
-// in the full string. Locations is designed to work with IndexAll, IndexAllIgnoreCaseUnicode
-// and regex.FindAllIndex outputs.
-//
-// Please note that testing this is... hard. This is because what is considered relevant also happens
-// to differ between people. As such this is not tested as much as other methods and you should not
-// rely on the results being static over time as the internals will be modified to produce better
-// results where possible
-func extractSnippets(fulltext string, locations [][]int, relLength int, indicator string) []Snippet {
-
-	v1 := extractRelevantV1(fulltext, locations, relLength, indicator)
-	v2 := extractRelevantV2(fulltext, locations, relLength, indicator)
-
-	v1.Content = "extractRelevantV1: " + v1.Content
-	v2.Content = "extractRelevantV2: " + v2.Content
-
-	return []Snippet{
-		v1,
-		v2,
-	}
-}
 
 // Gets a substring of a string rune aware without allocating additional memory at the expense
 // of some additional CPU for a loop over the top which is probably worth it.

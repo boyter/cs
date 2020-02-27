@@ -5,13 +5,12 @@ package processor
 import (
 	"fmt"
 	"github.com/boyter/cs/file"
+	str "github.com/boyter/cs/string"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	str "github.com/boyter/cs/string"
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
@@ -159,6 +158,8 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	var resultText string
 	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s instance count %d\n\n", len(results), searchTerm, fileCount, inProgress, instanceCount)
 
+	documentFrequency := calculateDocumentFrequency(results)
+
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
@@ -168,18 +169,20 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 		//}
 		//resultText += "\n"
 
-		// Combine all the locations such that we can highlight correctly
+		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
 		l := [][]int{}
 		for _, value := range res.MatchLocations {
-			l = append(l, value...)
+			for _, s := range value {
+				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
+					s[0] = s[0] - v3.StartPos
+					s[1] = s[1] - v3.StartPos
+					l = append(l, s)
+				}
+			}
 		}
 
-		// TODO need to escape the output https://godoc.org/github.com/rivo/tview#hdr-Colors
-		// TODO flip the order here, so extract the snippet then highlight
-		coloredContent := str.HighlightString(string(res.Content), l, "[red]", "[white]")
-		snippet := extractSnippets(coloredContent, l, int(SnippetLength), "…")
-
-		resultText += snippet[0].Content + "\n\n"
+		coloredContent := str.HighlightString(v3.Content, l, "[red]", "[white]")
+		resultText += coloredContent + "\n\n"
 	}
 
 	drawText(app, textView, resultText)
