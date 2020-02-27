@@ -310,7 +310,25 @@ type relevantV3 struct {
 // This algorithm ranks using document frequencies that are kept for
 // TF/IDF ranking with various other checks. Look though the source
 // to see how it actually works as it is a constant work in progress.
-// See test cases to see where it has known good results.
+// Some examples of what it can produce which I consider good results,
+//
+// corpus: Jane Austens Pride and Prejudice
+// searchtext: ten thousand a year
+// result:  before. I hope he will overlook
+//      it. Dear, dear Lizzy. A house in town! Every thing that is
+//      charming! Three daughters married! Ten thousand a year! Oh, Lord!
+//      What will become of me. I shall go distracted.”
+//
+//      This was enough to prove that her approbation need not be
+//
+// searchtext: poor nerves
+// result:  your own children in such a way?
+//      You take delight in vexing me. You have no compassion for my poor
+//      nerves.”
+//
+//      “You mistake me, my dear. I have a high respect for your nerves.
+//      They are my old friends. I have heard you mention them with
+//      consideration these last
 //
 // Please note that testing this is... hard. This is because what is considered relevant also happens
 // to differ between people. As such this is not tested as much as other methods and you should not

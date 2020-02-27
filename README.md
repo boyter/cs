@@ -130,3 +130,21 @@ https://arxiv.org/pdf/1904.03061.pdf
 https://web.archive.org/web/20141230232527/http://rcrezende.blogspot.com/2010/08/smallest-relevant-text-snippet-for.html
 https://stackoverflow.com/questions/282002/c-sharp-finding-relevant-document-snippets-for-search-result-display
 https://stackoverflow.com/questions/2829303/given-a-document-select-a-relevant-snippet
+
+
+$ cs "ten thousand a year" && cs "Ten thousand a year"
+prideandprejudice.txt (-1.386)
+…  features, noble mien, and the report which was in general
+      circulation within five minutes after his entrance, of his having
+      ten thousand a year. The gentlemen pronounced him to be a fine
+      figure of a man, the ladies declared he was much handsomer than
+      Mr. Bingley, and h…
+
+prideandprejudice.txt (-1.386)
+…before. I hope he will overlook
+      it. Dear, dear Lizzy. A house in town! Every thing that is
+      charming! Three daughters married! Ten thousand a year! Oh, Lord!
+      What will become of me. I shall go distracted.”
+
+      This was enough to prove that her approbation need not be
+   …
