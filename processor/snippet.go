@@ -302,8 +302,16 @@ type relevantV3 struct {
 	End   int
 }
 
+// Looks though the locations using a sliding window style algorithm
+// where brute force the solution by iterating over every location we have
+// and look for all matches that fall into the supplied length and ranking
+// based on how many we have.
+//
+// This algorithm ranks using document frequencies that are kept for
+// TF/IDF ranking with various other checks. Look though the source
+// to see how it actually works as it is a constant work in progress.
+// See test cases to see where it has known good results.
 func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
-
 	wrapLength := relLength / 2
 	bestMatches := []bestMatch{}
 
@@ -394,8 +402,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		}
 
 		// Now we see if there are any nearby spaces to avoid us cutting in the
-		// middle of a word
-		// TODO actually act on this
+		// middle of a word if we can avoid it
 		space, b := findNearbySpace(res, m.StartPos, 10)
 		if b {
 			m.StartPos = space
@@ -405,26 +412,29 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			m.EndPos = space
 		}
 
-		// Now that we have a slice we need to rank it
-		// at this point the m.Score value contains the number of matches
-		// TODO factor in the different words
+		// Now that we have the snippet start to rank it to produce a score indicating
+		// how good a match it is and hopefully display to the user what they
+		// were actually looking for
 		m.Score += float64(len(m.Relevant))     // Factor in how many matches we have
 		m.Score += float64(m.EndPos - m.EndPos) // Factor in how large the snippet is
 
 		// Apply higher score where the words are near each other
-		mid := rv3[i].Start + (rv3[i].End-rv3[i].End)/2 // word midpoint
+		mid := rv3[i].Start + (rv3[i].End-rv3[i].End)/2 // match word midpoint
 		for _, v := range m.Relevant {
 			p := v.Start + (v.End-v.Start)/2 // comparison word midpoint
 
 			// If the word is within a reasonable distance of this word boost the score
-			// weighted by how common that word is
+			// weighted by how common that word is so that matches like a impact the rank
+			// less than something like cromulent
 			if abs(mid-p) < (relLength / 3) {
 				m.Score += 100 / float64(documentFrequencies[v.Word])
 			}
 		}
 
-		// TODO Try to make it phrase heavy such that if words line up next to each other
+		// Try to make it phrase heavy such that if words line up next to each other
+		// it is given a much higher weight
 		for _, v := range m.Relevant {
+			// Use 2 here because we want to avoid punctuation
 			if abs(rv3[i].Start-v.End) <= 2 || abs(rv3[i].End-v.Start) <= 2 {
 				m.Score += 20
 			}
@@ -432,16 +442,13 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// If the match is bounded by a space boost it slightly
 		// because its likely to be a better match
-		if unicode.IsSpace(rune(res.Content[rv3[i].Start-1])) {
-			m.Score += 5
-		}
-		if unicode.IsSpace(rune(res.Content[rv3[i].End+1])) {
+		if unicode.IsSpace(rune(res.Content[rv3[i].Start-1])) || unicode.IsSpace(rune(res.Content[rv3[i].End+1])){
 			m.Score += 5
 		}
 
 		// If the word is an exact match to what the user typed boost it
 		// such that while we the search may be insensitive the ranking of
-		// the snippet does consider it
+		// the snippet does consider case
 		if string(res.Content[rv3[i].Start:rv3[i].End]) == rv3[i].Word {
 			m.Score += 5
 		}
@@ -453,7 +460,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		bestMatches = append(bestMatches, m)
 	}
 
-	// Sort our matches by score
+	// Sort our matches by score such that tbe best snippets are at the top
 	sort.Slice(bestMatches, func(i, j int) bool {
 		return bestMatches[i].Score > bestMatches[j].Score
 	})
@@ -475,6 +482,11 @@ func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 	leftDistance := pos - distance
 	if leftDistance < 0 {
 		leftDistance = 0
+	}
+
+	// Avoid possible overflow if we need to check the last byte
+	if pos == len(res.Content) {
+		pos--
 	}
 
 	// look left
