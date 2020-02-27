@@ -377,9 +377,8 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		}
 
 		// If the match around this isn't long enough expand it out
-		// roughtly based on how large a context we need to add
+		// roughly based on how large a context we need to add
 		l := m.EndPos - m.StartPos
-
 		if l < relLength {
 			add := (relLength - l) / 2
 			m.StartPos -= add
@@ -397,23 +396,53 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word
 		// TODO actually act on this
-		findNearbySpace(res, m.StartPos, 10)
-		findNearbySpace(res, m.EndPos, 10)
-
+		//findNearbySpace(res, m.StartPos, 10)
+		//findNearbySpace(res, m.EndPos, 10)
 
 		// Now that we have a slice we need to rank it
 		// at this point the m.Score value contains the number of matches
 		// TODO factor in the different words
-		// TODO factor in how unique each word is
-		// TODO factor in how close each word is
-		// TODO factor in how large the snippet is
 		m.Score += float64(len(m.Relevant))     // Factor in how many matches we have
 		m.Score += float64(m.EndPos - m.EndPos) // Factor in how large the snippet is
 
-		// Final step, use the document frequencies to determine
-		// the final weight for this match.
-		// If the word is rare we should get a higher number here
-		// TODO It would be factor in the weight values of the surrounding words as well
+		// Apply higher score where the words are near each other
+		mid := rv3[i].Start + (rv3[i].End-rv3[i].End)/2 // word midpoint
+		for _, v := range m.Relevant {
+			p := v.Start + (v.End-v.Start)/2 // comparison word midpoint
+
+			// If the word is within a reasonable distance of this word boost the score
+			// weighted by how common that word is
+			if Abs(mid-p) < (relLength / 3) {
+				m.Score += 100 / float64(documentFrequencies[v.Word])
+			}
+		}
+
+		// TODO Try to make it phrase heavy such that if words line up next to each other
+		for _, v := range m.Relevant {
+			if Abs(rv3[i].Start-v.End) <= 2 || Abs(rv3[i].End-v.Start) <= 2 {
+				m.Score += 20
+			}
+		}
+
+		// If the match is bounded by a space boost it slightly
+		// because its likely to be a better match
+		if unicode.IsSpace(rune(res.Content[rv3[i].Start-1])) {
+			m.Score += 5
+		}
+		if unicode.IsSpace(rune(res.Content[rv3[i].End+1])) {
+			m.Score += 5
+		}
+
+		// If the word is an exact match to what the user typed boost it
+		// such that while we the search may be insensitive the ranking of
+		// the snippet does consider it
+		if string(res.Content[rv3[i].Start:rv3[i].End]) == rv3[i].Word {
+			m.Score += 5
+		}
+
+		// This mod applies over the whole score because we want to most unique words to appear in the middle
+		// of the snippet over those where it is on the edge which this should achieve even if it means
+		// we may miss out on a slightly better match
 		m.Score = m.Score / float64(documentFrequencies[rv3[i].Word]) // Factor in how unique the word is
 		bestMatches = append(bestMatches, m)
 	}
@@ -422,12 +451,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	sort.Slice(bestMatches, func(i, j int) bool {
 		return bestMatches[i].Score > bestMatches[j].Score
 	})
-
-	//if len(bestMatches) > 10 {
-	//	fmt.Println(bestMatches[:10])
-	//} else {
-	//	fmt.Println(bestMatches)
-	//}
 
 	startPos := bestMatches[0].StartPos
 	endPos := bestMatches[0].EndPos
