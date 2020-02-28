@@ -15,12 +15,3 @@ type fileJob struct {
 	MatchLocations map[string][][]int
 	Minified       bool
 }
-
-type jsonResult struct {
-	Filename  string  `json:"filename"`
-	Extension string  `json:"extension"`
-	Location  string  `json:"location"`
-	Bytes     int64   `json:"bytes"`
-	Score     float64 `json:"score"`
-	Snippet   string  `json:"snippet"`
-}

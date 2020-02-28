@@ -64,10 +64,7 @@ func (f *FileReaderWorker2) Start() {
 				Location:       res.Location,
 				Content:        content,
 				Bytes:          0,
-				Hash:           nil,
-				Binary:         false,
 				Score:          0,
-				Minified:       false,
 				MatchLocations: map[string][][]int{},
 			}
 		}
