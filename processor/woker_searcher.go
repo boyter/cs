@@ -120,6 +120,7 @@ func (f *SearcherWorker) Start() {
 						break
 					}
 				} else {
+					// Normal search so ensure we got something by default and logic rules
 					if len(res.MatchLocations[needle.Term]) == 0 {
 						res.Score = 0
 						break
