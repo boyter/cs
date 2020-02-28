@@ -62,9 +62,10 @@ func (f *SearcherWorker) Start() {
 			}
 		}
 
+		// Now we do the actual search against the file
 		// TODO needs to deal with NOT logic
 		// TODO also need to try against the filename IE even with not text matches it should count
-		for _, needle := range f.searchParams {
+		for i, needle := range f.searchParams {
 			didSearch := false
 			switch needle.Type {
 			case Default, Quoted:
@@ -76,7 +77,7 @@ func (f *SearcherWorker) Start() {
 				}
 			case Regex:
 				x, err := f.RegexSearch(needle, res)
-				if err == nil {
+				if err == nil { // Error indicates a regex compile fail so safe to ignore here
 					didSearch = true
 					res.MatchLocations[needle.Term] = x
 				}
@@ -111,9 +112,18 @@ func (f *SearcherWorker) Start() {
 			// so only update the score IF there was a search
 			// which also makes this by default an AND search
 			if didSearch {
-				if len(res.MatchLocations[needle.Term]) == 0 {
-					res.Score = 0
-					break
+
+				// If we did a search but the previous was a NOT we need to only continue if we found nothing
+				if i != 0 && f.searchParams[i-1].Type == Negated {
+					if len(res.MatchLocations[needle.Term]) != 0 {
+						res.Score = 0
+						break
+					}
+				} else {
+					if len(res.MatchLocations[needle.Term]) == 0 {
+						res.Score = 0
+						break
+					}
 				}
 
 				// Without ranking this score favors the most matches which is
@@ -131,10 +141,11 @@ func (f *SearcherWorker) Start() {
 }
 
 func (f *SearcherWorker) RegexSearch(needle searchParams, res *fileJob) (x [][]int, err error) {
+	// Its possible the user supplies an invalid regex and if so we should not crash
+	// but ignore it
 	defer func() {
-		// recover from panic if one occured. Set err to nil otherwise.
 		if recover() != nil {
-			err = errors.New("array index out of bounds")
+			err = errors.New("regex compile failure issue")
 		}
 	}()
 
