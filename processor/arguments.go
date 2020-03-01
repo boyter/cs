@@ -66,3 +66,6 @@ var ResultLimit int64 = 0
 
 // How many characters out of the file to display in snippets
 var SnippetLength int64 = 0
+
+var Address string = ":8080"
+var HttpServer bool = false

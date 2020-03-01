@@ -26,7 +26,10 @@ func main() {
 
 			// If there are arguments we want to print straight out to the console
 			// otherwise we should enter interactive tui mode
-			if len(processor.SearchString) != 0 {
+			if processor.HttpServer {
+				// start HTTP server
+				processor.StartHttpServer()
+			} else if len(processor.SearchString) != 0 {
 				p.StartProcess()
 			} else {
 				processor.Error = false // suppress writing errors in TUI mode
@@ -36,6 +39,20 @@ func main() {
 	}
 
 	flags := rootCmd.PersistentFlags()
+
+	flags.StringVar(
+		&processor.Address,
+		"address",
+		":8080",
+		"address and port to listen to in HTTP mode",
+	)
+	flags.BoolVarP(
+		&processor.HttpServer,
+		"http-server",
+		"d",
+		false,
+		"start http server for search",
+	)
 
 	flags.BoolVar(
 		&processor.DisableCheckBinary,
