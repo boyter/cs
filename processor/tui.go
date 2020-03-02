@@ -30,9 +30,8 @@ func debounce(interval time.Duration, input chan string, app *tview.Application,
 	}
 }
 
-// The state indicating if we are collecting results
-var isCollecting = false
-var isCollectingMutex sync.Mutex
+var isRunningMutex sync.Mutex
+var resultsMutex sync.Mutex
 
 // Variables we need to keep around between searches, but are recreated on each new one
 var tuiFileWalker file.FileWalker
@@ -48,18 +47,9 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		tuiFileWalker.Terminate()
 	}
 
-	// The walker has stopped which means eventually the pipeline
-	// should flush and the channel will be closed but until then
-	// loop forever checking waiting for this to happen
-	for {
-		time.Sleep(time.Millisecond * 20)
-		isCollectingMutex.Lock()
-		if isCollecting == false {
-			isCollectingMutex.Unlock()
-			break
-		}
-		isCollectingMutex.Unlock()
-	}
+	// We lock here because we don't want another instance to run
+	isRunningMutex.Lock()
+	defer isRunningMutex.Unlock()
 
 	// If the searchterm is empty then we draw out nothing and return
 	if strings.TrimSpace(searchTerm) == "" {
@@ -100,7 +90,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	go tuiSearcherWorker.Start()
 
 	// Updated with results as we get them NB this is
-	// painted as we go TODO add lock for access to this
+	// painted as we go
 	results := []*fileJob{}
 
 	// Counts when we last painted on the screen
@@ -111,12 +101,14 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	update := true
 	spinString := `\|/-`
 
-	// NB this is not safe because results has no lock
 	go func() {
 		for update {
 			// Every 50 ms redraw the current set of results
 			if makeTimestampMilli()-reset >= 50 {
+				resultsMutex.Lock()
 				drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), string(spinString[spinLocation]))
+				resultsMutex.Unlock()
+
 				reset = makeTimestampMilli()
 				spinLocation++
 
@@ -129,17 +121,17 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		}
 	}()
 
-	isCollectingMutex.Lock()
-	isCollecting = true
-	isCollectingMutex.Unlock()
+
 	for res := range summaryQueue {
+		resultsMutex.Lock()
 		results = append(results, res)
+		resultsMutex.Unlock()
 	}
-	isCollectingMutex.Lock()
-	isCollecting = false
-	isCollectingMutex.Unlock()
+
 	update = false
+	resultsMutex.Lock()
 	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), "")
+	resultsMutex.Unlock()
 }
 
 func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
@@ -155,27 +147,22 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	}
 
 	var resultText string
-	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s instance count %d\n\n", len(results), searchTerm, fileCount, inProgress, instanceCount)
+	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, fileCount, inProgress)
 
 	documentFrequency := calculateDocumentFrequency(results)
 
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
-		// For debugging seeing the locations can be helpful
-		//for key, val := range res.Locations {
-		//	resultText += fmt.Sprintf("%s %d\n", key, val)
-		//}
-		//resultText += "\n"
-
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
 		l := [][]int{}
 		for _, value := range res.MatchLocations {
 			for _, s := range value {
 				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-					s[0] = s[0] - v3.StartPos
-					s[1] = s[1] - v3.StartPos
-					l = append(l, s)
+					// Have to create a new one to avoid changing the position
+					// unlike in others where we throw away the results afterwards
+					t := []int{s[0] - v3.StartPos, s[1] - v3.StartPos}
+					l = append(l, t)
 				}
 			}
 		}
@@ -207,8 +194,6 @@ const (
 	LocationExcludeMode string = " > location exclusion"
 	ExtensionMode       string = " > extension filter ('go' 'go,java')"
 	SnippetMode         string = " > snippet size selector"
-	FuzzyMode           string = " > fuzzy search toggle"
-	CaseSensitiveMode   string = " > case sensitive toggle"
 	TextMode            string = " > text scroll"
 )
 
@@ -222,8 +207,6 @@ func ProcessTui(run bool) {
 	var extensionInputField *tview.InputField
 	var snippetInputField *tview.InputField
 	var excludeInputField *tview.InputField
-	var fuzzyCheckbox *tview.Checkbox
-	var casesensitiveCheckbox *tview.Checkbox
 	var lastSearch string
 
 	eventChan := make(chan string)
@@ -245,11 +228,12 @@ func ProcessTui(run bool) {
 				app.SetFocus(searchInputField)
 				statusView.SetText(SearchMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(fuzzyCheckbox)
-				statusView.SetText(FuzzyMode)
+				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
 			}
 		})
 
+	// Decide how large a snippet we should be displaying
 	snippetInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetAcceptanceFunc(tview.InputFieldInteger).
@@ -272,8 +256,8 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(casesensitiveCheckbox)
-				statusView.SetText(CaseSensitiveMode)
+				app.SetFocus(textView)
+				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
 				app.SetFocus(extensionInputField)
 				statusView.SetText(ExtensionMode)
@@ -361,6 +345,7 @@ func ProcessTui(run bool) {
 			}
 		})
 
+	// Where the search actually happens
 	searchInputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetLabel("> ").
@@ -385,51 +370,11 @@ func ProcessTui(run bool) {
 			}
 		})
 
-	casesensitiveCheckbox = tview.NewCheckbox().
-		SetFieldBackgroundColor(tcell.ColorDefault).
-		SetLabel("").
-		SetChecked(Fuzzy).
-		SetChangedFunc(func(checked bool) {
-			CaseSensitive = checked
-			eventChan <- lastSearch
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				app.SetFocus(fuzzyCheckbox)
-				statusView.SetText(FuzzyMode)
-			case tcell.KeyBacktab:
-				app.SetFocus(snippetInputField)
-				statusView.SetText(SnippetMode)
-			}
-		})
-
-	fuzzyCheckbox = tview.NewCheckbox().
-		SetFieldBackgroundColor(tcell.ColorDefault).
-		SetLabel("").
-		SetChecked(Fuzzy).
-		SetChangedFunc(func(checked bool) {
-			Fuzzy = checked
-			eventChan <- lastSearch
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				app.SetFocus(textView)
-				statusView.SetText(TextMode)
-			case tcell.KeyBacktab:
-				app.SetFocus(casesensitiveCheckbox)
-				statusView.SetText(CaseSensitiveMode)
-			}
-		})
-
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(searchInputField, 0, 8, false).
 		AddItem(excludeInputField, 10, 0, false).
 		AddItem(extensionInputField, 10, 0, false).
-		AddItem(snippetInputField, 5, 1, false).
-		AddItem(casesensitiveCheckbox, 1, 1, false).
-		AddItem(fuzzyCheckbox, 1, 1, false)
+		AddItem(snippetInputField, 5, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
