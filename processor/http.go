@@ -246,8 +246,7 @@ func StartHttpServer() {
 				<option value="900">900</option>
 				<option value="1000">1000</option>
 			</select>
-			<small>[processed files: {{ .ProcessedFileCount }}]</small>
-			<small>[time (ms): {{ .RuntimeMilliseconds }}]</small>
+			<small>[processed {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
 		</form>
 		</div>
 		{{if .Results -}}

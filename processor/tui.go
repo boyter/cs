@@ -190,11 +190,11 @@ func drawText(app *tview.Application, textView *tview.TextView, text string) {
 var textMutex sync.Mutex
 
 const (
-	SearchMode          string = " > search box"
-	LocationExcludeMode string = " > location exclusion"
-	ExtensionMode       string = " > extension filter ('go' 'go,java')"
-	SnippetMode         string = " > snippet size selector"
-	TextMode            string = " > text scroll"
+	SearchMode          string = "(search box)"
+	LocationExcludeMode string = "(location exclusion)"
+	ExtensionMode       string = "(extension filter e.g. 'go' 'go,java')"
+	SnippetMode         string = "(snippet size selector)"
+	TextMode            string = "(text scroll)"
 )
 
 // Param actually runs things which is only used for getting test coverage
@@ -213,8 +213,7 @@ func ProcessTui(run bool) {
 
 	// For displaying status of where you are
 	statusView = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.ColorGreen).
-		SetFieldTextColor(tcell.ColorBlack).
+		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetText(SearchMode)
 
 	textView = tview.NewTextView().
@@ -378,9 +377,10 @@ func ProcessTui(run bool) {
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 2, 0, false).
-		AddItem(textView, 0, 3, false).
 		AddItem(statusView, 1, 0, false).
-		AddItem(nil, 1, 0, false)
+		AddItem(nil, 1, 0, false).
+		AddItem(textView, 0, 3, false)
+
 
 	// Start the debounce after everything else is setup and leave it running
 	// forever in the background
