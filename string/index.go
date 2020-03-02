@@ -156,21 +156,31 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 			for _, match := range potentialMatches {
 				// We have a potential match, so now see if it actually matches
 				// by getting the actual value out of our haystack
-				if len(haystack) < match[0] + len(needle) {
+				if len(haystack) < match[0]+len(needle) {
 					continue
 				}
 
-				toMatch := haystack[match[0] : match[0]+len(needle)]
+				// Because the length of the needle might be different to what we just found as a match
+				// based on byte size we add 100 extra on the end to deal with the difference
+				e := len(needle) + 20
+				for match[0]+e >= len(haystack) {
+					e--
+				}
+				toMatch := haystack[match[0] : match[0]+e]
 
 				// Use a regular expression to match because we already cut down the time
 				// needed and its faster than CaseFolding large needles and then iterating
 				// over that list, and for especially long needles it will produce billions
-				// of results we need to check
-				if regexIgnore.Match([]byte(toMatch)) {
+				// of results we need to check.
+				// NB have to use findAllHere and not Match because we need to know the
+				// length of the match such that we can produce the correct offset.
+				i := regexIgnore.FindAllIndex([]byte(toMatch), -1)
+
+				if len(i) != 0 {
 					// When we have confirmed a match we add it to our total
 					// but adjust the positions to the match and the length of the
 					// needle to ensure the byte count lines up
-					locs = append(locs, []int{match[0], match[0] + len(needle)})
+					locs = append(locs, []int{match[0], match[0] + (i[0][1] - i[0][0])})
 
 					if limit > 0 && len(locs) > limit {
 						return locs[:limit]

@@ -34,7 +34,7 @@ const (
 func rankResultsLocation(results []*fileJob) []*fileJob {
 	for i := 0; i < len(results); i++ {
 		foundTerms := 0
-		for key, _ := range results[i].MatchLocations {
+		for key := range results[i].MatchLocations {
 			locs := str.IndexAllIgnoreCaseUnicode(results[i].Location, key, -1)
 
 			// Boost the rank slightly based on number of matches and on

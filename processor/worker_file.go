@@ -1,10 +1,14 @@
 package processor
 
 import (
+	"fmt"
 	"github.com/boyter/cs/file"
+	"github.com/ledongthuc/pdf"
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
+
 	//"sync"
 	"sync/atomic"
 )
@@ -31,44 +35,89 @@ func (f *FileReaderWorker2) GetFileCount() int64 {
 // This is responsible for spinning up all of the jobs
 // that read files from disk into memory
 func (f *FileReaderWorker2) Start() {
-
 	for res := range f.input {
-		fi, err := os.Stat(res.Location)
-		if err != nil {
+
+		extension := file.GetExtension(res.Filename)
+
+		switch extension {
+		case "pdf":
+			f.processPdf(res)
+		default:
+			f.processUnknown(res)
+		}
+	}
+
+	close(f.output)
+}
+
+func (f *FileReaderWorker2) processPdf(res *file.File) {
+	_, r, err := pdf.Open(res.Location)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	var str strings.Builder
+	for pageIndex := 1; pageIndex <= r.NumPage(); pageIndex++ {
+		p := r.Page(pageIndex)
+		if p.V.IsNull() {
 			continue
 		}
 
-		var content []byte
-		var s int64 = 1024000
+		s, err := p.GetPlainText(nil)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		str.WriteString(s)
+	}
 
-		// TODO we should NOT do this and instead use a scanner later on
-		// Only read up to ~1MB of a file because anything beyond that is probably pointless
-		if fi.Size() < s {
-			content, err = ioutil.ReadFile(res.Location)
-		} else {
-			r, err := os.Open(res.Location)
-			if err != nil {
-				continue
-			}
+	atomic.AddInt64(&f.fileCount, 1)
+	f.output <- &fileJob{
+		Filename:       res.Filename,
+		Extension:      "",
+		Location:       res.Location,
+		Content:        []byte(str.String()),
+		Bytes:          0,
+		Score:          0,
+		MatchLocations: map[string][][]int{},
+	}
+}
 
-			var tmp [1024000]byte
-			_, _ = io.ReadFull(r, tmp[:])
-			_ = r.Close()
+func (f *FileReaderWorker2) processUnknown(res *file.File) {
+	fi, err := os.Stat(res.Location)
+	if err != nil {
+		return
+	}
+
+	var content []byte
+	var s int64 = 1024000
+
+	// TODO we should NOT do this and instead use a scanner later on
+	// Only read up to ~1MB of a file because anything beyond that is probably pointless
+	if fi.Size() < s {
+		content, err = ioutil.ReadFile(res.Location)
+	} else {
+		r, err := os.Open(res.Location)
+		if err != nil {
+			return
 		}
 
-		if err == nil {
-			atomic.AddInt64(&f.fileCount, 1)
-			f.output <- &fileJob{
-				Filename:       res.Filename,
-				Extension:      "",
-				Location:       res.Location,
-				Content:        content,
-				Bytes:          0,
-				Score:          0,
-				MatchLocations: map[string][][]int{},
-			}
+		var tmp [1024000]byte
+		_, _ = io.ReadFull(r, tmp[:])
+		_ = r.Close()
+	}
+
+	if err == nil {
+		atomic.AddInt64(&f.fileCount, 1)
+		f.output <- &fileJob{
+			Filename:       res.Filename,
+			Extension:      "",
+			Location:       res.Location,
+			Content:        content,
+			Bytes:          0,
+			Score:          0,
+			MatchLocations: map[string][][]int{},
 		}
 	}
-			
-	close(f.output)
 }

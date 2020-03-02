@@ -80,7 +80,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
-
 	tuiFileWalker = file.NewFileWalker(startDirectory, fileQueue)
 	tuiFileWalker.EnableIgnoreFile = true
 	tuiFileWalker.PathExclude = PathDenylist
@@ -140,7 +139,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	isCollecting = false
 	isCollectingMutex.Unlock()
 	update = false
-	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(),"")
+	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), "")
 }
 
 func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {

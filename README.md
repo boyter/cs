@@ -24,6 +24,10 @@ try using cs and its right at the top
 https://github.com/BurntSushi/ripgrep/issues/95
 
 
+$ cs ſecret
+
+seems to match over the end of the string for some reason
+
 "ten thousand a year"
 
 interesting bug where nothing is displayed

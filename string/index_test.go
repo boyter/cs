@@ -158,6 +158,30 @@ func TestIndexAllIgnoreCaseUnicodeOutOfRange3(t *testing.T) {
 	}
 }
 
+func TestIndexAllIgnoreCaseUnicodeCheck(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("a secret a", "ſecret", -1)
+
+	if matches[0][0] != 2 || matches[0][1] != 8 {
+		t.Error("Expected 2 and 8 got", matches[0][0], "and", matches[0][1])
+	}
+
+	if "a secret a"[matches[0][0]:matches[0][1]] != "secret" {
+		t.Error("Expected secret")
+	}
+}
+
+func TestIndexAllIgnoreCaseUnicodeCheckEnd(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("a ſecret a", "secret", -1)
+
+	if matches[0][0] != 2 || matches[0][1] != 9 {
+		t.Error("Expected 2 and 7 got", matches[0][0], "and", matches[0][1])
+	}
+
+	if "a ſecret a"[matches[0][0]:matches[0][1]] != "ſecret" {
+		t.Error("Expected ſecret")
+	}
+}
+
 func TestDropInReplacementMultipleIndexAllIgnoreCaseUnicode(t *testing.T) {
 	r := regexp.MustCompile(`1`)
 

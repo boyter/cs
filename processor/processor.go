@@ -35,7 +35,7 @@ func CleanSearchString() {
 
 type Process struct {
 	Directory string // What directory are we searching
-	FindRoot bool
+	FindRoot  bool
 }
 
 func NewProcess(directory string) Process {
@@ -52,7 +52,7 @@ func (process *Process) StartProcess() {
 		process.Directory = file.FindRepositoryRoot(process.Directory)
 	}
 
-	fileQueue := make(chan *file.File, 1000)    // Files ready to be read from disk NB we buffer here because CLI runs till finished or the process is cancelled
+	fileQueue := make(chan *file.File, 1000)                // Files ready to be read from disk NB we buffer here because CLI runs till finished or the process is cancelled
 	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
 

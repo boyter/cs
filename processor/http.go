@@ -5,6 +5,7 @@ import (
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/string"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"runtime"
@@ -12,27 +13,117 @@ import (
 )
 
 type search struct {
-	SearchTerm   string
-	SnippetCount int
-	SnippetSize  int
-	Results      []searchResult
+	SearchTerm          string
+	SnippetCount        int
+	SnippetSize         int
+	Results             []searchResult
+	RuntimeMilliseconds int64
+	ProcessedFileCount  int64
 }
 
 type searchResult struct {
-	Title   string
-	Content template.HTML
+	Title    string
+	Location string
+	Content  []template.HTML
+	StartPos int
+	EndPos   int
+}
+
+type fileDisplay struct {
+	Location            string
+	Content             template.HTML
+	RuntimeMilliseconds int64
 }
 
 func StartHttpServer() {
 
-	// Serves up a file
-	//http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	//	http.ServeFile(w, r, r.URL.Path[1:])
-	//})
+	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
+		startTime := makeTimestampMilli()
+		startPos := tryParseInt(r.URL.Query().Get("sp"), 0)
+		endPos := tryParseInt(r.URL.Query().Get("ep"), 0)
+
+		path := strings.Replace(r.URL.Path, "/file/", "", 1)
+		content, _ := ioutil.ReadFile(path)
+
+		coloredContent := str.HighlightString(string(content), [][]int{
+			{startPos, endPos},
+		}, fmt.Sprintf(`<strong id="%d">`, startPos), "</strong>")
+
+		t := template.Must(template.New("display.tmpl").Parse(`<html>
+	<head>
+		<title>{{ .Location }} - cs</title>
+		<style>
+			strong {
+				background-color: #FFFF00
+			}
+			pre {
+				white-space: pre-wrap;
+				white-space: -moz-pre-wrap;
+				white-space: -pre-wrap;
+				white-space: -o-pre-wrap;
+				word-wrap: break-word;
+			}
+			body {
+				width: 80%;
+				margin: 10px auto;
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+		<form method="get" action="/" >
+			<input type="text" name="q" value="" autofocus="autofocus" onfocus="this.select()" />
+			<input type="submit" value="search" />
+			<select name="s" id="s">
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+				<option value="6">6</option>
+				<option value="7">7</option>
+				<option value="8">8</option>
+				<option value="9">9</option>
+				<option value="10">10</option>
+			</select>
+			<select name="ss" id="ss">
+				<option value="100">100</option>
+				<option value="200">200</option>
+				<option selected value="300">300</option>
+				<option value="400">400</option>
+				<option value="500">500</option>
+				<option value="600">600</option>
+				<option value="700">700</option>
+				<option value="800">800</option>
+				<option value="900">900</option>
+				<option value="1000">1000</option>
+			</select>
+		</form>
+		</div>
+		<div>
+			<h4>{{ .Location }}</h4>
+			<pre>{{ .Content }}</pre>
+		</div>
+	</body>
+</html>`))
+
+		err := t.Execute(w, fileDisplay{
+			Location:            path,
+			Content:             template.HTML(coloredContent),
+			RuntimeMilliseconds: makeTimestampMilli() - startTime,
+		})
+
+		if err != nil {
+			panic(err)
+		}
+
+	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
+		startTime := makeTimestampMilli()
 		query := r.URL.Query().Get("q")
+		snippetLength := tryParseInt(r.URL.Query().Get("ss"), 300)
 
 		// If the user asks we should look back till we find the .git or .hg directory and start the search
 		// or in case of SVN go back till we don't find it
@@ -77,7 +168,7 @@ func StartHttpServer() {
 		searchResults := []searchResult{}
 
 		for _, res := range results {
-			v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
+			v3 := extractRelevantV3(res, documentFrequency, snippetLength, "…")
 
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
@@ -97,36 +188,39 @@ func StartHttpServer() {
 			coloredContent := str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
 
 			searchResults = append(searchResults, searchResult{
-				Title:   fmt.Sprintf("%s (%.3f)", res.Location, res.Score),
-				Content: template.HTML(coloredContent),
+				Title:    fmt.Sprintf("%s (%.3f)", res.Location, res.Score),
+				Location: res.Location,
+				Content:  []template.HTML{template.HTML(coloredContent)},
+				StartPos: v3.StartPos,
+				EndPos:   v3.EndPos,
 			})
 		}
 
-		fmap := template.FuncMap{
-			"findreplace": func(s1 string, s2 string, s3 string) string {
-				return strings.Replace(s3, s1, s2, -1)
-			},
-		}
-
-		t := template.Must(template.New("search.tmpl").Funcs(fmap).Parse(`<html>
+		t := template.Must(template.New("search.tmpl").Parse(`<html>
 	<head>
+		<title>{{ .SearchTerm }} - cs</title>
 		<style>
 			strong {
 				background-color: #FFFF00
 			}
-pre {
-    white-space: pre-wrap;       /* Since CSS 2.1 */
-    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-    white-space: -pre-wrap;      /* Opera 4-6 */
-    white-space: -o-pre-wrap;    /* Opera 7 */
-    word-wrap: break-word;       /* Internet Explorer 5.5+ */
-}
+			pre {
+				white-space: pre-wrap;
+				white-space: -moz-pre-wrap;
+				white-space: -pre-wrap;
+				white-space: -o-pre-wrap;
+				word-wrap: break-word;
+			}
+			body {
+				width: 80%;
+				margin: 10px auto;
+				display: block;
+			}
 		</style>
 	</head>
 	<body>
 		<div>
 		<form method="get" action="/" >
-			<input type="text" name="q" value="{{ .SearchTerm }}" />
+			<input type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" />
 			<input type="submit" value="search" />
 			<select name="s" id="s">
 				<option value="1">1</option>
@@ -152,6 +246,8 @@ pre {
 				<option value="900">900</option>
 				<option value="1000">1000</option>
 			</select>
+			<small>[processed files: {{ .ProcessedFileCount }}]</small>
+			<small>[time (ms): {{ .RuntimeMilliseconds }}]</small>
 		</form>
 		</div>
 		{{if .Results -}}
@@ -159,10 +255,12 @@ pre {
 			<ul>
     			{{- range .Results }}
 				<li>
-					<h3>{{ .Title }}</h3>
-					<pre>{{ .Content }}</pre>
+					<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
+					{{- range .Content }}
+						<pre>{{ . }}</pre>
+					{{- end }}<br />[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump</a>]
 				</li>
-				 {{- end }}
+				{{- end }}
 			</ul>
 		</div>
 		{{- end}}
@@ -170,10 +268,12 @@ pre {
 </html>`))
 
 		err := t.Execute(w, search{
-			SearchTerm:   query,
-			SnippetCount: 0,
-			SnippetSize:  0,
-			Results:      searchResults,
+			SearchTerm:          query,
+			SnippetCount:        1,
+			SnippetSize:         snippetLength,
+			Results:             searchResults,
+			RuntimeMilliseconds: makeTimestampMilli() - startTime,
+			ProcessedFileCount:  fileReader.GetFileCount(),
 		})
 
 		if err != nil {
@@ -183,27 +283,4 @@ pre {
 	})
 
 	log.Fatal(http.ListenAndServe(":8081", nil))
-
-	//https://tutorialedge.net/golang/creating-simple-web-server-with-golang/
-	//	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	//	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
-	//
-	//	app := handlers.Application{
-	//		ErrorLog: errorLog,
-	//		InfoLog:  infoLog,
-	//	}
-	//
-	//	srv := &http.Server{
-	//		Addr:     ":8080",
-	//		ErrorLog: errorLog,
-	//		Handler:  app.Routes(),
-	//	}
-	//
-	//	// Use the http.ListenAndServe() function to start a new web server. We pass in
-	//	// two parameters: the TCP network address to listen on (in this case ":8080")
-	//	// and the servemux we just created. If http.ListenAndServe() returns an error
-	//	// we use the log.Fatal() function to log the error message and exit.
-	//	infoLog.Println("Starting server on :8080")
-	//	err := srv.ListenAndServe()
-	//	errorLog.Fatal(err)
 }

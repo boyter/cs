@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Unlicense
 package processor
 
+import (
+	"strconv"
+)
+
 // Simple helper method that removes duplicates from
 // any given int slice and then returns a nice
 // duplicate free int slice
@@ -25,4 +29,14 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+func tryParseInt(x string, def int) int {
+	t, err := strconv.Atoi(x)
+
+	if err != nil {
+		return def
+	}
+
+	return t
 }

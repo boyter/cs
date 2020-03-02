@@ -4,9 +4,9 @@ package processor
 
 import (
 	"fmt"
+	str "github.com/boyter/cs/string"
 	"os"
 	"time"
-	str "github.com/boyter/cs/string"
 )
 
 // Returns the current time as a millisecond timestamp
