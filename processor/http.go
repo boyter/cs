@@ -22,6 +22,7 @@ type search struct {
 	Results             []searchResult
 	RuntimeMilliseconds int64
 	ProcessedFileCount  int64
+	ExtensionFacet      map[string]int
 }
 
 type searchResult struct {
@@ -111,6 +112,7 @@ func StartHttpServer() {
 				<option value="900">900</option>
 				<option value="1000">1000</option>
 			</select>
+			<small>[processed in {{ .RuntimeMilliseconds }} (ms)]</small>
 		</form>
 		</div>
 		<div>
@@ -182,9 +184,11 @@ func StartHttpServer() {
 		documentFrequency := calculateDocumentFrequency(results)
 
 		searchResults := []searchResult{}
+		extensionFacets := map[string]int{}
 
 		for _, res := range results {
 			v3 := extractRelevantV3(res, documentFrequency, snippetLength, "…")
+			extensionFacets[file.GetExtension(res.Filename)] = extensionFacets[file.GetExtension(res.Filename)] + 1
 
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
@@ -255,35 +259,47 @@ func StartHttpServer() {
 				<option value="9">9</option>
 				<option value="10">10</option>
 			</select>
-			<select name="ss" id="ss">
-				<option value="100">100</option>
-				<option value="200">200</option>
-				<option selected value="300">300</option>
-				<option value="400">400</option>
-				<option value="500">500</option>
-				<option value="600">600</option>
-				<option value="700">700</option>
-				<option value="800">800</option>
-				<option value="900">900</option>
-				<option value="1000">1000</option>
+			<select name="ss" id="ss" onchange="this.form.submit()">
+				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
+				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
+				<option value="300" {{ if eq .SnippetSize 300 }}selected{{ end }}>300</option>
+				<option value="400" {{ if eq .SnippetSize 400 }}selected{{ end }}>400</option>
+				<option value="500" {{ if eq .SnippetSize 500 }}selected{{ end }}>500</option>
+				<option value="600" {{ if eq .SnippetSize 600 }}selected{{ end }}>600</option>
+				<option value="700" {{ if eq .SnippetSize 700 }}selected{{ end }}>700</option>
+				<option value="800" {{ if eq .SnippetSize 800 }}selected{{ end }}>800</option>
+				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
+				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
 			</select>
 			<small>[processed {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
 		</form>
 		</div>
-		{{if .Results -}}
-		<div>
-			<ul>
-    			{{- range .Results }}
-				<li>
-					<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
-					{{- range .Content }}
-						<pre>{{ . }}</pre>
-					{{- end }}<br />[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump</a>]
-				</li>
+		<div style="display:flex;">
+			{{if .ExtensionFacet }}
+			<div style="width:10%;">
+				<h4>extensions</h4>
+				<ul>
+				{{ range $key, $value := .ExtensionFacet }}
+					<li>{{ $key }}: {{ $value }}
 				{{- end }}
-			</ul>
+				</ul>
+			</div>
+			{{- end }}
+			{{if .Results -}}
+			<div style="width:90%; border-left: 1px solid #ccc; margin-left:10px;">
+				<ul>
+					{{- range .Results }}
+					<li>
+						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
+						{{- range .Content }}
+							<pre>{{ . }}</pre>
+						{{- end }}<br />[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump</a>]
+					</li>
+					{{- end }}
+				</ul>
+			</div>
+			{{- end}}
 		</div>
-		{{- end}}
 	</body>
 </html>`))
 
@@ -294,6 +310,7 @@ func StartHttpServer() {
 			Results:             searchResults,
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  fileReader.GetFileCount(),
+			ExtensionFacet:      extensionFacets,
 		})
 
 		if err != nil {
