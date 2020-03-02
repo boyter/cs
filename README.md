@@ -23,6 +23,7 @@ try using cs and its right at the top
 
 https://github.com/BurntSushi/ripgrep/issues/95
 
+search for // crashes
 
 $ cs ſecret
 
