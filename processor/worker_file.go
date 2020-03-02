@@ -41,7 +41,7 @@ func (f *FileReaderWorker2) Start() {
 
 		switch extension {
 		case "pdf":
-			f.processPdf(res)
+			//f.processPdf(res)
 		default:
 			f.processUnknown(res)
 		}

@@ -1,9 +1,12 @@
 package processor
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/string"
+	"html"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -45,9 +48,18 @@ func StartHttpServer() {
 		path := strings.Replace(r.URL.Path, "/file/", "", 1)
 		content, _ := ioutil.ReadFile(path)
 
-		coloredContent := str.HighlightString(string(content), [][]int{
-			{startPos, endPos},
-		}, fmt.Sprintf(`<strong id="%d">`, startPos), "</strong>")
+		// Create a random string to define where the start and end of
+		// out highlight should be which we swap out later after we have
+		// HTML escaped everything
+		md5_d := md5.New()
+		fmtBegin := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
+		fmtEnd := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
+
+		coloredContent := str.HighlightString(string(content), [][]int{{startPos, endPos}}, fmtBegin, fmtEnd)
+
+		coloredContent = html.EscapeString(coloredContent)
+		coloredContent = strings.Replace(coloredContent, fmtBegin, fmt.Sprintf(`<strong id="%d">`, startPos), -1)
+		coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 
 		t := template.Must(template.New("display.tmpl").Parse(`<html>
 	<head>
@@ -160,8 +172,12 @@ func StartHttpServer() {
 
 		rankResults(int(fileReader.GetFileCount()), results)
 
-		fmtBegin := "<strong>"
-		fmtEnd := "</strong>"
+		// Create a random string to define where the start and end of
+		// out highlight should be which we swap out later after we have
+		// HTML escaped everything
+		md5_d := md5.New()
+		fmtBegin := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
+		fmtEnd := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
 		documentFrequency := calculateDocumentFrequency(results)
 
@@ -185,7 +201,12 @@ func StartHttpServer() {
 				}
 			}
 
+			// We want to escape the output, so we highlight, then escape then replace
+			// our special start and end strings with actual HTML
 			coloredContent := str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
+			coloredContent = html.EscapeString(coloredContent)
+			coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
+			coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 
 			searchResults = append(searchResults, searchResult{
 				Title:    fmt.Sprintf("%s (%.3f)", res.Location, res.Score),
