@@ -32,6 +32,7 @@ type searchResult struct {
 	Content  []template.HTML
 	StartPos int
 	EndPos   int
+	Score    float64
 }
 
 type fileDisplay struct {
@@ -219,11 +220,12 @@ func StartHttpServer() {
 			coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 
 			searchResults = append(searchResults, searchResult{
-				Title:    fmt.Sprintf("%s (%.3f)", res.Location, res.Score),
+				Title:    res.Location,
 				Location: res.Location,
 				Content:  []template.HTML{template.HTML(coloredContent)},
 				StartPos: v3.StartPos,
 				EndPos:   v3.EndPos,
+				Score:    res.Score,
 			})
 		}
 
