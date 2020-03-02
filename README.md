@@ -23,7 +23,11 @@ try using cs and its right at the top
 
 https://github.com/BurntSushi/ripgrep/issues/95
 
+active bugs
+
 search for // crashes
+search for java does not display file with ȺȾjava
+html seems to have space in front of all results
 
 $ cs ſecret
 

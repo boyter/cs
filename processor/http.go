@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -22,7 +23,7 @@ type search struct {
 	Results             []searchResult
 	RuntimeMilliseconds int64
 	ProcessedFileCount  int64
-	ExtensionFacet      map[string]int
+	ExtensionFacet      []facet
 }
 
 type searchResult struct {
@@ -37,6 +38,11 @@ type fileDisplay struct {
 	Location            string
 	Content             template.HTML
 	RuntimeMilliseconds int64
+}
+
+type facet struct {
+	Title string
+	Count int
 }
 
 func StartHttpServer() {
@@ -221,6 +227,18 @@ func StartHttpServer() {
 			})
 		}
 
+		ef := []facet{}
+		// Create facets and sort
+		for k, v := range extensionFacets {
+			ef = append(ef, facet{
+				Title: k,
+				Count: v,
+			})
+		}
+		sort.Slice(ef, func(i, j int) bool {
+			return ef[i].Count > ef[j].Count
+		})
+
 		t := template.Must(template.New("search.tmpl").Parse(`<html>
 	<head>
 		<title>{{ .SearchTerm }} - cs</title>
@@ -275,18 +293,8 @@ func StartHttpServer() {
 		</form>
 		</div>
 		<div style="display:flex;">
-			{{if .ExtensionFacet }}
-			<div style="width:10%;">
-				<h4>extensions</h4>
-				<ul>
-				{{ range $key, $value := .ExtensionFacet }}
-					<li>{{ $key }}: {{ $value }}
-				{{- end }}
-				</ul>
-			</div>
-			{{- end }}
 			{{if .Results -}}
-			<div style="width:90%; border-left: 1px solid #ccc; margin-left:10px;">
+			<div style="width:90%;">
 				<ul>
 					{{- range .Results }}
 					<li>
@@ -299,6 +307,16 @@ func StartHttpServer() {
 				</ul>
 			</div>
 			{{- end}}
+			{{if .ExtensionFacet }}
+			<div style="width:10%;">
+				<h4>extensions</h4>
+				<ol>
+				{{- range .ExtensionFacet }}
+					<li value="{{ .Count }}">{{ .Title }}</li>
+				{{- end }}
+				</ol>
+			</div>
+			{{- end }}
 		</div>
 	</body>
 </html>`))
@@ -310,7 +328,7 @@ func StartHttpServer() {
 			Results:             searchResults,
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  fileReader.GetFileCount(),
-			ExtensionFacet:      extensionFacets,
+			ExtensionFacet:      ef,
 		})
 
 		if err != nil {
