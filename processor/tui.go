@@ -77,6 +77,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	tuiFileReaderWorker.InstanceId = instanceCount
+	tuiFileReaderWorker.SearchPDF = SearchPDF
 
 	tuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
 	tuiSearcherWorker.SearchString = SearchString

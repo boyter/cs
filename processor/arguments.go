@@ -69,3 +69,4 @@ var SnippetLength int64 = 0
 
 var Address string = ":8080"
 var HttpServer bool = false
+var SearchPDF = false

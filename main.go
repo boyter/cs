@@ -164,6 +164,12 @@ func main() {
 		[]string{},
 		"file locations matching this pattern ignoring case will be ignored",
 	)
+	flags.BoolVar(
+		&processor.SearchPDF,
+		"pdf",
+		false,
+		"attempt to extract text from pdf and search the result",
+	)
 	flags.BoolVarP(
 		&processor.CaseSensitive,
 		"case-sensitive",

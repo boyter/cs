@@ -150,6 +150,7 @@ func StartHttpServer() {
 		fileWalker.EnableIgnoreFile = true
 
 		fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
+		fileReader.SearchPDF = SearchPDF
 
 		fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
 		fileSearcher.SearchString = strings.Split(strings.TrimSpace(query), " ")

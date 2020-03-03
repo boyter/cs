@@ -60,31 +60,10 @@ $ rg -i --debug ß
 DEBUG|grep_regex::literal|/home/bboyter/.cargo/registry/src/github.com-1ecc6299db9ec823/grep-regex-0.1.5/src/literal.rs:59: literal prefixes detected: Literals { lits: [Complete(ß), Complete(ẞ)], limit_size: 250, limit_class: 10 }
 
 
- head -c200000000 /dev/urandom > 200mb.txt
+head -c200000000 /dev/urandom > 200mb.txt
  
- https://about.sourcegraph.com/blog/going-beyond-regular-expressions-with-structural-code-search/
+https://about.sourcegraph.com/blog/going-beyond-regular-expressions-with-structural-code-search/
  
- Look into using the below to read  PDF, DOC, DOCX, XML, HTML, RTF, into plain text for searching
- https://github.com/sajari/docconv
- 
- package main
- 
- import (
-     "fmt"
-     "log"
- 
-     "code.sajari.com/docconv"
- )
- 
- func main() {
-     res, err := docconv.ConvertPath("your-file.pdf")
-     if err != nil {
-         log.Fatal(err)
-     }
-     fmt.Println(res)
- }
-
-
 https://github.com/sourcegraph/src-cli
 
 https://arxiv.org/pdf/1904.03061.pdf
@@ -96,11 +75,10 @@ hyperfine './cs "/[ab]+/"' 'rg -uu "[ab]+"'
 
 TODO
 search by filename
-negated search using NOT
 test that search "this is test" works as expected
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
-crash on search for v e r y uniquestring where it exists in a file called unique seems to crash when you type veryun and then add i replicate with  go run . v e r y uni
-
+if someone enables the --pdf flag not in terminal mode should spawn background process to extract the text so its pre cached
+if in http mode with --pdf need to pull the extracted text when displaying and possibly a link to raw file
 
 https://www.researchgate.net/publication/4004411_Topic_extraction_from_news_archive_using_TFPDF_algorithm
 
