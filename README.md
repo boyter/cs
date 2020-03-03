@@ -25,7 +25,6 @@ https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
 
-search for java does not display file with ȺȾjava
 html seems to have space in front of all results
 search for time.sleep seems to highlight TimestampN as well as time.sleep
 search for $ cs ß and observe too much highlighted

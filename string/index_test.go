@@ -206,3 +206,14 @@ func TestIndexAllIgnoreCaseUnicodeSpace(t *testing.T) {
 		t.Error("Expected 2 got", len(matches))
 	}
 }
+
+func TestIndexAllIgnoreCaseAtEnd(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode(`testjava`, "java", -1)
+
+	r := regexp.MustCompile(`java`)
+	index := r.FindAllIndex([]byte(`testjava`), -1)
+
+	if len(matches) != len(index) || matches[0][0] != 4 || matches[0][1] != 8 {
+		t.Error("Expected 1 got", len(matches))
+	}
+}
