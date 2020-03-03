@@ -1,15 +1,12 @@
 package processor
 
 import (
-	"fmt"
 	"github.com/boyter/cs/file"
-	"github.com/ledongthuc/pdf"
+
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
 
-	//"sync"
 	"sync/atomic"
 )
 
@@ -41,7 +38,7 @@ func (f *FileReaderWorker) Start() {
 
 		switch extension {
 		case "pdf":
-			//f.processPdf(res)
+			f.processPdf(res)
 		default:
 			f.processUnknown(res)
 		}
@@ -50,26 +47,16 @@ func (f *FileReaderWorker) Start() {
 	close(f.output)
 }
 
+
 func (f *FileReaderWorker) processPdf(res *file.File) {
-	_, r, err := pdf.Open(res.Location)
+
+	content, err := convertPDFTextPdf2Txt(res.Location)
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		content, err = convertPDFText(res.Location)
 	}
 
-	var str strings.Builder
-	for pageIndex := 1; pageIndex <= r.NumPage(); pageIndex++ {
-		p := r.Page(pageIndex)
-		if p.V.IsNull() {
-			continue
-		}
-
-		s, err := p.GetPlainText(nil)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		str.WriteString(s)
+	if err != nil {
+		return
 	}
 
 	atomic.AddInt64(&f.fileCount, 1)
@@ -77,7 +64,7 @@ func (f *FileReaderWorker) processPdf(res *file.File) {
 		Filename:       res.Filename,
 		Extension:      "",
 		Location:       res.Location,
-		Content:        []byte(str.String()),
+		Content:        []byte(content),
 		Bytes:          0,
 		Score:          0,
 		MatchLocations: map[string][][]int{},
