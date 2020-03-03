@@ -95,18 +95,6 @@ func StartHttpServer() {
 		<form method="get" action="/" >
 			<input type="text" name="q" value="" autofocus="autofocus" onfocus="this.select()" />
 			<input type="submit" value="search" />
-			<select name="s" id="s">
-				<option value="1">1</option>
-				<option value="2">2</option>
-				<option value="3">3</option>
-				<option value="4">4</option>
-				<option value="5">5</option>
-				<option value="6">6</option>
-				<option value="7">7</option>
-				<option value="8">8</option>
-				<option value="9">9</option>
-				<option value="10">10</option>
-			</select>
 			<select name="ss" id="ss">
 				<option value="100">100</option>
 				<option value="200">200</option>
@@ -194,8 +182,9 @@ func StartHttpServer() {
 		extensionFacets := map[string]int{}
 
 		for _, res := range results {
-			v3 := extractRelevantV3(res, documentFrequency, snippetLength, "…")
 			extensionFacets[file.GetExtension(res.Filename)] = extensionFacets[file.GetExtension(res.Filename)] + 1
+
+			v3 := extractRelevantV3(res, documentFrequency, snippetLength, "…")[0]
 
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
@@ -270,18 +259,6 @@ func StartHttpServer() {
 		<form method="get" action="/" >
 			<input type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" />
 			<input type="submit" value="search" />
-			<select name="s" id="s">
-				<option value="1">1</option>
-				<option value="2">2</option>
-				<option value="3">3</option>
-				<option value="4">4</option>
-				<option value="5">5</option>
-				<option value="6">6</option>
-				<option value="7">7</option>
-				<option value="8">8</option>
-				<option value="9">9</option>
-				<option value="10">10</option>
-			</select>
 			<select name="ss" id="ss" onchange="this.form.submit()">
 				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
 				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
@@ -306,8 +283,8 @@ func StartHttpServer() {
 						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
 						{{- range .Content }}
 							<pre>{{ . }}</pre>
-						{{- end }}<br />[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump</a>]
-					</li>
+						{{- end }}
+					</li><small>[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to location</a>]</small>
 					{{- end }}
 				</ul>
 			</div>

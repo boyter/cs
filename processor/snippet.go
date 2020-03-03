@@ -57,7 +57,7 @@ type Snippet struct {
 // to differ between people. As such this is not tested as much as other methods and you should not
 // rely on the results being static over time as the internals will be modified to produce better
 // results where possible
-func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) Snippet {
+func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) []Snippet {
 	wrapLength := relLength / 2
 	bestMatches := []bestMatch{}
 
@@ -214,14 +214,20 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		return bestMatches[i].Score > bestMatches[j].Score
 	})
 
-	startPos := bestMatches[0].StartPos
-	endPos := bestMatches[0].EndPos
-
-	return Snippet{
-		Content:  string(res.Content[startPos:endPos]),
-		StartPos: startPos,
-		EndPos:   endPos,
+	if len(bestMatches) > 10 {
+		bestMatches = bestMatches[:10]
 	}
+
+	snippets := []Snippet{}
+	for _, b := range bestMatches {
+		snippets = append(snippets, Snippet{
+			Content:  string(res.Content[b.StartPos:b.EndPos]),
+			StartPos: b.StartPos,
+			EndPos:   b.EndPos,
+		})
+	}
+
+	return snippets
 }
 
 // Looks for a nearby whitespace character near this position

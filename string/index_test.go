@@ -217,3 +217,18 @@ func TestIndexAllIgnoreCaseAtEnd(t *testing.T) {
 		t.Error("Expected 1 got", len(matches))
 	}
 }
+
+func TestIndexAllIgnoreCaseStrange(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode(`func AllSimpleFold(input rune) []rune {
+        res := []rune{}
+`, "rune{}", -1)
+
+	r := regexp.MustCompile(`rune{}`)
+	index := r.FindAllIndex([]byte(`func AllSimpleFold(input rune) []rune {
+        res := []rune{}
+`), -1)
+
+	if len(matches) != len(index) || matches[0][0] != 4 || matches[0][1] != 8 {
+		t.Error("Expected 1 got", len(matches))
+	}
+}

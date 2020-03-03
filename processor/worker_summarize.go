@@ -10,12 +10,14 @@ type ResultSummarizer struct {
 	input            chan *fileJob
 	ResultLimit      int64
 	FileReaderWorker *FileReaderWorker2
+	SnippetCount     int
 }
 
 func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
 	return ResultSummarizer{
 		input:       input,
 		ResultLimit: -1,
+		SnippetCount: 1,
 	}
 }
 
@@ -43,7 +45,7 @@ func (f *ResultSummarizer) Start() {
 	for _, res := range results {
 		color.Magenta("%s (%.3f)", res.Location, res.Score)
 
-		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
+		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
 
 		// We have the snippet so now we need to highlight it
 		// we get all the locations that fall in the snippet length

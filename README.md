@@ -25,9 +25,8 @@ https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
 
-html seems to have space in front of all results
-search for time.sleep seems to highlight TimestampN as well as time.sleep
-search for $ cs ß and observe too much highlighted
+search for time.sleep seems to highlight TimestampN as well as time.sleep another example testmakefuzzy or rune{}
+search for $ cs ß and observe too much highlighted maybe related to the previous
 
 
 

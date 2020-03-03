@@ -153,7 +153,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
-		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
+		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
 		l := [][]int{}
 		for _, value := range res.MatchLocations {
 			for _, s := range value {
