@@ -121,7 +121,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		}
 	}()
 
-
 	for res := range summaryQueue {
 		resultsMutex.Lock()
 		results = append(results, res)
@@ -381,10 +380,9 @@ func ProcessTui(run bool) {
 		AddItem(nil, 1, 0, false).
 		AddItem(textView, 0, 3, false)
 
-
 	// Start the debounce after everything else is setup and leave it running
 	// forever in the background
-	go debounce(time.Millisecond*50, eventChan, app, textView, tuiSearch)
+	go debounce(time.Millisecond*1, eventChan, app, textView, tuiSearch)
 
 	if run {
 		if err := app.SetRoot(flex, true).SetFocus(searchInputField).Run(); err != nil {

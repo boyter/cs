@@ -238,6 +238,9 @@ func StartHttpServer() {
 			})
 		}
 		sort.Slice(ef, func(i, j int) bool {
+			if ef[i].Count == ef[j].Count {
+				return strings.Compare(ef[i].Title, ef[j].Title) < 0
+			}
 			return ef[i].Count > ef[j].Count
 		})
 

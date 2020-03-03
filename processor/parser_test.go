@@ -145,3 +145,11 @@ func TestParseArgumentsSingleQuote(t *testing.T) {
 		t.Error("Expected no match")
 	}
 }
+
+func TestParseArgumentsEmptyRegex(t *testing.T) {
+	res := parseArguments([]string{`//`})
+
+	if res[0].Type != Default || res[0].Term != "//" {
+		t.Error("Expected match", res[0].Type, res[0].Term)
+	}
+}

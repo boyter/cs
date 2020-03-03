@@ -60,10 +60,18 @@ func parseArguments(args []string) []searchParams {
 			if len(arg) != 1 {
 				// If we end with / not prefixed with a \ we are done
 				if strings.HasSuffix(arg, `/`) {
-					params = append(params, searchParams{
-						Term: arg[1 : len(arg)-1],
-						Type: Regex,
-					})
+					// If the term is // don't treat it as a regex treat it as a search for //
+					if arg == "//" {
+						params = append(params, searchParams{
+							Term: "//",
+							Type: Default,
+						})
+					} else {
+						params = append(params, searchParams{
+							Term: arg[1 : len(arg)-1],
+							Type: Regex,
+						})
+					}
 				} else {
 					mode = Regex
 					startIndex = ind

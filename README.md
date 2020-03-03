@@ -25,17 +25,12 @@ https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
 
-search for // crashes
 search for java does not display file with ȺȾjava
 html seems to have space in front of all results
+search for time.sleep seems to highlight TimestampN as well as time.sleep
+search for $ cs ß and observe too much highlighted
 
-$ cs ſecret
 
-seems to match over the end of the string for some reason
-
-"ten thousand a year"
-
-interesting bug where nothing is displayed
 
 # bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]
 $ cs javascript
