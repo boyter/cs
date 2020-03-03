@@ -35,7 +35,7 @@ var resultsMutex sync.Mutex
 
 // Variables we need to keep around between searches, but are recreated on each new one
 var tuiFileWalker file.FileWalker
-var tuiFileReaderWorker FileReaderWorker2
+var tuiFileReaderWorker FileReaderWorker
 var tuiSearcherWorker SearcherWorker
 var instanceCount int
 

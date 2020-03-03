@@ -161,8 +161,8 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 				}
 
 				// Because the length of the needle might be different to what we just found as a match
-				// based on byte size we add 100 extra on the end to deal with the difference
-				e := len(needle) + 100
+				// based on byte size we add enough extra on the end to deal with the difference
+				e := len(needle) + len(needle) - 1
 				for match[0]+e > len(haystack) {
 					e--
 				}

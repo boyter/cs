@@ -9,7 +9,7 @@ import (
 type ResultSummarizer struct {
 	input            chan *fileJob
 	ResultLimit      int64
-	FileReaderWorker *FileReaderWorker2
+	FileReaderWorker *FileReaderWorker
 	SnippetCount     int
 }
 

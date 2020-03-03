@@ -13,28 +13,28 @@ import (
 	"sync/atomic"
 )
 
-type FileReaderWorker2 struct {
+type FileReaderWorker struct {
 	input      chan *file.File
 	output     chan *fileJob
 	fileCount  int64 // Count of the number of files that have been read
 	InstanceId int
 }
 
-func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker2 {
-	return FileReaderWorker2{
+func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker {
+	return FileReaderWorker{
 		input:     input,
 		output:    output,
 		fileCount: 0,
 	}
 }
 
-func (f *FileReaderWorker2) GetFileCount() int64 {
+func (f *FileReaderWorker) GetFileCount() int64 {
 	return atomic.LoadInt64(&f.fileCount)
 }
 
 // This is responsible for spinning up all of the jobs
 // that read files from disk into memory
-func (f *FileReaderWorker2) Start() {
+func (f *FileReaderWorker) Start() {
 	for res := range f.input {
 
 		extension := file.GetExtension(res.Filename)
@@ -50,7 +50,7 @@ func (f *FileReaderWorker2) Start() {
 	close(f.output)
 }
 
-func (f *FileReaderWorker2) processPdf(res *file.File) {
+func (f *FileReaderWorker) processPdf(res *file.File) {
 	_, r, err := pdf.Open(res.Location)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -84,7 +84,7 @@ func (f *FileReaderWorker2) processPdf(res *file.File) {
 	}
 }
 
-func (f *FileReaderWorker2) processUnknown(res *file.File) {
+func (f *FileReaderWorker) processUnknown(res *file.File) {
 	fi, err := os.Stat(res.Location)
 	if err != nil {
 		return

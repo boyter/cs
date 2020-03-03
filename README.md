@@ -25,7 +25,6 @@ https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
 
-search for time.sleep seems to highlight TimestampN as well as time.sleep another example testmakefuzzy or rune{}
 search for $ cs ß and observe too much highlighted maybe related to the previous
 
 
