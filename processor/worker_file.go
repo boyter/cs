@@ -49,7 +49,6 @@ func (f *FileReaderWorker) Start() {
 
 
 func (f *FileReaderWorker) processPdf(res *file.File) {
-
 	content, err := convertPDFTextPdf2Txt(res.Location)
 	if err != nil {
 		content, err = convertPDFText(res.Location)
