@@ -103,6 +103,14 @@ func main() {
 		false,
 		"attempts to find the root of this repository recursively looking for .git or .hg",
 	)
+	flags.StringSliceVar(
+		&processor.PathDenylist,
+		"exclude-dir",
+		[]string{".git", ".hg", ".svn"},
+		"directories to exclude",
+	)
+
+	// the below flags we want but are not enabled as yet
 
 	//flags.BoolVar(
 	//	&processor.Debug,
@@ -117,29 +125,21 @@ func main() {
 	//	100,
 	//	"number of matching results to process",
 	//)
+	//flags.StringVarP(
+	//	&processor.Format,
+	//	"format",
+	//	"f",
+	//	"text",
+	//	"set output format [text, json]",
+	//)
 
-
-	flags.StringSliceVar(
-		&processor.PathDenylist,
-		"exclude-dir",
-		[]string{".git", ".hg", ".svn"},
-		"directories to exclude",
-	)
-	flags.StringVarP(
-		&processor.Format,
-		"format",
-		"f",
-		"text",
-		"set output format [text, json]",
-	)
-
-	flags.StringVarP(
-		&processor.FileOutput,
-		"output",
-		"o",
-		"",
-		"output filename (default stdout)",
-	)
+	//flags.StringVarP(
+	//	&processor.FileOutput,
+	//	"output",
+	//	"o",
+	//	"",
+	//	"output filename (default stdout)",
+	//)
 	//flags.BoolVarP(
 	//	&processor.Trace,
 	//	"trace",
@@ -154,35 +154,33 @@ func main() {
 	//	false,
 	//	"verbose output",
 	//)
-	flags.BoolVar(
-		&processor.IncludeMinified,
-		"include-min",
-		false,
-		"include minified files",
-	)
-
-	flags.IntVar(
-		&processor.MinifiedLineByteLength,
-		"min-line-length",
-		255,
-		"number of bytes per average line for file to be considered minified",
-	)
-	flags.StringSliceVarP(
-		&processor.LocationExcludePattern,
-		"exclude-pattern",
-		"x",
-		[]string{},
-		"file locations matching this pattern ignoring case will be ignored",
-	)
-
-	flags.BoolVarP(
-		&processor.CaseSensitive,
-		"case-sensitive",
-		"c",
-		false,
-		"make the search case sensitive",
-	)
-
+	//flags.BoolVar(
+	//	&processor.IncludeMinified,
+	//	"include-min",
+	//	false,
+	//	"include minified files",
+	//)
+	//
+	//flags.IntVar(
+	//	&processor.MinifiedLineByteLength,
+	//	"min-line-length",
+	//	255,
+	//	"number of bytes per average line for file to be considered minified",
+	//)
+	//flags.StringSliceVarP(
+	//	&processor.LocationExcludePattern,
+	//	"exclude-pattern",
+	//	"x",
+	//	[]string{},
+	//	"file locations matching this pattern ignoring case will be ignored",
+	//)
+	//flags.BoolVarP(
+	//	&processor.CaseSensitive,
+	//	"case-sensitive",
+	//	"c",
+	//	false,
+	//	"make the search case sensitive",
+	//)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
