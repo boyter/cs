@@ -34,6 +34,7 @@ type FileWalker struct {
 	IgnoreGitIgnore        bool     // Should .gitignore files be respected?
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
 	InstanceId             int
+	AllowListExtensions    []string // Which extensions should be allowed
 }
 
 func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
@@ -47,6 +48,7 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		PathExclude:            []string{},
 		IgnoreIgnoreFile:       false,
 		IncludeHidden:          false,
+		AllowListExtensions:    []string{},
 	}
 }
 
@@ -121,18 +123,21 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	// to out collection of ignores to be applied for this pass
 	// and any subdirectories
 	for _, file := range files {
-		// TODO FIX THIS BROKEN
-		if file.Name() == ".gitignore" {
-			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
-			if err == nil {
-				ignores = append(ignores, ignore)
+		if !f.IgnoreGitIgnore {
+			if file.Name() == ".gitignore" {
+				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+				if err == nil {
+					ignores = append(ignores, ignore)
+				}
 			}
 		}
 
-		if file.Name() == ".ignore" {
-			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
-			if err == nil {
-				ignores = append(ignores, ignore)
+		if !f.IgnoreIgnoreFile {
+			if file.Name() == ".ignore" {
+				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+				if err == nil {
+					ignores = append(ignores, ignore)
+				}
 			}
 		}
 	}
