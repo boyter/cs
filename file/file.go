@@ -15,10 +15,6 @@ import (
 	"sync"
 )
 
-// TODO remove this global
-// Include hidden files and directories in search
-var IncludeHidden = false
-
 var TerminateWalkError = errors.New("Walker terminated")
 
 type File struct {
@@ -34,7 +30,8 @@ type FileWalker struct {
 	fileListQueue          chan *File
 	LocationExcludePattern []string // Case sensitive patterns which exclude files
 	PathExclude            []string // Paths to always ignore such as .git,.svn and .hg
-	EnableIgnoreFile       bool     // Should .gitignore or .ignore files be respected?
+	IgnoreIgnoreFile       bool     // Should .ignore files be respected?
+	IgnoreGitIgnore        bool     // Should .gitignore files be respected?
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
 	InstanceId             int
 }
@@ -48,8 +45,8 @@ func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
 		isWalking:              false,
 		LocationExcludePattern: []string{},
 		PathExclude:            []string{},
-		EnableIgnoreFile:       false,
-		IncludeHidden:          IncludeHidden,
+		IgnoreIgnoreFile:       false,
+		IncludeHidden:          false,
 	}
 }
 
@@ -123,13 +120,19 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	// Pull out all of the ignore and gitignore files and add them
 	// to out collection of ignores to be applied for this pass
 	// and any subdirectories
-	if f.EnableIgnoreFile {
-		for _, file := range files {
-			if file.Name() == ".gitignore" || file.Name() == ".ignore" {
-				ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
-				if err == nil {
-					ignores = append(ignores, ignore)
-				}
+
+	for _, file := range files {
+		if !f.IgnoreGitIgnore && file.Name() == ".gitignore" {
+			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+			if err == nil {
+				ignores = append(ignores, ignore)
+			}
+		}
+
+		if !f.IgnoreIgnoreFile && file.Name() == ".ignore" {
+			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
+			if err == nil {
+				ignores = append(ignores, ignore)
 			}
 		}
 	}
@@ -141,7 +144,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 		// Check against the ignore files we have if the file we are looking at
 		// should be ignored
-		if f.EnableIgnoreFile {
+		if f.IgnoreIgnoreFile {
 			for _, ignore := range ignores {
 				if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
 					shouldIgnore = true
@@ -150,7 +153,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 		}
 
 		// Ignore hidden files
-		if f.IncludeHidden {
+		if !f.IncludeHidden {
 			shouldIgnore, err = IsHidden(file, directory)
 			if err != nil {
 				return err
@@ -195,7 +198,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 		}
 
 		// Ignore hidden directories
-		if f.IncludeHidden {
+		if !f.IncludeHidden {
 			shouldIgnore, err = IsHidden(dir, directory)
 			if err != nil {
 				return err

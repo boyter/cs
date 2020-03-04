@@ -26,7 +26,7 @@ https://github.com/BurntSushi/ripgrep/issues/95
 active bugs
 
 search for $ cs ß and observe too much highlighted maybe related to the previous
-
+does not load binary files in to be searched
 
 
 # bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]

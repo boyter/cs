@@ -3,7 +3,6 @@
 package main
 
 import (
-	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/processor"
 	"github.com/spf13/cobra"
 	"os"
@@ -53,37 +52,23 @@ func main() {
 		false,
 		"start http server for search",
 	)
-
 	flags.BoolVar(
-		&processor.DisableCheckBinary,
-		"binary",
+		&processor.IncludeBinaryFiles,
+		"include-binary",
 		false,
-		"disable binary file detection",
+		"set to disable binary file detection and search binary files",
 	)
 	flags.BoolVar(
-		&processor.Ignore,
+		&processor.IgnoreIgnoreFile,
 		"no-ignore",
 		false,
 		"disables .ignore file logic",
 	)
 	flags.BoolVar(
-		&processor.GitIgnore,
+		&processor.IgnoreGitIgnore,
 		"no-gitignore",
 		false,
 		"disables .gitignore file logic",
-	)
-	flags.BoolVar(
-		&processor.Debug,
-		"debug",
-		false,
-		"enable debug output",
-	)
-	flags.Int64VarP(
-		&processor.ResultLimit,
-		"limit",
-		"l",
-		100,
-		"number of matching results to process",
 	)
 	flags.Int64VarP(
 		&processor.SnippetLength,
@@ -92,6 +77,35 @@ func main() {
 		300,
 		"number of matching results to process",
 	)
+	flags.BoolVar(
+		&processor.IncludeHidden,
+		"include-hidden",
+		false,
+		"include hidden files",
+	)
+	flags.StringSliceVarP(
+		&processor.AllowListExtensions,
+		"include-ext",
+		"i",
+		[]string{},
+		"limit to file extensions [comma separated list: e.g. go,java,js]",
+	)
+
+	//flags.BoolVar(
+	//	&processor.Debug,
+	//	"debug",
+	//	false,
+	//	"enable debug output",
+	//)
+	//flags.Int64VarP(
+	//	&processor.ResultLimit,
+	//	"limit",
+	//	"l",
+	//	100,
+	//	"number of matching results to process",
+	//)
+
+
 	flags.StringSliceVar(
 		&processor.PathDenylist,
 		"exclude-dir",
@@ -105,13 +119,7 @@ func main() {
 		"text",
 		"set output format [text, json]",
 	)
-	flags.StringSliceVarP(
-		&processor.AllowListExtensions,
-		"include-ext",
-		"i",
-		[]string{},
-		"limit to file extensions [comma separated list: e.g. go,java,js]",
-	)
+
 	flags.StringVarP(
 		&processor.FileOutput,
 		"output",
@@ -139,12 +147,7 @@ func main() {
 		false,
 		"include minified files",
 	)
-	flags.BoolVar(
-		&file.IncludeHidden,
-		"include-hidden",
-		false,
-		"include hidden files",
-	)
+
 	flags.IntVar(
 		&processor.MinifiedLineByteLength,
 		"min-line-length",
