@@ -39,6 +39,9 @@ var tuiFileReaderWorker FileReaderWorker
 var tuiSearcherWorker SearcherWorker
 var instanceCount int
 
+// Used to show that things are happening, and can be modified to whatever is required
+var spinString = `\|/-`
+
 // If we are here that means we actually need to perform a search
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// At this point we need to stop the background process that is running then wait for the
@@ -47,7 +50,8 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 		tuiFileWalker.Terminate()
 	}
 
-	// We lock here because we don't want another instance to run
+	// We lock here because we don't want another instance to run until
+	// this one has terminated which should happen with the terminate call
 	isRunningMutex.Lock()
 	defer isRunningMutex.Unlock()
 
@@ -105,7 +109,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// Used to display a spinner indicating a search is happening
 	var spinLocation int
 	update := true
-	spinString := `\|/-`
 
 	go func() {
 		for update {
@@ -388,7 +391,13 @@ func ProcessTui(run bool) {
 
 	// Start the debounce after everything else is setup and leave it running
 	// forever in the background
-	go debounce(time.Millisecond*1, eventChan, app, textView, tuiSearch)
+	//go debounce(time.Millisecond*1, eventChan, app, textView, tuiSearch)
+
+	go func() {
+		for i := range eventChan {
+			go tuiSearch(app, textView, i)
+		}
+	}()
 
 	if run {
 		if err := app.SetRoot(flex, true).SetFocus(searchInputField).Run(); err != nil {

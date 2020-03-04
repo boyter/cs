@@ -87,15 +87,21 @@ func main() {
 		&processor.SearchPDF,
 		"pdf",
 		false,
-		"attempt to extract text from pdf and search the result",
+		"attempt to extract text from pdf and search the result install pdf2txt for best results",
 	)
-
 	flags.StringSliceVarP(
 		&processor.AllowListExtensions,
 		"include-ext",
 		"i",
 		[]string{},
 		"limit to file extensions case sensitive [comma separated list: e.g. go,java,js,C,cpp,]",
+	)
+	flags.BoolVarP(
+		&processor.FindRoot,
+		"find-root",
+		"r",
+		false,
+		"attempts to find the root of this repository recursively looking for .git or .hg",
 	)
 
 	//flags.BoolVar(
@@ -176,13 +182,7 @@ func main() {
 		false,
 		"make the search case sensitive",
 	)
-	flags.BoolVarP(
-		&processor.FindRoot,
-		"find-root",
-		"r",
-		false,
-		"attempts to find the root of this repository recursively looking for .git or .hg",
-	)
+
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
