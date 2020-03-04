@@ -42,8 +42,10 @@ type fileDisplay struct {
 }
 
 type facet struct {
-	Title string
-	Count int
+	Title       string
+	Count       int
+	SearchTerm  string
+	SnippetSize int
 }
 
 func StartHttpServer() {
@@ -132,46 +134,58 @@ func StartHttpServer() {
 		startTime := makeTimestampMilli()
 		query := r.URL.Query().Get("q")
 		snippetLength := tryParseInt(r.URL.Query().Get("ss"), 300)
+		ext := r.URL.Query().Get("ext")
 
-		// If the user asks we should look back till we find the .git or .hg directory and start the search
-		// or in case of SVN go back till we don't find it
-		directory := "."
-		if FindRoot {
-			directory = file.FindRepositoryRoot(directory)
-		}
-
-		fileQueue := make(chan *file.File, 1000)                // Files ready to be read from disk NB we buffer here because CLI runs till finished or the process is cancelled
-		toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
-		summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
-
-		fileWalker := file.NewFileWalker(directory, fileQueue)
-		fileWalker.PathExclude = PathDenylist
-		fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
-		fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
-		fileWalker.IncludeHidden = IncludeHidden
-		fileWalker.AllowListExtensions = AllowListExtensions
-
-		fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
-		fileReader.SearchPDF = SearchPDF
-
-		fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
-		fileSearcher.SearchString = strings.Split(strings.TrimSpace(query), " ")
-		fileSearcher.IncludeMinified = IncludeMinified
-		fileSearcher.CaseSensitive = CaseSensitive
-		fileSearcher.IncludeBinary = IncludeBinaryFiles
-
-
-		go fileWalker.Start()
-		go fileReader.Start()
-		go fileSearcher.Start()
-
-		// First step is to collect results so we can rank them
 		results := []*fileJob{}
-		for res := range summaryQueue {
-			results = append(results, res)
-		}
+		var filecount int64
 
-		rankResults(int(fileReader.GetFileCount()), results)
+		if query != "" {
+			// If the user asks we should look back till we find the .git or .hg directory and start the search
+			// or in case of SVN go back till we don't find it
+			directory := "."
+			if FindRoot {
+				directory = file.FindRepositoryRoot(directory)
+			}
+
+			fileQueue := make(chan *file.File, 1000)                // Files ready to be read from disk NB we buffer here because CLI runs till finished or the process is cancelled
+			toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
+			summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
+
+			fileWalker := file.NewFileWalker(directory, fileQueue)
+			fileWalker.PathExclude = PathDenylist
+			fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
+			fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
+			fileWalker.IncludeHidden = IncludeHidden
+			if ext == "" {
+				fileWalker.AllowListExtensions = AllowListExtensions
+			} else {
+				// TODO enforce that supplied is in the AllowListExtensions
+				fileWalker.AllowListExtensions = []string{ext}
+			}
+
+			fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
+			fileReader.SearchPDF = SearchPDF
+
+			fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
+			fileSearcher.SearchString = strings.Split(strings.TrimSpace(query), " ")
+			fileSearcher.IncludeMinified = IncludeMinified
+			fileSearcher.CaseSensitive = CaseSensitive
+			fileSearcher.IncludeBinary = IncludeBinaryFiles
+
+			go fileWalker.Start()
+			go fileReader.Start()
+			go fileSearcher.Start()
+
+			// First step is to collect results so we can rank them
+
+			for res := range summaryQueue {
+				results = append(results, res)
+			}
+
+			filecount = fileReader.GetFileCount()
+
+			rankResults(int(fileReader.GetFileCount()), results)
+		}
 
 		// Create a random string to define where the start and end of
 		// out highlight should be which we swap out later after we have
@@ -226,8 +240,10 @@ func StartHttpServer() {
 		// Create facets and sort
 		for k, v := range extensionFacets {
 			ef = append(ef, facet{
-				Title: k,
-				Count: v,
+				Title:       k,
+				Count:       v,
+				SearchTerm:  query,
+				SnippetSize: snippetLength,
 			})
 		}
 		sort.Slice(ef, func(i, j int) bool {
@@ -298,7 +314,7 @@ func StartHttpServer() {
 				<h4>extensions</h4>
 				<ol>
 				{{- range .ExtensionFacet }}
-					<li value="{{ .Count }}">{{ .Title }}</li>
+					<li value="{{ .Count }}"><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}">{{ .Title }}</a></li>
 				{{- end }}
 				</ol>
 			</div>
@@ -313,7 +329,7 @@ func StartHttpServer() {
 			SnippetSize:         snippetLength,
 			Results:             searchResults,
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
-			ProcessedFileCount:  fileReader.GetFileCount(),
+			ProcessedFileCount:  filecount,
 			ExtensionFacet:      ef,
 		})
 
