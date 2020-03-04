@@ -61,6 +61,7 @@ func (process *Process) StartProcess() {
 	fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
 	fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
 	fileWalker.IncludeHidden = IncludeHidden
+	fileWalker.AllowListExtensions = AllowListExtensions
 
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 	fileReader.SearchPDF = SearchPDF

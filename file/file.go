@@ -168,6 +168,21 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 			}
 		}
 
+		// Check against extensions
+		if len(f.AllowListExtensions) != 0 {
+			ext := GetExtension(file.Name())
+			a := false
+			for _, v := range f.AllowListExtensions {
+				if v == ext {
+					a = true
+				}
+			}
+
+			if !a {
+				shouldIgnore = true
+			}
+		}
+
 		if !shouldIgnore {
 			for _, p := range f.LocationExcludePattern {
 				if strings.Contains(filepath.Join(directory, file.Name()), p) {

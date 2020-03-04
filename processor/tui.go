@@ -75,6 +75,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiFileWalker.IgnoreGitIgnore = IgnoreGitIgnore
 	tuiFileWalker.IncludeHidden = IncludeHidden
 	tuiFileWalker.PathExclude = PathDenylist
+	tuiFileWalker.AllowListExtensions = AllowListExtensions
 	tuiFileWalker.InstanceId = instanceCount
 
 

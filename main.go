@@ -95,7 +95,7 @@ func main() {
 		"include-ext",
 		"i",
 		[]string{},
-		"limit to file extensions [comma separated list: e.g. go,java,js]",
+		"limit to file extensions case sensitive [comma separated list: e.g. go,java,js,C,cpp,]",
 	)
 
 	//flags.BoolVar(
