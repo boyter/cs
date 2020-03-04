@@ -120,16 +120,16 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	// Pull out all of the ignore and gitignore files and add them
 	// to out collection of ignores to be applied for this pass
 	// and any subdirectories
-
 	for _, file := range files {
-		if !f.IgnoreGitIgnore && file.Name() == ".gitignore" {
+		// TODO FIX THIS BROKEN
+		if file.Name() == ".gitignore" {
 			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
 			if err == nil {
 				ignores = append(ignores, ignore)
 			}
 		}
 
-		if !f.IgnoreIgnoreFile && file.Name() == ".ignore" {
+		if file.Name() == ".ignore" {
 			ignore, err := gitignore.NewGitIgnore(filepath.Join(directory, file.Name()))
 			if err == nil {
 				ignores = append(ignores, ignore)
@@ -144,17 +144,20 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 		// Check against the ignore files we have if the file we are looking at
 		// should be ignored
-		if f.IgnoreIgnoreFile {
-			for _, ignore := range ignores {
-				if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
-					shouldIgnore = true
-				}
+		// It is safe to always call this because the ignores will not be added
+		// in previous steps
+		for _, ignore := range ignores {
+			if ignore.Match(filepath.Join(directory, file.Name()), file.IsDir()) {
+				shouldIgnore = true
 			}
 		}
 
 		// Ignore hidden files
 		if !f.IncludeHidden {
-			shouldIgnore, err = IsHidden(file, directory)
+			s, err := IsHidden(file, directory)
+			if s {
+				shouldIgnore = true
+			}
 			if err != nil {
 				return err
 			}
@@ -183,6 +186,8 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 		// Check against the ignore files we have if the file we are looking at
 		// should be ignored
+		// It is safe to always call this because the ignores will not be added
+		// in previous steps
 		for _, ignore := range ignores {
 			if ignore.Match(filepath.Join(directory, dir.Name()), dir.IsDir()) {
 				shouldIgnore = true
@@ -199,7 +204,10 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 
 		// Ignore hidden directories
 		if !f.IncludeHidden {
-			shouldIgnore, err = IsHidden(dir, directory)
+			s, err := IsHidden(dir, directory)
+			if s {
+				shouldIgnore = true
+			}
 			if err != nil {
 				return err
 			}

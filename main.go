@@ -127,20 +127,20 @@ func main() {
 		"",
 		"output filename (default stdout)",
 	)
-	flags.BoolVarP(
-		&processor.Trace,
-		"trace",
-		"t",
-		false,
-		"enable trace output. Not recommended when processing multiple files",
-	)
-	flags.BoolVarP(
-		&processor.Verbose,
-		"verbose",
-		"v",
-		false,
-		"verbose output",
-	)
+	//flags.BoolVarP(
+	//	&processor.Trace,
+	//	"trace",
+	//	"t",
+	//	false,
+	//	"enable trace output. Not recommended when processing multiple files",
+	//)
+	//flags.BoolVarP(
+	//	&processor.Verbose,
+	//	"verbose",
+	//	"v",
+	//	false,
+	//	"verbose output",
+	//)
 	flags.BoolVar(
 		&processor.IncludeMinified,
 		"include-min",
@@ -153,12 +153,6 @@ func main() {
 		"min-line-length",
 		255,
 		"number of bytes per average line for file to be considered minified",
-	)
-	flags.BoolVar(
-		&processor.Fuzzy,
-		"fuzzy",
-		false,
-		"make the search by default fuzzy",
 	)
 	flags.StringSliceVarP(
 		&processor.LocationExcludePattern,
