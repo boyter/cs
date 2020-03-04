@@ -71,9 +71,12 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
 	tuiFileWalker = file.NewFileWalker(startDirectory, fileQueue)
-	tuiFileWalker.EnableIgnoreFile = true
+	tuiFileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
+	tuiFileWalker.IgnoreGitIgnore = IgnoreGitIgnore
+	tuiFileWalker.IncludeHidden = IncludeHidden
 	tuiFileWalker.PathExclude = PathDenylist
 	tuiFileWalker.InstanceId = instanceCount
+
 
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	tuiFileReaderWorker.InstanceId = instanceCount
@@ -83,6 +86,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiSearcherWorker.SearchString = SearchString
 	tuiSearcherWorker.MatchLimit = 100
 	tuiSearcherWorker.InstanceId = instanceCount
+	tuiSearcherWorker.IncludeBinary = IncludeBinaryFiles
 
 	instanceCount++
 

@@ -38,6 +38,7 @@ func (f *SearcherWorker) Start() {
 	f.searchParams = parseArguments(f.SearchString)
 
 	for res := range f.input {
+
 		// Check for the presence of a null byte indicating that this
 		// is likely a binary file and if so ignore it
 		if !f.IncludeBinary {

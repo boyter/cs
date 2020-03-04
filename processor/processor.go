@@ -58,7 +58,9 @@ func (process *Process) StartProcess() {
 
 	fileWalker := file.NewFileWalker(process.Directory, fileQueue)
 	fileWalker.PathExclude = PathDenylist
-	fileWalker.EnableIgnoreFile = true
+	fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
+	fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
+	fileWalker.IncludeHidden = IncludeHidden
 
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 	fileReader.SearchPDF = SearchPDF
@@ -67,7 +69,7 @@ func (process *Process) StartProcess() {
 	fileSearcher.SearchString = SearchString
 	fileSearcher.IncludeMinified = IncludeMinified
 	fileSearcher.CaseSensitive = CaseSensitive
-	fileSearcher.IncludeBinary = DisableCheckBinary
+	fileSearcher.IncludeBinary = IncludeBinaryFiles
 
 	resultSummarizer := NewResultSummarizer(summaryQueue)
 	resultSummarizer.FileReaderWorker = &fileReader

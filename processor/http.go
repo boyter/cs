@@ -47,7 +47,6 @@ type facet struct {
 }
 
 func StartHttpServer() {
-
 	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
 		startTime := makeTimestampMilli()
 		startPos := tryParseInt(r.URL.Query().Get("sp"), 0)
@@ -147,7 +146,9 @@ func StartHttpServer() {
 
 		fileWalker := file.NewFileWalker(directory, fileQueue)
 		fileWalker.PathExclude = PathDenylist
-		fileWalker.EnableIgnoreFile = true
+		fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
+		fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
+		fileWalker.IncludeHidden = IncludeHidden
 
 		fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 		fileReader.SearchPDF = SearchPDF
@@ -156,7 +157,8 @@ func StartHttpServer() {
 		fileSearcher.SearchString = strings.Split(strings.TrimSpace(query), " ")
 		fileSearcher.IncludeMinified = IncludeMinified
 		fileSearcher.CaseSensitive = CaseSensitive
-		fileSearcher.IncludeBinary = DisableCheckBinary
+		fileSearcher.IncludeBinary = IncludeBinaryFiles
+
 
 		go fileWalker.Start()
 		go fileReader.Start()
@@ -320,5 +322,5 @@ func StartHttpServer() {
 
 	})
 
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	log.Fatal(http.ListenAndServe(Address, nil))
 }

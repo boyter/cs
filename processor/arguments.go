@@ -27,13 +27,13 @@ var IncludeMinified = false
 var MinifiedLineByteLength = 255
 
 // Disables .gitignore checks
-var GitIgnore = false
+var IgnoreGitIgnore = false
 
 // Disables ignore file checks
-var Ignore = false
+var IgnoreIgnoreFile = false
 
-// DisableCheckBinary toggles checking for binary files using NUL bytes
-var DisableCheckBinary = false
+// IncludeBinaryFiles toggles checking for binary files using NUL bytes
+var IncludeBinaryFiles = false
 
 // Format sets the output format of the formatter
 var Format = ""
@@ -66,6 +66,9 @@ var ResultLimit int64 = 0
 
 // How many characters out of the file to display in snippets
 var SnippetLength int64 = 0
+
+// Include hidden files and directories in search
+var IncludeHidden = false
 
 var Address string = ":8080"
 var HttpServer bool = false
