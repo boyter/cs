@@ -118,6 +118,10 @@ func StartHttpServer() {
 	</body>
 </html>`))
 
+		if DisplayTemplate != "" {
+			t = template.Must(template.New("display.tmpl").ParseFiles(DisplayTemplate))
+		}
+
 		err := t.Execute(w, fileDisplay{
 			Location:            path,
 			Content:             template.HTML(coloredContent),
@@ -156,11 +160,22 @@ func StartHttpServer() {
 			fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
 			fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
 			fileWalker.IncludeHidden = IncludeHidden
-			if ext == "" {
-				fileWalker.AllowListExtensions = AllowListExtensions
-			} else {
-				// TODO enforce that supplied is in the AllowListExtensions
-				fileWalker.AllowListExtensions = []string{ext}
+			fileWalker.AllowListExtensions = AllowListExtensions
+			if ext != "" {
+				found := false
+				for _, v := range AllowListExtensions {
+					if ext == v {
+						found = true
+					}
+				}
+
+				if len(AllowListExtensions) == 0 {
+					found = true
+				}
+
+				if found {
+					fileWalker.AllowListExtensions = []string{ext}
+				}
 			}
 
 			fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
@@ -322,6 +337,11 @@ func StartHttpServer() {
 		</div>
 	</body>
 </html>`))
+
+
+		if SearchTemplate != "" {
+			t = template.Must(template.New("search.tmpl").ParseFiles(SearchTemplate))
+		}
 
 		err := t.Execute(w, search{
 			SearchTerm:          query,

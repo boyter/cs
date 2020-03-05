@@ -113,7 +113,6 @@ func (f *SearcherWorker) Start() {
 			// so only update the score IF there was a search
 			// which also makes this by default an AND search
 			if didSearch {
-
 				// If we did a search but the previous was a NOT we need to only continue if we found nothing
 				if i != 0 && f.searchParams[i-1].Type == Negated {
 					if len(res.MatchLocations[needle.Term]) != 0 {

@@ -92,6 +92,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiSearcherWorker.MatchLimit = 100
 	tuiSearcherWorker.InstanceId = instanceCount
 	tuiSearcherWorker.IncludeBinary = IncludeBinaryFiles
+	tuiSearcherWorker.CaseSensitive = CaseSensitive
 
 	instanceCount++
 

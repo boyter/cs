@@ -109,6 +109,25 @@ func main() {
 		[]string{".git", ".hg", ".svn"},
 		"directories to exclude",
 	)
+	flags.BoolVarP(
+		&processor.CaseSensitive,
+		"case-sensitive",
+		"c",
+		false,
+		"make the search case sensitive",
+	)
+	flags.StringVar(
+		&processor.SearchTemplate,
+		"template-search",
+		"",
+		"path to search template for custom styling",
+	)
+	flags.StringVar(
+		&processor.DisplayTemplate,
+		"template-display",
+		"",
+		"path to display template for custom styling",
+	)
 
 	// the below flags we want but are not enabled as yet
 
@@ -174,13 +193,7 @@ func main() {
 	//	[]string{},
 	//	"file locations matching this pattern ignoring case will be ignored",
 	//)
-	//flags.BoolVarP(
-	//	&processor.CaseSensitive,
-	//	"case-sensitive",
-	//	"c",
-	//	false,
-	//	"make the search case sensitive",
-	//)
+
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

@@ -8,6 +8,10 @@ codesearch (cs)
 
 <img alt="cs" src=https://github.com/boyter/cs/raw/master/sc.gif>
 
+template example (from root)
+
+cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
+
 example, vendor/github.com/rivo/
 
 searching for tab key usage with shift modifier, searched for keytab using ag/rg/ack and nothing useful
@@ -27,6 +31,7 @@ active bugs
 
 search for $ cs ß and observe too much highlighted maybe related to the previous
 does not load binary files in to be searched
+search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues
 
 
 # bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]

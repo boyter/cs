@@ -70,3 +70,6 @@ var IncludeHidden = false
 var Address string = ":8080"
 var HttpServer bool = false
 var SearchPDF = false
+
+var SearchTemplate = ""
+var DisplayTemplate = ""
