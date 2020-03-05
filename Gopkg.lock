@@ -149,6 +149,18 @@
   version = "v0.1.0"
 
 [[projects]]
+  digest = "1:ac807e298762bb5f57e857f7a6860a953a89e15301f245c9836b34e388991d07"
+  name = "github.com/rs/zerolog"
+  packages = [
+    ".",
+    "internal/cbor",
+    "internal/json",
+  ]
+  pruneopts = "UT"
+  revision = "f7c93dce1c970bb6e76646ef657fd55b066d0b45"
+  version = "v1.18.0"
+
+[[projects]]
   digest = "1:e096613fb7cf34743d49af87d197663cfccd61876e2219853005a57baedfa562"
   name = "github.com/spf13/cobra"
   packages = ["."]
@@ -211,6 +223,7 @@
     "github.com/ledongthuc/pdf",
     "github.com/monochromegane/go-gitignore",
     "github.com/rivo/tview",
+    "github.com/rs/zerolog",
     "github.com/spf13/cobra",
     "gopkg.in/src-d/enry.v1/regex",
   ]
