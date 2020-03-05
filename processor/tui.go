@@ -81,6 +81,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiFileWalker.PathExclude = PathDenylist
 	tuiFileWalker.AllowListExtensions = AllowListExtensions
 	tuiFileWalker.InstanceId = instanceCount
+	tuiFileWalker.LocationExcludePattern = LocationExcludePattern
 
 
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)

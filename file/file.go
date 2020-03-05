@@ -234,6 +234,12 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 		}
 
 		if !shouldIgnore {
+			for _, p := range f.LocationExcludePattern {
+				if strings.Contains(filepath.Join(directory, dir.Name()), p) {
+					shouldIgnore = true
+				}
+			}
+
 			err = f.walkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores)
 			if err != nil {
 				return err

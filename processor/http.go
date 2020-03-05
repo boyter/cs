@@ -160,6 +160,7 @@ func StartHttpServer() {
 			fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
 			fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
 			fileWalker.IncludeHidden = IncludeHidden
+			fileWalker.LocationExcludePattern = LocationExcludePattern
 			fileWalker.AllowListExtensions = AllowListExtensions
 			if ext != "" {
 				found := false

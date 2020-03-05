@@ -94,7 +94,7 @@ func main() {
 		"include-ext",
 		"i",
 		[]string{},
-		"limit to file extensions case sensitive [comma separated list: e.g. go,java,js,C,cpp,]",
+		"limit to file extensions case sensitive [comma separated list: e.g. go,java,js,C,cpp]",
 	)
 	flags.BoolVarP(
 		&processor.FindRoot,
@@ -127,6 +127,13 @@ func main() {
 		"template-display",
 		"",
 		"path to display template for custom styling",
+	)
+	flags.StringSliceVarP(
+		&processor.LocationExcludePattern,
+		"exclude-pattern",
+		"x",
+		[]string{},
+		"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,node_modules]",
 	)
 
 	// the below flags we want but are not enabled as yet
