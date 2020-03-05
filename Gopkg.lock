@@ -2,25 +2,6 @@
 
 
 [[projects]]
-  digest = "1:e001a1eb64f8133fae5bd3cc8aa17287a4741348077bc78ee64c14f0854614ef"
-  name = "github.com/boyter/scc"
-  packages = [
-    ".",
-    "processor",
-  ]
-  pruneopts = "UT"
-  revision = "d3da3c8f1b55ac42b6deb298bebf776787fb11ba"
-  version = "v2.11.0"
-
-[[projects]]
-  digest = "1:a7a0ccde2e5b3ce9cc84d78a9ff89c65323f41fce30eb7d1c9e18ebe869dfab8"
-  name = "github.com/dbaggerman/cuba"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "eea065551ffcf98105d83bfc624d5ecbf4dd0ea9"
-  version = "v0.3.2"
-
-[[projects]]
   digest = "1:bde2a1ce1de28312f165a88926c12f4acd19dc4d7da96a445dfa5a29eae07a93"
   name = "github.com/fatih/color"
   packages = ["."]
@@ -104,6 +85,14 @@
   version = "v1.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:43b1602e6d0aa00b3e783fdec56fde859e1c05a22ca2fb84466d6b54f5f24a94"
+  name = "github.com/ledongthuc/pdf"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8ac343ec9fdd6e969831c7e6e0713747d90589cc"
+
+[[projects]]
   digest = "1:c864b8e8084dfb30c03e26af1eb338f13fce00f34244627fa7ce240904a80e17"
   name = "github.com/lucasb-eyer/go-colorful"
   packages = ["."]
@@ -134,14 +123,6 @@
   pruneopts = "UT"
   revision = "a4df4ddbff020e131056d91f580a1cdcd806e3ae"
   version = "v0.0.8"
-
-[[projects]]
-  branch = "master"
-  digest = "1:130cefe87d7eeefc824978dcb78e35672d4c49a11f25c153fbf0cfd952756fa3"
-  name = "github.com/minio/blake2b-simd"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "3f5f724cb5b182a5c278d6d3d55b40e7f8c2efb4"
 
 [[projects]]
   branch = "master"
@@ -184,6 +165,14 @@
   version = "v1.0.5"
 
 [[projects]]
+  digest = "1:023a84fdb93c34a143959a899180452531c5cc852ba0b8f3bfd79118c2708cfa"
+  name = "github.com/src-d/go-oniguruma"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "304256cb638a6afd1cc7d6810be34447abc398bf"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:8a44970c7e8c0a1c8646af14605c1ffd31374074d68101c2e11d7761df12c9d1"
   name = "golang.org/x/sys"
@@ -192,24 +181,12 @@
   revision = "e047566fdf82409bf7a52212cf71df83ea2772fb"
 
 [[projects]]
-  digest = "1:1324868f4d1d789e8c6443c278e6e8f510d6ec660d17527d6e3dc9492808e836"
+  digest = "1:cc38c2209a6c1f94debdfd96934865a258eac2f905a8d3f8fd56e7d0cfb85edd"
   name = "golang.org/x/text"
   packages = [
     "encoding",
     "encoding/internal/identifier",
-    "feature/plural",
-    "internal",
-    "internal/catmsg",
-    "internal/format",
     "internal/gen",
-    "internal/language",
-    "internal/language/compact",
-    "internal/number",
-    "internal/stringset",
-    "internal/tag",
-    "language",
-    "message",
-    "message/catalog",
     "transform",
     "unicode/cldr",
   ]
@@ -218,22 +195,24 @@
   version = "v0.3.2"
 
 [[projects]]
-  digest = "1:b75b3deb2bce8bc079e16bb2aecfe01eb80098f5650f9e93e5643ca8b7b73737"
-  name = "gopkg.in/yaml.v2"
-  packages = ["."]
+  digest = "1:c7705a0384ef5968c906c16fd2d6f1e8e3e307218214fa7d41b85c2e157a7e2a"
+  name = "gopkg.in/src-d/enry.v1"
+  packages = ["regex"]
   pruneopts = "UT"
-  revision = "1f64d6156d11335c3f22d9330b0ad14fc1e789ce"
-  version = "v2.2.7"
+  revision = "ab3c26b46dfaf8281bf78f2e998111e6a40829bf"
+  version = "v1.7.3"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/boyter/scc",
     "github.com/fatih/color",
     "github.com/gdamore/tcell",
+    "github.com/ledongthuc/pdf",
+    "github.com/monochromegane/go-gitignore",
     "github.com/rivo/tview",
     "github.com/spf13/cobra",
+    "gopkg.in/src-d/enry.v1/regex",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
