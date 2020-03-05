@@ -9,11 +9,11 @@ import (
 	"html"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"runtime"
 	"sort"
 	"strings"
+	"github.com/rs/zerolog/log"
 )
 
 type search struct {
@@ -55,7 +55,24 @@ func StartHttpServer() {
 		endPos := tryParseInt(r.URL.Query().Get("ep"), 0)
 
 		path := strings.Replace(r.URL.Path, "/file/", "", 1)
-		content, _ := ioutil.ReadFile(path)
+
+		log.Info().
+			Str("unique_code", "9212b49c").
+			Int("startpos", startPos).
+			Int("endpos", endPos).
+			Str("path", path).
+			Msg("file view page")
+
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			log.Error().
+				Str("unique_code", "d063c1fd").
+				Int("startpos", startPos).
+				Int("endpos", endPos).
+				Str("path", path).
+				Msg("error reading file")
+			panic(err)
+		}
 
 		// Create a random string to define where the start and end of
 		// out highlight should be which we swap out later after we have
@@ -122,7 +139,7 @@ func StartHttpServer() {
 			t = template.Must(template.New("display.tmpl").ParseFiles(DisplayTemplate))
 		}
 
-		err := t.Execute(w, fileDisplay{
+		err = t.Execute(w, fileDisplay{
 			Location:            path,
 			Content:             template.HTML(coloredContent),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
@@ -143,7 +160,18 @@ func StartHttpServer() {
 		results := []*fileJob{}
 		var filecount int64
 
+		log.Info().
+			Str("unique_code", "1e38548a").
+			Msg("search page")
+
 		if query != "" {
+			log.Info().
+				Str("unique_code", "1a54b0cd").
+				Str("query", query).
+				Int("snippetlength", snippetLength).
+				Str("ext", ext).
+				Msg("search query")
+
 			// If the user asks we should look back till we find the .git or .hg directory and start the search
 			// or in case of SVN go back till we don't find it
 			directory := "."
@@ -360,5 +388,10 @@ func StartHttpServer() {
 
 	})
 
-	log.Fatal(http.ListenAndServe(Address, nil))
+	log.Info().
+		Str("unique_code", "03148801").
+		Str("address", Address).
+		Msg("ready to serve requests")
+
+	log.Fatal().Msg(http.ListenAndServe(Address, nil).Error())
 }

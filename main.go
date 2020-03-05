@@ -4,7 +4,6 @@ package main
 
 import (
 	"github.com/boyter/cs/processor"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -13,7 +12,6 @@ func main() {
 	//f, _ := os.Create("cs.pprof")
 	//pprof.StartCPUProfile(f)
 	//defer pprof.StopCPUProfile()
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	rootCmd := &cobra.Command{
 		Use: "cs",
