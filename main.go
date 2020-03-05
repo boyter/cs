@@ -135,6 +135,12 @@ func main() {
 		[]string{},
 		"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,node_modules]",
 	)
+	flags.BoolVar(
+		&processor.IncludeMinified,
+		"min",
+		false,
+		"include minified files",
+	)
 
 	// the below flags we want but are not enabled as yet
 
