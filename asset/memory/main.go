@@ -10,7 +10,7 @@ import (
 
 func main() {
 	pageSize := 1024
-	totalSize := pageSize*1_000_000
+	totalSize := pageSize * 1_000_000
 	// Assume 1kb per log entry
 	// 1024 bytes to KB
 	// 1000000 means about 1GB
@@ -31,6 +31,12 @@ func main() {
 		}
 		fmt.Println("Single Threaded", time.Now().UnixNano()/int64(time.Millisecond)-start, "ms")
 	}
+
+	//for j := 0; j < 5; j++ {
+	//	start := time.Now().UnixNano() / int64(time.Millisecond)
+	//	bytes.Index(mySlice, []byte("some sort of thing"))
+	//	fmt.Println("Whole block single Threaded", time.Now().UnixNano()/int64(time.Millisecond)-start, "ms")
+	//}
 
 	// https://boyter.org/posts/my-personal-complaints-about-golang/
 	// var input = make(chan []byte, len(toProcess))

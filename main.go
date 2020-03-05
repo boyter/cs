@@ -79,7 +79,7 @@ func main() {
 	)
 	flags.BoolVar(
 		&processor.IncludeHidden,
-		"include-hidden",
+		"hidden",
 		false,
 		"include hidden files",
 	)
