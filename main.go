@@ -141,6 +141,12 @@ func main() {
 		false,
 		"include minified files",
 	)
+	flags.IntVar(
+		&processor.MinifiedLineByteLength,
+		"min-line-length",
+		255,
+		"number of bytes per average line for file to be considered minified",
+	)
 
 	// the below flags we want but are not enabled as yet
 

@@ -95,6 +95,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiSearcherWorker.IncludeBinary = IncludeBinaryFiles
 	tuiSearcherWorker.CaseSensitive = CaseSensitive
 	tuiSearcherWorker.IncludeMinified = IncludeMinified
+	tuiSearcherWorker.MinifiedLineByteLength = MinifiedLineByteLength
 
 	instanceCount++
 

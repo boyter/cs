@@ -187,6 +187,7 @@ func StartHttpServer() {
 			fileSearcher.IncludeMinified = IncludeMinified
 			fileSearcher.CaseSensitive = CaseSensitive
 			fileSearcher.IncludeBinary = IncludeBinaryFiles
+			fileSearcher.MinifiedLineByteLength = MinifiedLineByteLength
 
 			go fileWalker.Start()
 			go fileReader.Start()
@@ -338,7 +339,6 @@ func StartHttpServer() {
 		</div>
 	</body>
 </html>`))
-
 
 		if SearchTemplate != "" {
 			t = template.Must(template.New("search.tmpl").ParseFiles(SearchTemplate))

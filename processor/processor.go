@@ -72,6 +72,7 @@ func (process *Process) StartProcess() {
 	fileSearcher.IncludeMinified = IncludeMinified
 	fileSearcher.CaseSensitive = CaseSensitive
 	fileSearcher.IncludeBinary = IncludeBinaryFiles
+	fileSearcher.MinifiedLineByteLength = MinifiedLineByteLength
 
 	resultSummarizer := NewResultSummarizer(summaryQueue)
 	resultSummarizer.FileReaderWorker = &fileReader

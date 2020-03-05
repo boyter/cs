@@ -9,26 +9,28 @@ import (
 )
 
 type SearcherWorker struct {
-	input           chan *fileJob
-	output          chan *fileJob
-	searchParams    []searchParams
-	FileCount       int64 // Count of the number of files that have been processed
-	BinaryCount     int64 // Count the number of binary files
-	MinfiedCount    int64
-	SearchString    []string
-	IncludeMinified bool
-	IncludeBinary   bool
-	CaseSensitive   bool
-	MatchLimit      int
-	InstanceId      int
+	input                  chan *fileJob
+	output                 chan *fileJob
+	searchParams           []searchParams
+	FileCount              int64 // Count of the number of files that have been processed
+	BinaryCount            int64 // Count the number of binary files
+	MinfiedCount           int64
+	SearchString           []string
+	IncludeMinified        bool
+	IncludeBinary          bool
+	CaseSensitive          bool
+	MatchLimit             int
+	InstanceId             int
+	MinifiedLineByteLength int
 }
 
 func NewSearcherWorker(input chan *fileJob, output chan *fileJob) SearcherWorker {
 	return SearcherWorker{
-		input:        input,
-		output:       output,
-		SearchString: []string{},
-		MatchLimit:   -1, // sensible default
+		input:                  input,
+		output:                 output,
+		SearchString:           []string{},
+		MatchLimit:             -1,  // sensible default
+		MinifiedLineByteLength: 255, // sensible default
 	}
 }
 
@@ -57,7 +59,7 @@ func (f *SearcherWorker) Start() {
 			}
 			averageLineLength := sumLineLength / len(split)
 
-			if averageLineLength > MinifiedLineByteLength {
+			if averageLineLength > f.MinifiedLineByteLength {
 				res.Minified = true
 				continue
 			}
