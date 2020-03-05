@@ -101,7 +101,7 @@ func main() {
 		"find-root",
 		"r",
 		false,
-		"attempts to find the root of this repository recursively looking for .git or .hg",
+		"attempts to find the root of this repository by reverse recursively looking for .git or .hg",
 	)
 	flags.StringSliceVar(
 		&processor.PathDenylist,
@@ -191,26 +191,6 @@ func main() {
 	//	"v",
 	//	false,
 	//	"verbose output",
-	//)
-	//flags.BoolVar(
-	//	&processor.IncludeMinified,
-	//	"include-min",
-	//	false,
-	//	"include minified files",
-	//)
-	//
-	//flags.IntVar(
-	//	&processor.MinifiedLineByteLength,
-	//	"min-line-length",
-	//	255,
-	//	"number of bytes per average line for file to be considered minified",
-	//)
-	//flags.StringSliceVarP(
-	//	&processor.LocationExcludePattern,
-	//	"exclude-pattern",
-	//	"x",
-	//	[]string{},
-	//	"file locations matching this pattern ignoring case will be ignored",
 	//)
 
 	if err := rootCmd.Execute(); err != nil {
