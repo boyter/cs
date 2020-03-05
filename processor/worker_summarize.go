@@ -15,8 +15,8 @@ type ResultSummarizer struct {
 
 func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
 	return ResultSummarizer{
-		input:       input,
-		ResultLimit: -1,
+		input:        input,
+		ResultLimit:  -1,
 		SnippetCount: 1,
 	}
 }

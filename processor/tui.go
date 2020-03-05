@@ -83,7 +83,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiFileWalker.InstanceId = instanceCount
 	tuiFileWalker.LocationExcludePattern = LocationExcludePattern
 
-
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	tuiFileReaderWorker.InstanceId = instanceCount
 	tuiFileReaderWorker.SearchPDF = SearchPDF

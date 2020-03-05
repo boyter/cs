@@ -1,9 +1,9 @@
 package processor
 
 import (
+	"github.com/ledongthuc/pdf"
 	"os/exec"
 	"strings"
-	"github.com/ledongthuc/pdf"
 )
 
 // Default way of getting PDF is to call out to pdf2txt which is the better

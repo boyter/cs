@@ -213,7 +213,6 @@ func main() {
 	//	"file locations matching this pattern ignoring case will be ignored",
 	//)
 
-
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
