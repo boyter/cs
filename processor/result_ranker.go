@@ -98,8 +98,9 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 			// the document frequencies are off with respect to the total
 			// corpus... although we could get that if needed since we do calculate it... TODO investigate
 			// Anyway this isn't a huge issue in practice because TF/IDF
-			// still works for a search of a single term or if multiple terms
-			// happen to match every document in the corpus
+			// still works for a search of a single term such as a or if multiple terms
+			// happen to match every document in the corpus which while unlikely
+			// is still something that could happen
 
 			// TF  = number of this words in this document
 			// IDF = number of documents that contain this word
