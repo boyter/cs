@@ -170,7 +170,6 @@ func main() {
 	//	"text",
 	//	"set output format [text, json]",
 	//)
-
 	//flags.StringVarP(
 	//	&processor.FileOutput,
 	//	"output",

@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:bde2a1ce1de28312f165a88926c12f4acd19dc4d7da96a445dfa5a29eae07a93"
-  name = "github.com/fatih/color"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "daf2830f2741ebb735b21709a520c5f37d642d85"
-  version = "v1.9.0"
-
-[[projects]]
   digest = "1:0e16b03c72bd42739ca68d055c10369e60d17838428f512f3b29ae115ba788e0"
   name = "github.com/gdamore/encoding"
   packages = ["."]
@@ -93,28 +85,20 @@
   revision = "8ac343ec9fdd6e969831c7e6e0713747d90589cc"
 
 [[projects]]
+  digest = "1:ba852707958e39694e7f64328008287892adf9b1aed0174480e2f50e0c23e521"
+  name = "github.com/logrusorgru/aurora"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "21d75270181e0436fee7bd58b991c212cf309068"
+  version = "v2.0"
+
+[[projects]]
   digest = "1:c864b8e8084dfb30c03e26af1eb338f13fce00f34244627fa7ce240904a80e17"
   name = "github.com/lucasb-eyer/go-colorful"
   packages = ["."]
   pruneopts = "UT"
   revision = "fadcb7c7fa1e47844a23f5ebea95219172166a56"
   version = "v1.0.3"
-
-[[projects]]
-  digest = "1:4a29eeb25603debe8f2098a9902c4d3851034cf70d33be428826e86e8c30a1b0"
-  name = "github.com/mattn/go-colorable"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "98ec13f34aabf44cc914c65a1cfb7b9bc815aef1"
-  version = "v0.1.4"
-
-[[projects]]
-  digest = "1:0c58d31abe2a2ccb429c559b6292e7df89dcda675456fecc282fa90aa08273eb"
-  name = "github.com/mattn/go-isatty"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "7b513a986450394f7bbf1476909911b3aa3a55ce"
-  version = "v0.0.12"
 
 [[projects]]
   digest = "1:eb1bffab7260bf5ddc95fc2c41d4bfee1a4f5fe18194b3946fe8a9e9121a282f"
@@ -149,12 +133,13 @@
   version = "v0.1.0"
 
 [[projects]]
-  digest = "1:ac807e298762bb5f57e857f7a6860a953a89e15301f245c9836b34e388991d07"
+  digest = "1:3d227582ae6369408a8a9a1f4ae30b0ae16db480c0f27a0376514967d910e03d"
   name = "github.com/rs/zerolog"
   packages = [
     ".",
     "internal/cbor",
     "internal/json",
+    "log",
   ]
   pruneopts = "UT"
   revision = "f7c93dce1c970bb6e76646ef657fd55b066d0b45"
@@ -218,12 +203,12 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/fatih/color",
     "github.com/gdamore/tcell",
     "github.com/ledongthuc/pdf",
+    "github.com/logrusorgru/aurora",
     "github.com/monochromegane/go-gitignore",
     "github.com/rivo/tview",
-    "github.com/rs/zerolog",
+    "github.com/rs/zerolog/log",
     "github.com/spf13/cobra",
     "gopkg.in/src-d/enry.v1/regex",
   ]

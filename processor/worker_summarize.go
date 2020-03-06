@@ -3,7 +3,9 @@ package processor
 import (
 	"fmt"
 	str "github.com/boyter/cs/string"
-	"github.com/fatih/color"
+
+	//"github.com/fatih/color"
+	. "github.com/logrusorgru/aurora"
 )
 
 type ResultSummarizer struct {
@@ -43,7 +45,7 @@ func (f *ResultSummarizer) Start() {
 	documentFrequency := calculateDocumentFrequency(results)
 
 	for _, res := range results {
-		color.Magenta("%s (%.3f)", res.Location, res.Score)
+		fmt.Printf("%s %s%.3f%s\n", Magenta(res.Location), Magenta("("), Magenta(res.Score), Magenta(")"))
 
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
 
