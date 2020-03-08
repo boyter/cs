@@ -80,11 +80,12 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 //
 // NB loops in here use increment to avoid duffcopy
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
+// due to how often it is called by things like the TUI mode
 func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 	documentFrequencies := calculateDocumentFrequency(results)
 
 	// Get the number of docs with each word in it, which is just the number of results because we are AND only
-	// and as such EACH document must contain all the words although they may have different counts of each word
+	// and as such each document must contain all the words although they may have different counts
 	var weight float64
 	for i := 0; i < len(results); i++ {
 		weight = 0
