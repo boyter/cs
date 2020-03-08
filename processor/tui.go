@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/string"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -42,6 +43,8 @@ var instanceCount int
 // Used to show that things are happening, and can be modified to whatever is required
 var spinString = `\|/-`
 
+var debugCount = 0
+
 // If we are here that means we actually need to perform a search
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
 	// At this point we need to stop the background process that is running then wait for the
@@ -54,6 +57,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// this one has terminated which should happen with the terminate call
 	isRunningMutex.Lock()
 	defer isRunningMutex.Unlock()
+	debugLogger(fmt.Sprintf("isRunningMutex.Lock() %s %d", searchTerm, debugCount))
 
 	// If the searchterm is empty then we draw out nothing and return
 	if strings.TrimSpace(searchTerm) == "" {
@@ -143,6 +147,8 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	resultsMutex.Lock()
 	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), "")
 	resultsMutex.Unlock()
+	debugLogger(fmt.Sprintf("isRunningMutex.Unlock() %s %d", searchTerm, debugCount))
+	debugCount++
 }
 
 func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
@@ -406,5 +412,17 @@ func ProcessTui(run bool) {
 		if err := app.SetRoot(flex, true).SetFocus(searchInputField).Run(); err != nil {
 			panic(err)
 		}
+	}
+}
+
+func debugLogger(text string) {
+	f, err := os.OpenFile("cs.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	if _, err = f.WriteString(strconv.Itoa(int(makeTimestampMilli())) + " " + text + "\n"); err != nil {
+		panic(err)
 	}
 }

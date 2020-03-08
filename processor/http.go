@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/string"
+	"github.com/rs/zerolog/log"
 	"html"
 	"html/template"
 	"io/ioutil"
@@ -13,7 +14,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"github.com/rs/zerolog/log"
 )
 
 type search struct {
@@ -222,13 +222,11 @@ func StartHttpServer() {
 			go fileSearcher.Start()
 
 			// First step is to collect results so we can rank them
-
 			for res := range summaryQueue {
 				results = append(results, res)
 			}
 
 			filecount = fileReader.GetFileCount()
-
 			rankResults(int(fileReader.GetFileCount()), results)
 		}
 
