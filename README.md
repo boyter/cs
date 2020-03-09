@@ -11,6 +11,7 @@ code spelunker (cs)
 ```
 BUGS
 search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
+search for cs --hidden --no-gitignore --no-ignore 第一章 has no highlight from text at start of file
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 
