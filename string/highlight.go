@@ -60,7 +60,7 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 
 		// If at the end, and its not -1 meaning the first char
 		// which should never happen (I hope!) then write the end string
-		if i == end && end != -1 {
+		if i >= end && end != -1 {
 			str.WriteString(out)
 			end = 0
 		}

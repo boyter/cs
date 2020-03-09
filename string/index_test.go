@@ -232,3 +232,13 @@ func TestIndexAllIgnoreCaseStrange(t *testing.T) {
 		t.Error("Expected 1 got", len(matches))
 	}
 }
+
+func TestIndexAllIgnoreCaseStrangeTwo(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode(`this is my cs ß haystack`, `ß`, -1)
+	r := regexp.MustCompile(`ß`)
+	index := r.FindAllIndex([]byte(`this is my cs ß haystack`), -1)
+
+	if len(matches) != len(index) || matches[0][0] != 14 || matches[0][1] != 16 {
+		t.Error("Expected 1 got", len(matches))
+	}
+}
