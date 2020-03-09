@@ -12,18 +12,20 @@ import (
 )
 
 type FileReaderWorker struct {
-	input      chan *file.File
-	output     chan *fileJob
-	fileCount  int64 // Count of the number of files that have been read
-	InstanceId int
-	SearchPDF  bool
+	input            chan *file.File
+	output           chan *fileJob
+	fileCount        int64 // Count of the number of files that have been read
+	InstanceId       int
+	SearchPDF        bool
+	MaxReadSizeBytes int64
 }
 
 func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker {
 	return FileReaderWorker{
-		input:     input,
-		output:    output,
-		fileCount: 0,
+		input:            input,
+		output:           output,
+		fileCount:        0,
+		MaxReadSizeBytes: 10000000, // sensible default of 10MB decimal
 	}
 }
 
@@ -111,20 +113,19 @@ func (f *FileReaderWorker) processUnknown(res *file.File) {
 	}
 
 	var content []byte
-	var s int64 = 10000000  // 10 MB in decimal counting
 
 	// Only read up to ~10MB of a file because anything beyond that is probably pointless
-	if fi.Size() < s {
+	if fi.Size() < f.MaxReadSizeBytes {
 		content, err = ioutil.ReadFile(res.Location)
 	} else {
-		f, err := os.Open(res.Location)
+		fi, err := os.Open(res.Location)
 		if err != nil {
 			return
 		}
-		defer f.Close()
+		defer fi.Close()
 
-		byteSlice := make([]byte, s)
-		_, err = f.Read(byteSlice)
+		byteSlice := make([]byte, f.MaxReadSizeBytes)
+		_, err = fi.Read(byteSlice)
 		if err != nil {
 			return
 		}

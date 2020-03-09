@@ -3,8 +3,6 @@ package processor
 import (
 	"fmt"
 	str "github.com/boyter/cs/string"
-
-	//"github.com/fatih/color"
 	. "github.com/logrusorgru/aurora"
 )
 

@@ -23,6 +23,9 @@ var IncludeMinified = false
 // Number of bytes per average line to determine file is minified
 var MinifiedLineByteLength = 255
 
+// Maximum depth to read into any text file
+var MaxReadSizeBytes int64 = 10000000
+
 // Disables .gitignore checks
 var IgnoreGitIgnore = false
 

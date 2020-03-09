@@ -66,6 +66,7 @@ func (process *Process) StartProcess() {
 
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
 	fileReader.SearchPDF = SearchPDF
+	fileReader.MaxReadSizeBytes = MaxReadSizeBytes
 
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
 	fileSearcher.SearchString = SearchString

@@ -147,6 +147,12 @@ func main() {
 		255,
 		"number of bytes per average line for file to be considered minified",
 	)
+	flags.Int64Var(
+		&processor.MaxReadSizeBytes,
+		"max-read-size-bytes",
+		10000000,
+		"number of bytes to read into a file with the remaining content ignored",
+	)
 
 	// the below flags we want but are not enabled as yet
 
