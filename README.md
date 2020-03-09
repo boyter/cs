@@ -17,12 +17,17 @@ example, vendor/github.com/rivo/
 searching for tab key usage with shift modifier, searched for keytab using ag/rg/ack and nothing useful
 try using cs and its right at the top 
 
-2. the highlight snippet issue
 
 https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
 search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues
+
+TODO
+search by filename
+clean up parser so multiple spaces aren't tokens or flag em to be ignored
+if someone enables the --pdf flag not in terminal mode should spawn background process to extract the text so its pre cached
+if in http mode with --pdf need to pull the extracted text when displaying and possibly a link to raw file
 
 
 Snippet generation
@@ -55,19 +60,14 @@ hyperfine './cs "/([A-Z][a-z]+)\s+([A-Z][a-z]+)/"' 'rg -uu "([A-Z][a-z]+)\s+([A-
 hyperfine './cs "/[ab]+/"' 'rg -uu "[ab]+"'
 
 
-TODO
-search by filename
-test that search "this is test" works as expected
-clean up parser so multiple spaces aren't tokens or flag em to be ignored
-if someone enables the --pdf flag not in terminal mode should spawn background process to extract the text so its pre cached
-if in http mode with --pdf need to pull the extracted text when displaying and possibly a link to raw file
+
 
 https://www.researchgate.net/publication/4004411_Topic_extraction_from_news_archive_using_TFPDF_algorithm
 
 A number of term-weighting schemes have derived from tf–idf. One of them is TF–PDF (Term Frequency * Proportional Document Frequency).[14] TF–PDF was introduced in 2001 in the context of identifying emerging topics in the media. The PDF component measures the difference of how often a term occurs in different domains. Another derivate is TF–IDuF. In TF–IDuF,[15] idf is not calculated based on the document corpus that is to be searched or recommended. Instead, idf is calculated on users' personal document collections. The authors report that TF–IDuF was equally effective as tf–idf but could also be applied in situations when, e.g., a user modeling system has no access to a global document corpus.
 
 
-Ill be blowed. I wrote this years ago https://boyter.org/2013/04/building-a-search-result-extract-generator-in-php/ based on an even older stackoverflow answer. Turns out it was picked up by a bunch of PHP projects https://github.com/msaari/relevanssi/blob/master/lib/excerpts-highlights.php https://github.com/bolt/bolt/blob/master/src/Helpers/Excerpt.php and https://github.com/Flowpack/Flowpack.SimpleSearch/blob/master/Classes/Search/MysqlQueryBuilder.php
+Well blow me down. I wrote this years ago https://boyter.org/2013/04/building-a-search-result-extract-generator-in-php/ based on an even older stackoverflow answer. Turns out it was picked up by a bunch of PHP projects https://github.com/msaari/relevanssi/blob/master/lib/excerpts-highlights.php https://github.com/bolt/bolt/blob/master/src/Helpers/Excerpt.php and https://github.com/Flowpack/Flowpack.SimpleSearch/blob/master/Classes/Search/MysqlQueryBuilder.php
 Whats interesting to me is that Relevanssi is the wordpress plugin that improves your search results and has 100,000+ installs. Which probably means the most successful code in terms of spread and use is in PHP and I have NEVER been paid to write PHP ever in my life.
 
 
