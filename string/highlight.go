@@ -56,11 +56,19 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 			}
 		}
 
+		// This deals with characters that are multi-byte and as such we never range over
+		// the rest and as such we need to remember to close them off if we have gone past
+		// their end. As such this needs to come before we write the current byte
+		if i > end {
+			str.WriteString(out)
+			end = 0
+		}
+
 		str.WriteString(string(x))
 
 		// If at the end, and its not -1 meaning the first char
 		// which should never happen (I hope!) then write the end string
-		if i >= end && end != -1 {
+		if i == end && end != -1 {
 			str.WriteString(out)
 			end = 0
 		}
