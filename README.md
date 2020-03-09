@@ -8,6 +8,20 @@ code spelunker (cs)
 
 <img alt="cs" src=https://github.com/boyter/cs/raw/master/sc.gif>
 
+```
+BUGS
+search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
+score from TF/IDF appears to be negative in some cases (overflow??)
+searches in TUI for very large directories clobber each other making UI unresponsive
+
+TODO
+search by filename (currently only ranks by it) as addtional OR search
+clean up parser so multiple spaces aren't tokens or flag em to be ignored
+add proximity search "this is"~5 which means they need to be within 5 bytes of each other
+add limit to number of results
+investigate string match limit
+```
+
 template example (from root)
 
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
@@ -20,14 +34,7 @@ try using cs and its right at the top
 
 https://github.com/BurntSushi/ripgrep/issues/95
 
-```
-BUGS
-search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
 
-TODO
-search by filename (currently only ranks by it) as addtional OR search
-clean up parser so multiple spaces aren't tokens or flag em to be ignored
-```
 
 Snippet generation
 
