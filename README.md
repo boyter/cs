@@ -17,35 +17,13 @@ example, vendor/github.com/rivo/
 searching for tab key usage with shift modifier, searched for keytab using ag/rg/ack and nothing useful
 try using cs and its right at the top 
 
-1. The runaway goroutines
 2. the highlight snippet issue
-3. a help for tui like tig???
-4. filter on filename
-5. ignore minified/generated files
-6. display the number of processed files
-7. be able to look though the results using keys
 
 https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
-
-does not load binary files in to be searched
 search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues
 
-
-# bboyter @ SurfaceBook2 in ~/Go/src/bitbucket.org/ on git:master x [11:28:56]
-$ cs javascript
-fargate/api/integration_tests/blns.json (1.980)
-…86expression(javascript:alert(1)\">DEF",
-    "ABC<div style=\"x:\\xE2\\x80\\x85expression(javascript:alert(1)\">DEF",
-    "ABC<div style=\"x:\\xE2\\x80\\x82expression(javascript:alert(1)\">DEF",
-    "ABC<div style=\"x:\\x0Bexpression(javascript:alert(1…
-
-fargate/xray-api/integration_tests/blns.json (1.980)
-…86expression(javascript:alert(1)\">DEF",
-    "ABC<div style=\"x:\\xE2\\x80\\x85expression(javascript:alert(1)\">DEF",
-    "ABC<div style=\"x:\\xE2\\x80\\x82expression(javascript:alert(1)\">DEF",
-    "ABC<div style=\"x:\\x0Bexpression(javascript:alert(1…
 
 Snippet generation
 
