@@ -1,4 +1,4 @@
-codesearch (cs)
+code spelunker (cs)
 ----------------------
 
 [![Build Status](https://travis-ci.org/boyter/cs.svg?branch=master)](https://travis-ci.org/boyter/cs)
@@ -21,7 +21,7 @@ try using cs and its right at the top
 https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
-search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues
+search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues due to multiple byte ending matches
 
 TODO
 search by filename

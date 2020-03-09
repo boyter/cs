@@ -15,7 +15,7 @@ func main() {
 
 	rootCmd := &cobra.Command{
 		Use: "cs",
-		Long: "cs code search command line.\n" +
+		Long: "code spelunker (cs) code search.\n" +
 			"Version " + processor.Version + "\n" +
 			"Ben Boyter <ben@boyter.org>",
 		Version: processor.Version,
