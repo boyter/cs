@@ -20,15 +20,16 @@ try using cs and its right at the top
 
 https://github.com/BurntSushi/ripgrep/issues/95
 
-active bugs
-search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues due to multiple byte ending matches
+```
+BUGS
+search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
+clicking on file in PDF mode shows the binary not the extracted text
 
 TODO
-search by filename
+search by filename (currently only ranks by it) as addtional OR search
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
-if someone enables the --pdf flag not in terminal mode should spawn background process to extract the text so its pre cached
-if in http mode with --pdf need to pull the extracted text when displaying and possibly a link to raw file
-
+add "raw" link on the http page
+```
 
 Snippet generation
 
@@ -54,11 +55,6 @@ https://about.sourcegraph.com/blog/going-beyond-regular-expressions-with-structu
 https://github.com/sourcegraph/src-cli
 
 https://arxiv.org/pdf/1904.03061.pdf
-
-hyperfine './cs "/(i?)test/"' './cs test' 'rg -i test' 'cs test' 'ag -i test'
-hyperfine './cs "/([A-Z][a-z]+)\s+([A-Z][a-z]+)/"' 'rg -uu "([A-Z][a-z]+)\s+([A-Z][a-z]+)"'
-hyperfine './cs "/[ab]+/"' 'rg -uu "[ab]+"'
-
 
 
 

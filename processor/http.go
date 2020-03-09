@@ -3,6 +3,7 @@ package processor
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/string"
@@ -49,6 +50,18 @@ type facet struct {
 }
 
 func StartHttpServer() {
+	http.HandleFunc("/file/raw/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.Replace(r.URL.Path, "/file/raw/", "", 1)
+
+		log.Info().
+			Str("unique_code", "f24a4b1d").
+			Str("path", path).
+			Msg("raw page")
+
+		http.ServeFile(w, r, path)
+		return
+	})
+
 	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
 		startTime := makeTimestampMilli()
 		startPos := tryParseInt(r.URL.Query().Get("sp"), 0)
@@ -63,7 +76,22 @@ func StartHttpServer() {
 			Str("path", path).
 			Msg("file view page")
 
-		content, err := ioutil.ReadFile(path)
+		var content []byte
+		var err error
+
+		// if its a PDF we should go to the cache to fetch it
+		extension := file.GetExtension(path)
+		if strings.ToLower(extension) == "pdf" {
+			c, ok := __pdfCache[path]
+			if ok {
+				content = []byte(c)
+			} else {
+				err = errors.New("")
+			}
+		} else {
+			content, err = ioutil.ReadFile(path)
+		}
+
 		if err != nil {
 			log.Error().
 				Str("unique_code", "d063c1fd").
@@ -71,7 +99,7 @@ func StartHttpServer() {
 				Int("endpos", endPos).
 				Str("path", path).
 				Msg("error reading file")
-			panic(err)
+			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		}
 
 		// Create a random string to define where the start and end of
@@ -130,6 +158,7 @@ func StartHttpServer() {
 		</div>
 		<div>
 			<h4>{{ .Location }}</h4>
+			<small>[<a href="/file/raw/{{ .Location }}">raw file</a>]</small>
 			<pre>{{ .Content }}</pre>
 		</div>
 	</body>
@@ -149,6 +178,7 @@ func StartHttpServer() {
 			panic(err)
 		}
 
+		return
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -384,7 +414,7 @@ func StartHttpServer() {
 		if err != nil {
 			panic(err)
 		}
-
+		return
 	})
 
 	log.Info().
