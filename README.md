@@ -29,7 +29,6 @@ https://github.com/BurntSushi/ripgrep/issues/95
 
 active bugs
 
-search for $ cs ß and observe too much highlighted maybe related to the previous
 does not load binary files in to be searched
 search for cs --hidden --no-gitignore --no-ignore 英文 has highlight issues
 

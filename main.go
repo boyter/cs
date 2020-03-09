@@ -54,7 +54,7 @@ func main() {
 	)
 	flags.BoolVar(
 		&processor.IncludeBinaryFiles,
-		"include-binary",
+		"binary",
 		false,
 		"set to disable binary file detection and search binary files",
 	)
