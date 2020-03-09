@@ -23,12 +23,10 @@ https://github.com/BurntSushi/ripgrep/issues/95
 ```
 BUGS
 search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
-clicking on file in PDF mode shows the binary not the extracted text
 
 TODO
 search by filename (currently only ranks by it) as addtional OR search
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
-add "raw" link on the http page
 ```
 
 Snippet generation
