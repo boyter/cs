@@ -214,6 +214,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		return bestMatches[i].Score > bestMatches[j].Score
 	})
 
+	// Limit to the 10 best matches
 	if len(bestMatches) > 10 {
 		bestMatches = bestMatches[:10]
 	}

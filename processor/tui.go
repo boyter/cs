@@ -17,20 +17,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// Simple debounce function allowing us to wait on user input slightly
-func debounce(interval time.Duration, input chan string, app *tview.Application, textView *tview.TextView, cb func(app *tview.Application, textView *tview.TextView, arg string)) {
-	var item string
-	timer := time.NewTimer(interval)
-	for {
-		select {
-		case item = <-input:
-			timer.Reset(interval)
-		case <-timer.C:
-			go cb(app, textView, item)
-		}
-	}
-}
-
 var isRunningMutex sync.Mutex
 var resultsMutex sync.Mutex
 
@@ -51,6 +37,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// result collection to finish IE the part that collects results for display
 	if tuiFileWalker.Walking() {
 		tuiFileWalker.Terminate()
+		debugLogger(fmt.Sprintf("terminate called %s %d", searchTerm, debugCount))
 	}
 
 	// We lock here because we don't want another instance to run until
@@ -397,10 +384,6 @@ func ProcessTui(run bool) {
 		AddItem(statusView, 1, 0, false).
 		AddItem(nil, 1, 0, false).
 		AddItem(textView, 0, 3, false)
-
-	// Start the debounce after everything else is setup and leave it running
-	// forever in the background
-	//go debounce(time.Millisecond*1, eventChan, app, textView, tuiSearch)
 
 	go func() {
 		for i := range eventChan {

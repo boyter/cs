@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"sync"
 
-	"io"
 	"io/ioutil"
 	"os"
 
@@ -112,21 +111,25 @@ func (f *FileReaderWorker) processUnknown(res *file.File) {
 	}
 
 	var content []byte
-	var s int64 = 1024000
+	var s int64 = 10000000  // 10 MB in decimal counting
 
-	// TODO we should NOT do this and instead use a scanner later on
-	// Only read up to ~1MB of a file because anything beyond that is probably pointless
+	// Only read up to ~10MB of a file because anything beyond that is probably pointless
 	if fi.Size() < s {
 		content, err = ioutil.ReadFile(res.Location)
 	} else {
-		r, err := os.Open(res.Location)
+		f, err := os.Open(res.Location)
+		if err != nil {
+			return
+		}
+		defer f.Close()
+
+		byteSlice := make([]byte, s)
+		_, err = f.Read(byteSlice)
 		if err != nil {
 			return
 		}
 
-		var tmp [1024000]byte
-		_, _ = io.ReadFull(r, tmp[:])
-		_ = r.Close()
+		content = byteSlice
 	}
 
 	if err == nil {
