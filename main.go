@@ -15,7 +15,7 @@ func main() {
 	//	time.Sleep(time.Second * 5)
 	//	defer pprof.StopCPUProfile()
 	//}()
-	
+
 	rootCmd := &cobra.Command{
 		Use: "cs",
 		Long: "code spelunker (cs) code search.\n" +

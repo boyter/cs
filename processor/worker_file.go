@@ -3,6 +3,7 @@ package processor
 import (
 	"github.com/boyter/cs/file"
 	"runtime"
+	"strings"
 	"sync"
 
 	"io/ioutil"
@@ -44,12 +45,9 @@ func (f *FileReaderWorker) Start() {
 			for res := range f.input {
 				extension := file.GetExtension(res.Filename)
 
-				switch extension {
-				case "pdf":
-					if SearchPDF {
-						f.processPdf(res)
-					}
-				default:
+				if SearchPDF && strings.ToLower(extension) == "pdf" {
+					f.processPdf(res)
+				} else {
 					f.processUnknown(res)
 				}
 			}
