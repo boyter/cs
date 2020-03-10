@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -68,4 +69,21 @@ func TestFindNearbySpaceRightChangedFalse(t *testing.T) {
 	if space != 0 || changed != false {
 		t.Error("Expected 0 and changed true got", space, changed)
 	}
+}
+
+// Try to find bugs by fuzzing the input to all sorts of random things
+func TestFindNearbySpaceFuzzy(t *testing.T) {
+	for i := 0; i < 100000; i++ {
+		findNearbySpace(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
+	}
+}
+
+const letterBytes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890~!@#$%^&*()_+{}|:<>?                        "
+
+func randStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }

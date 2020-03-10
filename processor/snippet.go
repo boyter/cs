@@ -267,6 +267,7 @@ func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 	}
 
 	// look left
+	// TODO should get a slice, and iterate the runes in it
 	// TODO check but I think this is acceptable for whitespace chars...
 	for i := pos; i >= leftDistance; i-- {
 		if unicode.IsSpace(rune(res.Content[i])) {
@@ -276,10 +277,11 @@ func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 
 	rightDistance := pos + distance
 	if rightDistance >= len(res.Content) {
-		rightDistance = len(res.Content)-1
+		rightDistance = len(res.Content)
 	}
 
 	// look right
+	// TODO should get a slice, and iterate the runes in it
 	for i := pos; i < rightDistance; i++ {
 		if unicode.IsSpace(rune(res.Content[i])) {
 			return i, true
