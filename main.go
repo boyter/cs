@@ -11,8 +11,11 @@ import (
 func main() {
 	//f, _ := os.Create("cs.pprof")
 	//pprof.StartCPUProfile(f)
-	//defer pprof.StopCPUProfile()
-
+	//go func() {
+	//	time.Sleep(time.Second * 5)
+	//	defer pprof.StopCPUProfile()
+	//}()
+	
 	rootCmd := &cobra.Command{
 		Use: "cs",
 		Long: "code spelunker (cs) code search.\n" +

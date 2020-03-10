@@ -78,6 +78,8 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 	return locs
 }
 
+var __permuteCache = map[string][]string{}
+
 // IndexAllIgnoreCaseUnicode extracts all of the locations of a string inside another string
 // up-to the defined limit. It is designed to be faster than uses of FindAllIndex with
 // case insenstive matching enabled, by looking for string literals first and then
@@ -115,11 +117,18 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	// amounts of data from /dev/urandom
 	var charLimit = 3
 
-	var searchTerms []string
+	//var searchTerms []string
 	if utf8.RuneCountInString(needle) <= charLimit {
 		// We are below the limit we set, so get all the search
 		// terms and search for that
-		searchTerms = PermuteCaseFolding(needle)
+		searchTerms, ok := __permuteCache[needle]
+		if !ok {
+			if len(__permuteCache) > 10 {
+				__permuteCache = map[string][]string{}
+			}
+			searchTerms = PermuteCaseFolding(needle)
+			__permuteCache[needle] = searchTerms
+		}
 
 		// TODO - Investigate
 		// This is using IndexAll in a loop which was faster than
@@ -139,7 +148,15 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 		// Note that we have to use runes here to avoid cutting bytes off so
 		// cast things around to ensure it works
 		s := []rune(needle)
-		searchTerms = PermuteCaseFolding(string(s[:charLimit]))
+
+		searchTerms, ok := __permuteCache[string(s[:charLimit])]
+		if !ok {
+			if len(__permuteCache) > 10 {
+				__permuteCache = map[string][]string{}
+			}
+			searchTerms = PermuteCaseFolding(string(s[:charLimit]))
+			__permuteCache[string(s[:charLimit])] = searchTerms
+		}
 
 		// We create a regular expression which is used for validating the match
 		// after we have identified a potential one
