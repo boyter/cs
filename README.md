@@ -9,6 +9,11 @@ code spelunker (cs)
 <img alt="cs" src=https://github.com/boyter/cs/raw/master/sc.gif>
 
 ```
+Example search that uses all current functionality
+cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
+```
+
+```
 BUGS
 search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
 score from TF/IDF appears to be negative in some cases (overflow??)
