@@ -66,7 +66,6 @@ func (f *SearcherWorker) Start() {
 		}
 
 		// Now we do the actual search against the file
-		// TODO needs to deal with NOT logic
 		// TODO also need to try against the filename IE even with not text matches it should count
 		for i, needle := range f.searchParams {
 			didSearch := false
@@ -79,7 +78,7 @@ func (f *SearcherWorker) Start() {
 					res.MatchLocations[needle.Term] = str.IndexAllIgnoreCaseUnicode(string(res.Content), needle.Term, f.MatchLimit)
 				}
 			case Regex:
-				x, err := f.RegexSearch(needle, res)
+				x, err := f.regexSearch(needle, &res.Content)
 				if err == nil { // Error indicates a regex compile fail so safe to ignore here
 					didSearch = true
 					res.MatchLocations[needle.Term] = x
@@ -122,7 +121,7 @@ func (f *SearcherWorker) Start() {
 						break
 					}
 				} else {
-					// Normal search so ensure we got something by default and logic rules
+					// Normal search so ensure we got something by default AND logic rules
 					if len(res.MatchLocations[needle.Term]) == 0 {
 						res.Score = 0
 						break
@@ -135,6 +134,10 @@ func (f *SearcherWorker) Start() {
 			}
 		}
 
+		if res.Score == 0 {
+			matchFilename(f, res)
+		}
+
 		if res.Score != 0 {
 			f.output <- res
 		}
@@ -143,7 +146,51 @@ func (f *SearcherWorker) Start() {
 	close(f.output)
 }
 
-func (f *SearcherWorker) RegexSearch(needle searchParams, res *fileJob) (x [][]int, err error) {
+// If the score is 0 then lets have a look at the filename where we don't
+// factor in any AND/OR or any other logic.
+// The idea here is to allow the user to type a filename and even if
+// the content does not match the rules we show the start of the file to help
+// find what they are expecting
+func matchFilename(f *SearcherWorker, res *fileJob) {
+	for _, needle := range f.searchParams {
+		switch needle.Type {
+		case Default, Quoted:
+			if len(str.IndexAllIgnoreCaseUnicode(res.Location, needle.Term, f.MatchLimit)) != 0 {
+				res.MatchLocations[res.Location] = [][]int{{0, 0}}
+				res.Score++
+			}
+		case Regex:
+			t := []byte(res.Location)
+			_, err := f.regexSearch(needle, &t)
+			if err == nil { // Error indicates a regex compile fail so safe to ignore here
+				res.MatchLocations[res.Location] = [][]int{{0, 0}}
+				res.Score++
+			}
+		case Fuzzy1:
+			terms := makeFuzzyDistanceOne(needle.Term)
+			matchLocations := [][]int{}
+			for _, t := range terms {
+				matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
+			}
+			if len(matchLocations) != 0 {
+				res.MatchLocations[needle.Term] = [][]int{{0, 0}}
+				res.Score++
+			}
+		case Fuzzy2:
+			terms := makeFuzzyDistanceTwo(needle.Term)
+			matchLocations := [][]int{}
+			for _, t := range terms {
+				matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
+			}
+			if len(matchLocations) != 0 {
+				res.MatchLocations[needle.Term] = [][]int{{0, 0}}
+				res.Score++
+			}
+		}
+	}
+}
+
+func (f *SearcherWorker) regexSearch(needle searchParams, content *[]byte) (x [][]int, err error) {
 	// Its possible the user supplies an invalid regex and if so we should not crash
 	// but ignore it
 	defer func() {
@@ -153,5 +200,5 @@ func (f *SearcherWorker) RegexSearch(needle searchParams, res *fileJob) (x [][]i
 	}()
 
 	r := regex.MustCompile(needle.Term)
-	return r.FindAllIndex(res.Content, f.MatchLimit), nil
+	return r.FindAllIndex(*content, f.MatchLimit), nil
 }

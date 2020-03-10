@@ -62,9 +62,21 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	bestMatches := []bestMatch{}
 
 	rv3 := []relevantV3{}
-	// get all of the locations into a new data structure
+	// Get all of the locations into a new data structure
+	// which makes things easy to sort and deal with
 	for k, v := range res.MatchLocations {
 		for _, i := range v {
+			// For filename matches the mark is from 0 to 0 so we don't highlight anything
+			// however it means we don't match anything either so set it to the full length
+			// of what we need to display
+			if i[0] == 0 && i[1] == 0 {
+				if relLength > len(res.Content) {
+					i[1] = len(res.Content)
+				} else {
+					i[1] = relLength
+				}
+			}
+
 			rv3 = append(rv3, relevantV3{
 				Word:  k,
 				Start: i[0],

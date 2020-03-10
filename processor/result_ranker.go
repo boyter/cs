@@ -114,6 +114,12 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 			weight += tf * math.Log(float64(n)/idf)
 		}
 
+		// For filename matches we have potentially no tf so apply a simple weight that
+		// allows the location boost to do its thing
+		if math.IsNaN(weight) {
+			weight = 1
+		}
+
 		results[i].Score = weight
 	}
 
