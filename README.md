@@ -11,13 +11,20 @@ code spelunker (cs)
 ```
 BUGS
 search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
-search for cs --hidden --no-gitignore --no-ignore 第一章 has no highlight from text at start of file
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 search for following takes a very long time to return ȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺȺ 
 search cs result_ranker highlights the whole section
 
 go install && cs --hidden --no-gitignore --no-ignore ten thousand a year <<<<< out of range BUG
+
+NB for the above need to modify to not care about the searchparams length IE remove the condition
+
+        // Only if the score is 0 AND we have a single search param do we
+		// consider looking at the filename
+		if res.Score == 0 && len(f.searchParams) == 1 {
+			matchFilename(f, res)
+		}
 
 TODO
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
