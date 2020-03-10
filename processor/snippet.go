@@ -12,7 +12,7 @@ type bestMatch struct {
 	Relevant []relevantV3
 }
 
-// Internal structure used just for matching thing
+// Internal structure used just for matching things together
 type relevantV3 struct {
 	Word  string
 	Start int
@@ -26,7 +26,7 @@ type Snippet struct {
 }
 
 // Looks though the locations using a sliding window style algorithm
-// where brute force the solution by iterating over every location we have
+// where it "brute forces" the solution by iterating over every location we have
 // and look for all matches that fall into the supplied length and ranking
 // based on how many we have.
 //
@@ -168,6 +168,15 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		space, b = findNearbySpace(res, m.EndPos, 10)
 		if b {
 			m.EndPos = space
+		}
+
+		// If we are very close to the start, just push it out so we get the actual start
+		if m.StartPos <= 10 {
+			m.StartPos = 0
+		}
+		// As above, but against the end so we just include the rest if we are close
+		if len(res.Content) - m.EndPos <= 10 {
+			m.EndPos = len(res.Content)
 		}
 
 		// Now that we have the snippet start to rank it to produce a score indicating

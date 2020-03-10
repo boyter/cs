@@ -136,7 +136,8 @@ func (f *SearcherWorker) Start() {
 
 		// Only if the score is 0 AND we have a single search param do we
 		// consider looking at the filename
-		if res.Score == 0 && len(f.searchParams) == 1 {
+		//if res.Score == 0 && len(f.searchParams) == 1 {
+		if res.Score == 0 {
 			matchFilename(f, res)
 		}
 
