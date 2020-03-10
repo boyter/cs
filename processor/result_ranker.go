@@ -44,7 +44,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 
 				// If the rank is ever 0 than nothing will change, so set it
 				// to a small value to at least introduce some ranking here
-				if results[i].Score == 0 {
+				if results[i].Score == 0 || math.IsNaN(results[i].Score) {
 					results[i].Score = 0.1
 				}
 
@@ -59,6 +59,18 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 				// content otherwise the match is discarded
 				results[i].Score = results[i].Score * (1.0 +
 					(LocationBoostValue2 * float64(len(locs)) * float64(len(key))))
+
+				// If the location is closer to the start boost or rather don't
+				// affect negatively as much because we reduce the score slightly based on
+				// how far away from the start it is
+				low := math.MaxInt32
+				for _, l := range locs {
+					if l[0] < low {
+						low = l[0]
+					}
+				}
+
+				results[i].Score = results[i].Score * float64(1.0 - (float64(low) * 0.02))
 			}
 		}
 
@@ -128,7 +140,8 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 
 // TODO add test for this
 func calculateDocumentFrequency(results []*fileJob) map[string]int {
-	// Calculate the document frequency for all words
+	// Calculate the document frequency for all words across all documents
+	// that we have to get the term frequency for each
 	documentFrequencies := map[string]int{}
 	for i := 0; i < len(results); i++ {
 		for k := range results[i].MatchLocations {

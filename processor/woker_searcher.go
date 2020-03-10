@@ -151,19 +151,21 @@ func (f *SearcherWorker) Start() {
 // The idea here is to allow the user to type a filename and even if
 // the content does not match the rules we show the start of the file to help
 // find what they are expecting
+// NB we add file_location_match to the needle to ensure it does not actually match
+// anything to avoid any issues later down the line
 func matchFilename(f *SearcherWorker, res *fileJob) {
 	for _, needle := range f.searchParams {
 		switch needle.Type {
 		case Default, Quoted:
 			if len(str.IndexAllIgnoreCaseUnicode(res.Location, needle.Term, f.MatchLimit)) != 0 {
-				res.MatchLocations[res.Location] = [][]int{{0, 0}}
+				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
 				res.Score++
 			}
 		case Regex:
 			t := []byte(res.Location)
 			_, err := f.regexSearch(needle, &t)
 			if err == nil { // Error indicates a regex compile fail so safe to ignore here
-				res.MatchLocations[res.Location] = [][]int{{0, 0}}
+				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
 				res.Score++
 			}
 		case Fuzzy1:
@@ -173,7 +175,7 @@ func matchFilename(f *SearcherWorker, res *fileJob) {
 				matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
 			}
 			if len(matchLocations) != 0 {
-				res.MatchLocations[needle.Term] = [][]int{{0, 0}}
+				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
 				res.Score++
 			}
 		case Fuzzy2:
@@ -183,7 +185,7 @@ func matchFilename(f *SearcherWorker, res *fileJob) {
 				matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
 			}
 			if len(matchLocations) != 0 {
-				res.MatchLocations[needle.Term] = [][]int{{0, 0}}
+				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
 				res.Score++
 			}
 		}
