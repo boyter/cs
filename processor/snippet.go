@@ -276,7 +276,7 @@ func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 
 	rightDistance := pos + distance
 	if rightDistance >= len(res.Content) {
-		rightDistance = len(res.Content)
+		rightDistance = len(res.Content)-1
 	}
 
 	// look right

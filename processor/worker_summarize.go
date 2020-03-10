@@ -61,7 +61,7 @@ func (f *ResultSummarizer) Start() {
 				}
 			}
 		}
-		
+
 		coloredContent := str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
 
 		fmt.Println(coloredContent)
