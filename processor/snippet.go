@@ -183,7 +183,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		// how good a match it is and hopefully display to the user what they
 		// were actually looking for
 		m.Score += float64(len(m.Relevant))     // Factor in how many matches we have
-		m.Score += float64(m.EndPos - m.EndPos) // Factor in how large the snippet is
+		m.Score += float64(m.EndPos - m.StartPos) // Factor in how large the snippet is 
 
 		// Apply higher score where the words are near each other
 		mid := rv3[i].Start + (rv3[i].End-rv3[i].End)/2 // match word midpoint
