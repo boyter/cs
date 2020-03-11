@@ -179,7 +179,7 @@ func TestIndexAllIgnoreCaseUnicodeCheckEnd(t *testing.T) {
 	}
 
 	if "a ſecret a"[matches[0][0]:matches[0][1]] != "ſecret" {
-		t.Error("Expected ſecret")
+		t.Errorf("Expected ſecret got '%s'", "a ſecret a"[matches[0][0]:matches[0][1]])
 	}
 }
 
