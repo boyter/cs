@@ -4,7 +4,6 @@ package string
 
 import (
 	"math"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -147,20 +146,16 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 
 		// Note that we have to use runes here to avoid cutting bytes off so
 		// cast things around to ensure it works
-		s := []rune(needle)
+		needleRune := []rune(needle)
 
-		searchTerms, ok := __permuteCache[string(s[:charLimit])]
+		searchTerms, ok := __permuteCache[string(needleRune[:charLimit])]
 		if !ok {
 			if len(__permuteCache) > 10 {
 				__permuteCache = map[string][]string{}
 			}
-			searchTerms = PermuteCaseFolding(string(s[:charLimit]))
-			__permuteCache[string(s[:charLimit])] = searchTerms
+			searchTerms = PermuteCaseFolding(string(needleRune[:charLimit]))
+			__permuteCache[string(needleRune[:charLimit])] = searchTerms
 		}
-
-		// We create a regular expression which is used for validating the match
-		// after we have identified a potential one
-		regexIgnore := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(needle))
 
 		// TODO - Investigate
 		// This is using IndexAll in a loop which was faster than
@@ -183,34 +178,43 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 				for match[0]+e > len(haystack) {
 					e--
 				}
-				toMatch := haystack[match[0] : match[0]+e]
+				// Cut off the number at the end to the number we need which is the length of the needle runes
+				toMatch := []rune(haystack[match[0] : match[0]+e])[:len(needleRune)]
 
-				// Use a regular expression to match because we already cut down the time
-				// needed and its faster than CaseFolding large needles and then iterating
-				// over that list, and for especially long needles it will produce billions
-				// of results we need to check.
-				// NB have to use findAllHere and not Match because we need to know the
-				// length of the match such that we can produce the correct offset.
-				i := regexIgnore.FindAllIndex([]byte(toMatch), -1)
+				// what we need to do is iterate the runes of the haystack portion we are trying to
+				// match and confirm that the same rune position is a actual match or case fold match
+				// if they are keep looking, if they are not bail out as its not a real match
+				isMatch := false
+				for i := 0; i < len(toMatch); i++ {
+					isMatch = false
+					if toMatch[i] != needleRune[i] {
+						isMatch = true
+					} else {
+						// case fold and check
+						for _, j := range AllSimpleFold(toMatch[i]) {
+							if j == needleRune[i] {
+								isMatch = true
+							}
+						}
+					}
 
-				// So apparently we spend a lot of time in the regex... what if instead we loop
-				// the full needle and only when it doesnt match exactly we check the folded
-				// cases for a match....
-				//toMatch = haystack[match[0] : match[0]+len(needle)]
-				//for j, c := range needle {
-				//
-				//}
+					// Bail out as there is no point to continue checking at this point
+					if !isMatch {
+						break
+					}
+				}
 
-				if len(i) != 0 {
+				if isMatch {
 					// When we have confirmed a match we add it to our total
 					// but adjust the positions to the match and the length of the
 					// needle to ensure the byte count lines up
-					locs = append(locs, []int{match[0], match[0] + (i[0][1] - i[0][0])})
+					locs = append(locs, []int{match[0], match[0] + len(toMatch)})
 
 					if limit > 0 && len(locs) > limit {
 						return locs[:limit]
 					}
 				}
+
 			}
 		}
 	}
