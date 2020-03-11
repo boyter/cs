@@ -187,10 +187,14 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 				isMatch := false
 				for i := 0; i < len(toMatch); i++ {
 					isMatch = false
+
+					// Check against the actual term and if that's a match we can avoid folding
+					// and doing those comparisons to hopefully save some CPU time
+					// TODO confirm this actually makes a difference
 					if toMatch[i] == needleRune[i] {
 						isMatch = true
 					} else {
-						// case fold and check
+						// Not a match so case fold to actually check
 						for _, j := range AllSimpleFold(toMatch[i]) {
 							if j == needleRune[i] {
 								isMatch = true
@@ -199,6 +203,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 					}
 
 					// Bail out as there is no point to continue checking at this point
+					// as we found no match and there is no point burning more CPU checking
 					if !isMatch {
 						break
 					}
