@@ -213,7 +213,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 					// When we have confirmed a match we add it to our total
 					// but adjust the positions to the match and the length of the
 					// needle to ensure the byte count lines up
-					locs = append(locs, []int{match[0], match[0] + len(toMatch)})
+					locs = append(locs, []int{match[0], match[0] + len(string(toMatch))})
 
 					if limit > 0 && len(locs) > limit {
 						return locs[:limit]

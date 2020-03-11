@@ -175,7 +175,7 @@ func TestIndexAllIgnoreCaseUnicodeCheckEnd(t *testing.T) {
 	matches := IndexAllIgnoreCaseUnicode("a ſecret a", "secret", -1)
 
 	if matches[0][0] != 2 || matches[0][1] != 9 {
-		t.Error("Expected 2 and 7 got", matches[0][0], "and", matches[0][1])
+		t.Error("Expected 2 and 9 got", matches[0][0], "and", matches[0][1])
 	}
 
 	if "a ſecret a"[matches[0][0]:matches[0][1]] != "ſecret" {
