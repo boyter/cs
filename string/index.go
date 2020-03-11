@@ -193,6 +193,14 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 				// length of the match such that we can produce the correct offset.
 				i := regexIgnore.FindAllIndex([]byte(toMatch), -1)
 
+				// So apparently we spend a lot of time in the regex... what if instead we loop
+				// the full needle and only when it doesnt match exactly we check the folded
+				// cases for a match....
+				//toMatch = haystack[match[0] : match[0]+len(needle)]
+				//for j, c := range needle {
+				//
+				//}
+
 				if len(i) != 0 {
 					// When we have confirmed a match we add it to our total
 					// but adjust the positions to the match and the length of the
