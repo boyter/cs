@@ -187,7 +187,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 				isMatch := false
 				for i := 0; i < len(toMatch); i++ {
 					isMatch = false
-					if toMatch[i] != needleRune[i] {
+					if toMatch[i] == needleRune[i] {
 						isMatch = true
 					} else {
 						// case fold and check
