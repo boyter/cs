@@ -1,4 +1,4 @@
-code spelunker (cs)
+codespelunker (cs)
 ----------------------
 
 [![Build Status](https://travis-ci.org/boyter/cs.svg?branch=master)](https://travis-ci.org/boyter/cs)
