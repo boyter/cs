@@ -66,17 +66,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	// which makes things easy to sort and deal with
 	for k, v := range res.MatchLocations {
 		for _, i := range v {
-			// For filename matches the mark is from 0 to 0 so we don't highlight anything
-			// however it means we don't match anything either so set it to the full length
-			// of what we need to display
-			if i[0] == 0 && i[1] == 0 {
-				if relLength > len(res.Content) {
-					i[1] = len(res.Content)
-				} else {
-					i[1] = relLength
-				}
-			}
-
 			rv3 = append(rv3, relevantV3{
 				Word:  k,
 				Start: i[0],
@@ -88,6 +77,25 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	sort.Slice(rv3, func(i, j int) bool {
 		return rv3[i].Start < rv3[j].Start
 	})
+
+	// If we have a single result and its one of those filename matches
+	// it means we have no content to worry about so just display the first
+	// chunk of the file
+	if len(rv3) == 1 && rv3[0].Start == 0 && rv3[0].End == 0 {
+		endPos := 300
+		if len(res.Content) < 300 {
+			endPos = len(res.Content)
+		}
+
+		// TODO check for if we cut in the middle of a multibyte character
+		return []Snippet{
+			{
+				Content:  string(res.Content[:endPos]),
+				StartPos: 0,
+				EndPos:   0,
+			},
+		}
+	}
 
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {

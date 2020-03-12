@@ -62,9 +62,12 @@ func (f *ResultSummarizer) Start() {
 			}
 		}
 
-		coloredContent := str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
+		displayContent := v3.Content
+		if v3.StartPos != 0 && v3.EndPos != 0 {
+			displayContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
+		}
 
-		fmt.Println(coloredContent)
+		fmt.Println(displayContent)
 		fmt.Println("")
 	}
 }

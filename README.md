@@ -19,6 +19,7 @@ search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 search cs result_ranker highlights the whole section
+highlight on windows command line not escaped correctly
 
 http://localhost:8080/?q=test&ss=300 bug where display is all yellow
 
@@ -37,6 +38,14 @@ clean up parser so multiple spaces aren't tokens or flag em to be ignored
 add proximity search "this is"~5 which means they need to be within 5 bytes of each other
 add limit to number of results
 investigate string match limit
+JSON endpoint for HTTP
+JSON output for cli
+Save to disk output
+
+MAYBE
+
+HTML parser option
+https://stackoverflow.com/questions/44441665/how-to-extract-only-text-from-html-in-golang
 ```
 
 template example (from root)
