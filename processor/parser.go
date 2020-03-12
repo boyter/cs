@@ -5,12 +5,12 @@ import (
 )
 
 const (
-	Default int64 = 0
-	Quoted  int64 = 1
-	Regex   int64 = 2
-	Negated int64 = 3
-	Fuzzy1  int64 = 4
-	Fuzzy2  int64 = 5
+	Default = iota
+	Quoted
+	Regex
+	Negated
+	Fuzzy1
+	Fuzzy2
 )
 
 type searchParams struct {
