@@ -3,7 +3,9 @@ package processor
 import (
 	"fmt"
 	str "github.com/boyter/cs/string"
-	. "github.com/logrusorgru/aurora"
+	"github.com/fatih/color"
+	"github.com/mattn/go-isatty"
+	"os"
 )
 
 type ResultSummarizer struct {
@@ -11,6 +13,7 @@ type ResultSummarizer struct {
 	ResultLimit      int64
 	FileReaderWorker *FileReaderWorker
 	SnippetCount     int
+	NoColor          bool
 }
 
 func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
@@ -18,6 +21,7 @@ func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
 		input:        input,
 		ResultLimit:  -1,
 		SnippetCount: 1,
+		NoColor:      os.Getenv("TERM") == "dumb" || (!isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd())),
 	}
 }
 
@@ -39,11 +43,15 @@ func (f *ResultSummarizer) Start() {
 
 	fmtBegin := "\033[1;31m"
 	fmtEnd := "\033[0m"
+	if f.NoColor {
+		fmtBegin = ""
+		fmtEnd = ""
+	}
 
 	documentFrequency := calculateDocumentFrequency(results)
 
 	for _, res := range results {
-		fmt.Printf("%s %s%.3f%s\n", Magenta(res.Location), Magenta("("), Magenta(res.Score), Magenta(")"))
+		color.Magenta(fmt.Sprintf("%s (%.3f)", res.Location, res.Score))
 
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
 

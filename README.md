@@ -36,7 +36,7 @@ TODO
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
 add proximity search "this is"~5 which means they need to be within 5 bytes of each other
 add limit to number of results
-investigate string match limit
+investigate string match limit (might be wrong for unicode insensitive)
 JSON endpoint for HTTP
 JSON output for cli
 Save to disk output
