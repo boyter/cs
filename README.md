@@ -18,7 +18,6 @@ BUGS
 search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
-search cs result_ranker highlights the whole section
 highlight on windows command line not escaped correctly
 
 http://localhost:8080/?q=test&ss=300 bug where display is all yellow

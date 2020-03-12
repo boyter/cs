@@ -74,12 +74,9 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		}
 	}
 
-	sort.Slice(rv3, func(i, j int) bool {
-		return rv3[i].Start < rv3[j].Start
-	})
-
-	// If we have a single result and its one of those filename matches
-	// it means we have no content to worry about so just display the first
+	// If we have a single result and its a filename match which has
+	// no real start or end position
+	// it means we have no content to look through so just display the first
 	// chunk of the file
 	if len(rv3) == 1 && rv3[0].Start == 0 && rv3[0].End == 0 {
 		endPos := 300
@@ -96,6 +93,12 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			},
 		}
 	}
+
+	// Sort the results so when we slide around everything is in order
+	sort.Slice(rv3, func(i, j int) bool {
+		return rv3[i].Start < rv3[j].Start
+	})
+
 
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
@@ -199,8 +202,8 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			p := v.Start + (v.End-v.Start)/2 // comparison word midpoint
 
 			// If the word is within a reasonable distance of this word boost the score
-			// weighted by how common that word is so that matches like a impact the rank
-			// less than something like cromulent
+			// weighted by how common that word is so that matches like 'a' impact the rank
+			// less than something like 'cromulent' which in theory should not occur as much
 			if abs(mid-p) < (relLength / 3) {
 				m.Score += 100 / float64(documentFrequencies[v.Word])
 			}
