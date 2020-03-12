@@ -20,6 +20,8 @@ score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 search cs result_ranker highlights the whole section
 
+http://localhost:8080/?q=test&ss=300 bug where display is all yellow
+
 go install && cs --hidden --no-gitignore --no-ignore ten thousand a year <<<<< out of range BUG
 
 NB for the above need to modify to not care about the searchparams length IE remove the condition
