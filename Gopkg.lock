@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:bde2a1ce1de28312f165a88926c12f4acd19dc4d7da96a445dfa5a29eae07a93"
+  name = "github.com/fatih/color"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "daf2830f2741ebb735b21709a520c5f37d642d85"
+  version = "v1.9.0"
+
+[[projects]]
   digest = "1:0e16b03c72bd42739ca68d055c10369e60d17838428f512f3b29ae115ba788e0"
   name = "github.com/gdamore/encoding"
   packages = ["."]
@@ -85,20 +93,28 @@
   revision = "8ac343ec9fdd6e969831c7e6e0713747d90589cc"
 
 [[projects]]
-  digest = "1:ba852707958e39694e7f64328008287892adf9b1aed0174480e2f50e0c23e521"
-  name = "github.com/logrusorgru/aurora"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "21d75270181e0436fee7bd58b991c212cf309068"
-  version = "v2.0"
-
-[[projects]]
   digest = "1:c864b8e8084dfb30c03e26af1eb338f13fce00f34244627fa7ce240904a80e17"
   name = "github.com/lucasb-eyer/go-colorful"
   packages = ["."]
   pruneopts = "UT"
   revision = "fadcb7c7fa1e47844a23f5ebea95219172166a56"
   version = "v1.0.3"
+
+[[projects]]
+  digest = "1:0109cf4321a15313ec895f42e723e1f76121c6975ea006abfa20012272ec0937"
+  name = "github.com/mattn/go-colorable"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "68e95eba382c972aafde02ead2cd2426a8a92480"
+  version = "v0.1.6"
+
+[[projects]]
+  digest = "1:0c58d31abe2a2ccb429c559b6292e7df89dcda675456fecc282fa90aa08273eb"
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7b513a986450394f7bbf1476909911b3aa3a55ce"
+  version = "v0.0.12"
 
 [[projects]]
   digest = "1:eb1bffab7260bf5ddc95fc2c41d4bfee1a4f5fe18194b3946fe8a9e9121a282f"
@@ -203,9 +219,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/fatih/color",
     "github.com/gdamore/tcell",
     "github.com/ledongthuc/pdf",
-    "github.com/logrusorgru/aurora",
     "github.com/monochromegane/go-gitignore",
     "github.com/rivo/tview",
     "github.com/rs/zerolog/log",

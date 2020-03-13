@@ -66,17 +66,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	// which makes things easy to sort and deal with
 	for k, v := range res.MatchLocations {
 		for _, i := range v {
-			// For filename matches the mark is from 0 to 0 so we don't highlight anything
-			// however it means we don't match anything either so set it to the full length
-			// of what we need to display
-			if i[0] == 0 && i[1] == 0 {
-				if relLength > len(res.Content) {
-					i[1] = len(res.Content)
-				} else {
-					i[1] = relLength
-				}
-			}
-
 			rv3 = append(rv3, relevantV3{
 				Word:  k,
 				Start: i[0],
@@ -85,9 +74,31 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		}
 	}
 
+	// If we have a single result and its a filename match which has
+	// no real start or end position
+	// it means we have no content to look through so just display the first
+	// chunk of the file
+	if len(rv3) == 1 && rv3[0].Start == 0 && rv3[0].End == 0 {
+		endPos := 300
+		if len(res.Content) < 300 {
+			endPos = len(res.Content)
+		}
+
+		// TODO check for if we cut in the middle of a multibyte character
+		return []Snippet{
+			{
+				Content:  string(res.Content[:endPos]),
+				StartPos: 0,
+				EndPos:   0,
+			},
+		}
+	}
+
+	// Sort the results so when we slide around everything is in order
 	sort.Slice(rv3, func(i, j int) bool {
 		return rv3[i].Start < rv3[j].Start
 	})
+
 
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
@@ -183,7 +194,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		// how good a match it is and hopefully display to the user what they
 		// were actually looking for
 		m.Score += float64(len(m.Relevant))     // Factor in how many matches we have
-		m.Score += float64(m.EndPos - m.StartPos) // Factor in how large the snippet is 
+		//m.Score += float64(m.EndPos - m.StartPos) // Factor in how large the snippet is NB weight this as it makes things worse sometimes
 
 		// Apply higher score where the words are near each other
 		mid := rv3[i].Start + (rv3[i].End-rv3[i].End)/2 // match word midpoint
@@ -191,8 +202,8 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			p := v.Start + (v.End-v.Start)/2 // comparison word midpoint
 
 			// If the word is within a reasonable distance of this word boost the score
-			// weighted by how common that word is so that matches like a impact the rank
-			// less than something like cromulent
+			// weighted by how common that word is so that matches like 'a' impact the rank
+			// less than something like 'cromulent' which in theory should not occur as much
 			if abs(mid-p) < (relLength / 3) {
 				m.Score += 100 / float64(documentFrequencies[v.Word])
 			}

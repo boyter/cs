@@ -105,8 +105,8 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	// If the needle is over some amount of characters long you chop off the first few
 	// and then search for those. However this means you are not finding actual matches and as such
 	// you the need to validate a potential match after you have found one.
-	// In this case the confirmation match is done using regular expressions
-	// because its faster than checking for all case options for longer needles.
+	// The confirmation match is done in a loop because for some literals regular expression
+	// is still to slow, although for most its a valid option.
 
 	locs := [][]int{}
 	// Char limit is the cut-off where we switch from all case permutations
@@ -187,10 +187,14 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 				isMatch := false
 				for i := 0; i < len(toMatch); i++ {
 					isMatch = false
-					if toMatch[i] != needleRune[i] {
+
+					// Check against the actual term and if that's a match we can avoid folding
+					// and doing those comparisons to hopefully save some CPU time
+					// TODO confirm this actually makes a difference
+					if toMatch[i] == needleRune[i] {
 						isMatch = true
 					} else {
-						// case fold and check
+						// Not a match so case fold to actually check
 						for _, j := range AllSimpleFold(toMatch[i]) {
 							if j == needleRune[i] {
 								isMatch = true
@@ -199,6 +203,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 					}
 
 					// Bail out as there is no point to continue checking at this point
+					// as we found no match and there is no point burning more CPU checking
 					if !isMatch {
 						break
 					}
@@ -208,7 +213,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 					// When we have confirmed a match we add it to our total
 					// but adjust the positions to the match and the length of the
 					// needle to ensure the byte count lines up
-					locs = append(locs, []int{match[0], match[0] + len(toMatch)})
+					locs = append(locs, []int{match[0], match[0] + len(string(toMatch))})
 
 					if limit > 0 && len(locs) > limit {
 						return locs[:limit]
