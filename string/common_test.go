@@ -136,3 +136,26 @@ func TestIsSpace(t *testing.T) {
         }
     }
 }
+
+func TestStartOfRune(t *testing.T) {
+    var cases = []struct{
+        bs []byte
+        idx int
+        want bool
+    }{
+        {[]byte("yo"), 1, true},
+        {[]byte("τoρνoς"), 0, true},
+        {[]byte("τoρνoς"), 1, false},
+        {[]byte("τoρνoς"), 2, true},
+        {[]byte("🍺"), 0, true},
+        {[]byte("🍺"), 1, false},
+        {[]byte("🍺"), 2, false},
+        {[]byte("🍺"), 3, false},
+    }
+
+    for _, c := range cases {
+        if got := startOfRune(c.bs[c.idx]); got != c.want {
+            t.Error("[", string(c.bs), c.idx, "]", "Expected:", c.want, "got", got)
+        }
+    }
+}
