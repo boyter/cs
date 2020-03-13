@@ -107,3 +107,32 @@ func TestPermuteCaseFoldingComparison(t *testing.T) {
 		t.Error("Should not be of equal length")
 	}
 }
+
+func TestIsSpace(t *testing.T) {
+    var cases = []struct{
+        b1, b2 byte
+        want bool
+    }{
+        // True cases
+        {'\t', 'a', true},
+        {'\n', 'a', true},
+        {'\v', 'a', true},
+        {'\f', 'a', true},
+        {'\r', 'a', true},
+        {' ', 'a', true},
+        {'\xc2', '\x85', true},  // NEL
+        {'\xc2', '\xa0', true},  // NBSP
+        // False cases
+        {'a', '\t', false},
+        {byte(234), 'a', false},
+        {byte(8), ' ', false},
+        {'\xc2', byte(84), false},
+        {'\xc2', byte(9), false},
+    }
+
+    for _, c := range cases {
+        if got := IsSpace(c.b1, c.b2); got != c.want {
+            t.Error("Expected", c.want, "got", got, ":", c.b1, c.b2)
+        }
+    }
+}

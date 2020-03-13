@@ -107,3 +107,24 @@ func containsRune(elements []rune, needle rune) bool {
 
 	return false
 }
+
+// Bytes MUST be UTF-8 encoded
+// List of spaces detected (same as unicode.IsSpace):
+// '\t', '\n', '\v', '\f', '\r', ' ', U+0085 (NEL), U+00A0 (NBSP).
+// N.B only two bytes are required for these cases.  If we decided
+// to support spaces like '，' then we'll need more bytes.
+func IsSpace(firstByte, nextByte byte) bool {
+    switch {
+    case (9 <= firstByte) && (firstByte <= 13):  // \t, \n, \f, \r
+        return true
+    case firstByte == 32:  // SPACE
+        return true
+    case firstByte == 194:
+        if nextByte == 133 {  // NEL
+            return true
+        } else if nextByte == 160 {  // NBSP
+            return true
+        }
+    }
+    return false
+}
