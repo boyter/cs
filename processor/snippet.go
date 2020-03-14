@@ -1,9 +1,16 @@
 package processor
 
 import (
+	"fmt"
 	"sort"
 	"unicode"
+
+	str "github.com/boyter/cs/string"
 )
+
+// Defines the maximum bytes either side of the match
+// we are willing to return
+var SNIP_SIDE_MAX int = 10
 
 type bestMatch struct {
 	StartPos int
@@ -38,20 +45,20 @@ type Snippet struct {
 // corpus: Jane Austens Pride and Prejudice
 // searchtext: ten thousand a year
 // result:  before. I hope he will overlook
-//      it. Dear, dear Lizzy. A house in town! Every thing that is
-//      charming! Three daughters married! Ten thousand a year! Oh, Lord!
-//      What will become of me. I shall go distracted.”
+//	it. Dear, dear Lizzy. A house in town! Every thing that is
+//	charming! Three daughters married! Ten thousand a year! Oh, Lord!
+//	What will become of me. I shall go distracted.”
 //
-//      This was enough to prove that her approbation need not be
+//	This was enough to prove that her approbation need not be
 //
 // searchtext: poor nerves
 // result:  your own children in such a way?
-//      You take delight in vexing me. You have no compassion for my poor
-//      nerves.”
+//	You take delight in vexing me. You have no compassion for my poor
+//	nerves.”
 //
-//      “You mistake me, my dear. I have a high respect for your nerves.
-//      They are my old friends. I have heard you mention them with
-//      consideration these last
+//	“You mistake me, my dear. I have a high respect for your nerves.
+//	They are my old friends. I have heard you mention them with
+//	consideration these last
 //
 // Please note that testing this is... hard. This is because what is considered relevant also happens
 // to differ between people. As such this is not tested as much as other methods and you should not
@@ -99,7 +106,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		return rv3[i].Start < rv3[j].Start
 	})
 
-
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
 		m := bestMatch{
@@ -110,6 +116,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// Slide left
 		j := i - 1
+		//for j:= 1 - 1; j--; j >= 0 {	// Does this replace breaks ?
 		for {
 			// Ensure we never step outside the bounds of our slice
 			if j < 0 {
@@ -170,30 +177,32 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			}
 		}
 
+		// TIM to check
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word if we can avoid it
-		space, b := findNearbySpace(res, m.StartPos, 10)
+		//space, b := findNearbySpace(res, m.StartPos, SNIP_SIDE_MAX)
+		space, b := findSpaceRight(res, m.StartPos, SNIP_SIDE_MAX)
 		if b {
 			m.StartPos = space
 		}
-		space, b = findNearbySpace(res, m.EndPos, 10)
+		space, b = findSpaceRight(res, m.EndPos, SNIP_SIDE_MAX)
 		if b {
 			m.EndPos = space
 		}
 
 		// If we are very close to the start, just push it out so we get the actual start
-		if m.StartPos <= 10 {
+		if m.StartPos <= SNIP_SIDE_MAX {
 			m.StartPos = 0
 		}
 		// As above, but against the end so we just include the rest if we are close
-		if len(res.Content) - m.EndPos <= 10 {
+		if len(res.Content)-m.EndPos <= 10 {
 			m.EndPos = len(res.Content)
 		}
 
 		// Now that we have the snippet start to rank it to produce a score indicating
 		// how good a match it is and hopefully display to the user what they
 		// were actually looking for
-		m.Score += float64(len(m.Relevant))     // Factor in how many matches we have
+		m.Score += float64(len(m.Relevant)) // Factor in how many matches we have
 		//m.Score += float64(m.EndPos - m.StartPos) // Factor in how large the snippet is NB weight this as it makes things worse sometimes
 
 		// Apply higher score where the words are near each other
@@ -263,9 +272,10 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	return snippets
 }
 
-// Looks for a nearby whitespace character near this position
-// and return the original position otherwise with a flag
-// indicating if a space was actually found
+// Looks for a nearby whitespace character near this position (`pos`)
+// up to `distance` away.  Returns index of space if a space was found
+// otherwise the the position is distance to the next complete
+// code-point past the `distance`.  In this case flag `false`.
 func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 	leftDistance := pos - distance
 	if leftDistance < 0 {
@@ -300,4 +310,100 @@ func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
 	}
 
 	return pos, false
+}
+
+//func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
+// TODO: call search left and search right
+//}
+
+func findSpaceLeft(res *fileJob, pos int, distance int) (idx int, found bool) {
+	// Deal with misuse
+	if len(res.Content) < 1 {
+		return 0, false
+	}
+
+	// Avoid overflow from invalid pos
+	if (pos >= len(res.Content)) || (pos < 0) {
+		pos = len(res.Content) - 1
+	}
+
+	// Avoid overflows from invalid distance
+	if distance > pos {
+		distance = pos
+	}
+
+	// Set default return values
+	idx, found = pos, false
+
+	// Look for spaces
+	for i := 0; i <= distance; i++ { // Does this need to be <= or can it be < ?
+		idx = pos - i
+		idx2 := idx + 1
+		if i == 0 { // We'll have an index error for the 2nd byte
+			idx2 = idx
+		}
+		found = str.IsSpace(res.Content[idx], res.Content[idx2])
+		if found {
+			return
+		}
+	}
+
+	// No space found.  Count back up to make sure we don't split mid rune.
+	// Only count back to the largest possible index.
+	for idx < (len(res.Content)-1) && !str.StartOfRune(res.Content[idx]) {
+		idx++
+	}
+
+	//fmt.Println("yoyo")
+	return
+}
+
+func findSpaceRight(res *fileJob, pos int, distance int) (idx int, found bool) {
+	fmt.Println("len(res.Content)", len(res.Content))
+	// Deal with misuse
+	if len(res.Content) < 1 {
+		return 0, false
+	}
+
+	// Avoid overflow from invalid pos
+	if (pos >= len(res.Content)) || (pos < 0) {
+		pos = 0
+	}
+
+	// Avoid overflows from invalid distance
+	if distance > (len(res.Content) - pos) { // Up to here
+		distance = len(res.Content) - 1 - pos
+	}
+
+	// Set default return values
+	idx, found = pos, false
+
+	// Look for spaces // TODO could set i to idx for count up
+	for i := 0; i <= distance; i++ {
+		idx = pos + i
+		idx2 := idx + 1
+		if idx2 == len(res.Content) { // ... we'll have an index error.
+			// ∴ We need an index that is valid.
+			// All that matters here is that we don't accidentally
+			// get a match by choosing at random.  No 2 byte
+			// 'space' is a repeat of the first byte so putting
+			// the same byte in twice won't break anything.
+			idx2 = idx
+		}
+		fmt.Printf("i: %d - res.Content[%d] = '%c', res.Content[%d] = '%c'\n",
+			i, idx, res.Content[idx], idx2, res.Content[idx2])
+		found = str.IsSpace(res.Content[idx], res.Content[idx2])
+		if found {
+			return
+		}
+	}
+	fmt.Println("Did not find a space, within given distance", distance)
+
+	// No space found.  Count back up to make sure we don't split mid rune.
+	// Only count back to the largest possible index.
+	for idx > 0 && !str.StartOfRune(res.Content[idx]) {
+		idx--
+	}
+
+	return
 }
