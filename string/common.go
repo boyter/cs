@@ -129,7 +129,7 @@ func IsSpace(firstByte, nextByte byte) bool {
     return false
 }
 
-func startOfRune(b byte) bool {
+func StartOfRune(b byte) bool {
     if (b < (1 << 7)) || ((3 << 6) < b) {
         return true
     }
