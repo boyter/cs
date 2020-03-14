@@ -177,17 +177,18 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			}
 		}
 
-		// TIM to check
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word if we can avoid it
-		//space, b := findNearbySpace(res, m.StartPos, SNIP_SIDE_MAX)
-		space, b := findSpaceRight(res, m.StartPos, SNIP_SIDE_MAX)
-		if b {
-			m.StartPos = space
+		var b bool
+		m.StartPos, b = findSpaceRight(res, m.StartPos, SNIP_SIDE_MAX)
+		//m.StartPos = space
+		if !b {
+			fmt.Println("INFO - No space found on left. Cutting mid word ...")
 		}
-		space, b = findSpaceRight(res, m.EndPos, SNIP_SIDE_MAX)
-		if b {
-			m.EndPos = space
+		m.EndPos, b = findSpaceLeft(res, m.EndPos, SNIP_SIDE_MAX)
+		//m.EndPos = space
+		if !b {
+			fmt.Println("INFO - No space found on right. Cutting mid word ...")
 		}
 
 		// If we are very close to the start, just push it out so we get the actual start
@@ -276,46 +277,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 // up to `distance` away.  Returns index of space if a space was found
 // otherwise the the position is distance to the next complete
 // code-point past the `distance`.  In this case flag `false`.
-func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
-	leftDistance := pos - distance
-	if leftDistance < 0 {
-		leftDistance = 0
-	}
-
-	// Avoid possible overflow if we need to check the last byte
-	if pos == len(res.Content) {
-		pos--
-	}
-
-	// look left
-	// TODO should get a slice, and iterate the runes in it
-	// TODO check but I think this is acceptable for whitespace chars...
-	for i := pos; i >= leftDistance; i-- {
-		if unicode.IsSpace(rune(res.Content[i])) {
-			return i, true
-		}
-	}
-
-	rightDistance := pos + distance
-	if rightDistance >= len(res.Content) {
-		rightDistance = len(res.Content)
-	}
-
-	// look right
-	// TODO should get a slice, and iterate the runes in it
-	for i := pos; i < rightDistance; i++ {
-		if unicode.IsSpace(rune(res.Content[i])) {
-			return i, true
-		}
-	}
-
-	return pos, false
-}
-
-//func findNearbySpace(res *fileJob, pos int, distance int) (int, bool) {
-// TODO: call search left and search right
-//}
-
 func findSpaceLeft(res *fileJob, pos int, distance int) (idx int, found bool) {
 	// Deal with misuse
 	if len(res.Content) < 1 {
@@ -354,12 +315,12 @@ func findSpaceLeft(res *fileJob, pos int, distance int) (idx int, found bool) {
 		idx++
 	}
 
-	//fmt.Println("yoyo")
 	return
 }
 
+// TODO: Look at how to merge this with `findSpaceLeft`.  Be careful with
+// indices.
 func findSpaceRight(res *fileJob, pos int, distance int) (idx int, found bool) {
-	fmt.Println("len(res.Content)", len(res.Content))
 	// Deal with misuse
 	if len(res.Content) < 1 {
 		return 0, false
@@ -390,14 +351,11 @@ func findSpaceRight(res *fileJob, pos int, distance int) (idx int, found bool) {
 			// the same byte in twice won't break anything.
 			idx2 = idx
 		}
-		fmt.Printf("i: %d - res.Content[%d] = '%c', res.Content[%d] = '%c'\n",
-			i, idx, res.Content[idx], idx2, res.Content[idx2])
 		found = str.IsSpace(res.Content[idx], res.Content[idx2])
 		if found {
 			return
 		}
 	}
-	fmt.Println("Did not find a space, within given distance", distance)
 
 	// No space found.  Count back up to make sure we don't split mid rune.
 	// Only count back to the largest possible index.

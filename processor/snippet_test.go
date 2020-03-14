@@ -70,13 +70,19 @@ func TestFindNearbySpaceRightX(t *testing.T) {
 	findNearbySpaceGenericTester(t, rightCases, findSpaceRight)
 }
 
-// TODO: Check all callers of `findSpaceLeft/Right` and make sure they can
-// deal with new return value (it used to return pos to indicate no match)
-
 // Try to find bugs by fuzzing the input to all sorts of random things
 func TestFindNearbySpaceFuzzy(t *testing.T) {
 	for i := 0; i < 100000; i++ {
-		findNearbySpace(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
+		// Opt1 - Fails!! - Try running this instead of the way bellow.  ATTN Boyter
+		//findSpaceLeft(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
+		//findSpaceRight(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
+
+		// Opt2 - Passes
+		bs := []byte(randStringBytes(1000))
+		startPos := rand.Intn(1000)
+		dist := rand.Intn(10000)
+		findSpaceLeft(&fileJob{Content: bs}, startPos, dist)
+		findSpaceRight(&fileJob{Content: bs}, startPos, dist)
 	}
 }
 
