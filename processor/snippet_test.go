@@ -72,37 +72,6 @@ func TestFindNearbySpaceRightX(t *testing.T) {
 
 // TODO: Check all callers of `findSpaceLeft/Right` and make sure they can
 // deal with new return value (it used to return pos to indicate no match)
-func TestFindNearbySpaceLeftChangedTrue(t *testing.T) {
-	space, changed := findSpaceLeft(&fileJob{Content: []byte(` aaaa`)}, 4, SNIP_SIDE_MAX)
-
-	if space != 0 || changed != true {
-		t.Error("Expected 0 and changed true got", space, changed)
-	}
-}
-
-func TestFindNearbySpaceLeftChangedFalse(t *testing.T) {
-	space, changed := findSpaceLeft(&fileJob{Content: []byte(` aaaa`)}, 4, 1)
-
-	if space != 4 || changed != false {
-		t.Error("Expected 4 and changed true got", space, changed)
-	}
-}
-
-func TestFindNearbySpaceRightChangedTrue(t *testing.T) {
-	space, changed := findSpaceRight(&fileJob{Content: []byte(`aaaa `)}, 0, SNIP_SIDE_MAX)
-
-	if space != 4 || changed != true {
-		t.Error("Expected 4 and changed true got", space, changed)
-	}
-}
-
-func TestFindNearbySpaceRightChangedFalse(t *testing.T) {
-	space, changed := findSpaceRight(&fileJob{Content: []byte(`aaaa `)}, 0, 1)
-
-	if space != 0 || changed != false {
-		t.Error("Expected 0 and changed true got", space, changed)
-	}
-}
 
 // Try to find bugs by fuzzing the input to all sorts of random things
 func TestFindNearbySpaceFuzzy(t *testing.T) {
