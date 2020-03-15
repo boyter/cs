@@ -116,7 +116,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// Slide left
 		j := i - 1
-		//for j:= 1 - 1; j--; j >= 0 {	// Does this replace breaks ?
 		for {
 			// Ensure we never step outside the bounds of our slice
 			if j < 0 {

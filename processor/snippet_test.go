@@ -11,7 +11,7 @@ type spaceFinderCase = struct {
 	found          bool
 }
 
-var leftCases []spaceFinderCase = []spaceFinderCase{
+var leftCases = []spaceFinderCase{
 	{" aaaa", 4, 0, true},
 	{" aaaa", 24, 0, true}, // large position should reset to len(string)
 	{" aaaa", -1, 0, true}, // small position should reset to len(string)
@@ -30,7 +30,7 @@ var leftCases []spaceFinderCase = []spaceFinderCase{
 	{"\x82\x83", -1, 1, false}, // position should reset to len(string)
 }
 
-var rightCases []spaceFinderCase = []spaceFinderCase{
+var rightCases = []spaceFinderCase{
 	{" aaaa", 0, 0, true},
 	{" aaaa", 24, 0, true}, // large position should reset to 0
 	{" aaaa", -1, 0, true}, // small position should reset to 0
