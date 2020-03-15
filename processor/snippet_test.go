@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -94,4 +95,51 @@ func randStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+/* Invocation below produces non UTF-8 byte at begining of the returned string. The highlight also
+doesn't terminate
+
+(general) asset ❯ cs --hidden --no-gitignore --no-ignore 是波
+corpus/snippet/chinese_war_and_peace.txt (3.296)
+�
+
+英文
+
+“啊，公爵，热那亚和卢加现在是波拿巴家族的领地，不过，我得事先对您说，如果您不对我说我们这里处于战争状态，如果您 还敢袒护这个基督的
+
+(general) asset ❯
+
+*/
+var tempCase = spaceFinderCase{`第一章
+
+英文
+
+“啊，公爵，热那亚和卢加现在是波拿巴家族的领地，不过，我得事先对您说，如果您不对我说我们这里处于战争状态，如果您还敢袒护这个基督的敌人（我确乎相信，他是一个基督的敌人）的种种卑劣行径和他一手造成的灾祸，那么我就不再管您了。您`, 65, 10, true}
+
+func TestTims(t *testing.T) {
+	fmt.Println("Starting test main ...")
+
+	var left_idx, right_idx int
+	var found bool
+	l := tempCase
+	bs := []byte(l.text)
+	distance := 35
+	//fmt.Println("Before space search:", string(bs))
+
+	fmt.Println()
+	fmt.Printf("LOOKING LEFT from byte %d (← %d)...\n", l.startPos, distance)
+	left_idx, found = findSpaceLeft(&fileJob{Content: bs}, l.startPos, distance)
+	fmt.Println("Space found: ", found, ". Returned index:", left_idx)
+	//fmt.Println(string(bs[idx:l.startPos]))
+
+	fmt.Println()
+	fmt.Printf("LOOKING RIGHT from byte %d (→ %d)...\n", l.startPos, distance)
+	right_idx, found = findSpaceRight(&fileJob{Content: bs}, l.startPos, distance)
+	fmt.Println("Space found: ", found, ". Returned index:", right_idx)
+	//fmt.Println(string(bs[l.startPos:idx]))
+
+	fmt.Println()
+	fmt.Println("COMPLETE String is:")
+	fmt.Println(string(bs[left_idx:right_idx]))
 }
