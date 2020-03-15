@@ -33,6 +33,7 @@ NB for the above need to modify to not care about the searchparams length IE rem
 		}
 
 TODO
+add a snippet overlap detector to allow multiple snippets to be displayed
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
 add proximity search "this is"~5 which means they need to be within 5 bytes of each other
 add limit to number of results
