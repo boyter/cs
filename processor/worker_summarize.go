@@ -74,7 +74,7 @@ func (f *ResultSummarizer) Start() {
 
 		// If the start and end pos are 0 then we don't need to highlight because there is
 		// nothing to do so, which means its likely to be a filename match with no content
-		if v3.StartPos != 0 && v3.EndPos != 0 {
+		if !(v3.StartPos == 0 && v3.EndPos == 0) {
 			displayContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
 		}
 
