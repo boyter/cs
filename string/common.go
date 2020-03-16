@@ -114,25 +114,25 @@ func containsRune(elements []rune, needle rune) bool {
 // N.B only two bytes are required for these cases.  If we decided
 // to support spaces like '，' then we'll need more bytes.
 func IsSpace(firstByte, nextByte byte) bool {
-    switch {
-    case (9 <= firstByte) && (firstByte <= 13):  // \t, \n, \f, \r
-        return true
-    case firstByte == 32:  // SPACE
-        return true
-    case firstByte == 194:
-        if nextByte == 133 {  // NEL
-            return true
-        } else if nextByte == 160 {  // NBSP
-            return true
-        }
-    }
-    return false
+	switch {
+	case (9 <= firstByte) && (firstByte <= 13): // \t, \n, \f, \r
+		return true
+	case firstByte == 32: // SPACE
+		return true
+	case firstByte == 194:
+		if nextByte == 133 { // NEL
+			return true
+		} else if nextByte == 160 { // NBSP
+			return true
+		}
+	}
+	return false
 }
 
 func StartOfRune(b byte) bool {
-    if (b < (0b1 << 7)) || ((0b11 << 6) < b) {
-        return true
-    }
-    // Else continuation bit
-    return false
+	if (b < (0b1 << 7)) || ((0b11 << 6) < b) {
+		return true
+	}
+	// Else continuation bit
+	return false
 }
