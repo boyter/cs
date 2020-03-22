@@ -295,10 +295,14 @@ func StartHttpServer() {
 
 			// We want to escape the output, so we highlight, then escape then replace
 			// our special start and end strings with actual HTML
-			coloredContent := str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
-			coloredContent = html.EscapeString(coloredContent)
-			coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
-			coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
+			coloredContent := v3.Content
+			// If 0 and 0 don't highlight anything because it means its a filename match
+			if v3.StartPos != 0 && v3.EndPos != 0 {
+				coloredContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
+				coloredContent = html.EscapeString(coloredContent)
+				coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
+				coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
+			}
 
 			searchResults = append(searchResults, searchResult{
 				Title:    res.Location,

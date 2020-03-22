@@ -70,7 +70,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 					}
 				}
 
-				results[i].Score = results[i].Score * float64(1.0 - (float64(low) * 0.02))
+				results[i].Score = results[i].Score * float64(1.0-(float64(low)*0.02))
 			}
 		}
 

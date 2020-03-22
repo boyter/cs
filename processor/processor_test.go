@@ -18,8 +18,3 @@ func TestCleanSearchString(t *testing.T) {
 		t.Error("Expected 4")
 	}
 }
-
-func TestProcess(t *testing.T) {
-	p := NewProcess(".")
-	p.StartProcess()
-}

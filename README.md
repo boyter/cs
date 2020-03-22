@@ -20,18 +20,6 @@ score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 highlight on windows command line not escaped correctly
 
-http://localhost:8080/?q=test&ss=300 bug where display is all yellow
-
-go install && cs --hidden --no-gitignore --no-ignore ten thousand a year <<<<< out of range BUG
-
-NB for the above need to modify to not care about the searchparams length IE remove the condition
-
-        // Only if the score is 0 AND we have a single search param do we
-		// consider looking at the filename
-		if res.Score == 0 && len(f.searchParams) == 1 {
-			matchFilename(f, res)
-		}
-
 TODO
 add a snippet overlap detector to allow multiple snippets to be displayed
 clean up parser so multiple spaces aren't tokens or flag em to be ignored
@@ -41,6 +29,7 @@ investigate string match limit (might be wrong for unicode insensitive)
 JSON endpoint for HTTP
 JSON output for cli
 Save to disk output
+Actually have a real parser supporting proper boolean syntax
 
 MAYBE
 
