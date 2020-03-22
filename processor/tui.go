@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/string"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -400,13 +399,13 @@ func ProcessTui(run bool) {
 }
 
 func debugLogger(text string) {
-	f, err := os.OpenFile("cs.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	if _, err = f.WriteString(strconv.Itoa(int(makeTimestampMilli())) + " " + text + "\n"); err != nil {
-		panic(err)
-	}
+	//f, err := os.OpenFile("cs.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//defer f.Close()
+	//
+	//if _, err = f.WriteString(strconv.Itoa(int(makeTimestampMilli())) + " " + text + "\n"); err != nil {
+	//	panic(err)
+	//}
 }

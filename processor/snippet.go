@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"fmt"
 	"sort"
 	"unicode"
 
@@ -178,17 +177,17 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word if we can avoid it
-		var b bool
-		m.StartPos, b = findSpaceRight(res, m.StartPos, SNIP_SIDE_MAX)
+		//var b bool
+		m.StartPos, _ = findSpaceRight(res, m.StartPos, SNIP_SIDE_MAX)
 		//m.StartPos = space
-		if !b {
-			fmt.Println("INFO - No space found on left. Cutting mid word ...")
-		}
-		m.EndPos, b = findSpaceLeft(res, m.EndPos, SNIP_SIDE_MAX)
+		//if !b {
+		//	fmt.Println("INFO - No space found on left. Cutting mid word ...")
+		//}
+		m.EndPos, _ = findSpaceLeft(res, m.EndPos, SNIP_SIDE_MAX)
 		//m.EndPos = space
-		if !b {
-			fmt.Println("INFO - No space found on right. Cutting mid word ...")
-		}
+		//if !b {
+		//	fmt.Println("INFO - No space found on right. Cutting mid word ...")
+		//}
 
 		// If we are very close to the start, just push it out so we get the actual start
 		if m.StartPos <= SNIP_SIDE_MAX {
