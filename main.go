@@ -156,6 +156,13 @@ func main() {
 		10000000,
 		"number of bytes to read into a file with the remaining content ignored",
 	)
+	flags.StringVarP(
+		&processor.Format,
+		"format",
+		"f",
+		"text",
+		"set output format [text, json]",
+	)
 
 	// the below flags we want but are not enabled as yet
 
