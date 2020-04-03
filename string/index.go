@@ -5,6 +5,7 @@ package string
 import (
 	"math"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -78,6 +79,7 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 }
 
 var __permuteCache = map[string][]string{}
+var __permuteCacheLock = sync.Mutex{}
 
 // IndexAllIgnoreCaseUnicode extracts all of the locations of a string inside another string
 // up-to the defined limit. It is designed to be faster than uses of FindAllIndex with
@@ -120,6 +122,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	if utf8.RuneCountInString(needle) <= charLimit {
 		// We are below the limit we set, so get all the search
 		// terms and search for that
+		__permuteCacheLock.Lock()
 		searchTerms, ok := __permuteCache[needle]
 		if !ok {
 			if len(__permuteCache) > 10 {
@@ -128,6 +131,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 			searchTerms = PermuteCaseFolding(needle)
 			__permuteCache[needle] = searchTerms
 		}
+		__permuteCacheLock.Unlock()
 
 		// TODO - Investigate
 		// This is using IndexAll in a loop which was faster than
@@ -148,6 +152,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 		// cast things around to ensure it works
 		needleRune := []rune(needle)
 
+		__permuteCacheLock.Lock()
 		searchTerms, ok := __permuteCache[string(needleRune[:charLimit])]
 		if !ok {
 			if len(__permuteCache) > 10 {
@@ -156,6 +161,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 			searchTerms = PermuteCaseFolding(string(needleRune[:charLimit]))
 			__permuteCache[string(needleRune[:charLimit])] = searchTerms
 		}
+		__permuteCacheLock.Unlock()
 
 		// TODO - Investigate
 		// This is using IndexAll in a loop which was faster than
