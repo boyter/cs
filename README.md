@@ -19,6 +19,7 @@ search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 highlight on windows command line not escaped correctly
+search for "collins lizzy mr" in TUI view does not highlight mr but does pure command line
 
 TODO
 add a snippet overlap detector to allow multiple snippets to be displayed
