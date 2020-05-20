@@ -168,7 +168,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 					t := []int{s[0] - v3.StartPos, s[1] - v3.StartPos}
 					l = append(l, t)
 				} else {
-					debugLogger(fmt.Sprintf("%d", s[0] - v3.StartPos))
+					debugLogger(fmt.Sprintf("%d", s[0]-v3.StartPos))
 				}
 			}
 		}
