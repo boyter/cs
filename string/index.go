@@ -143,11 +143,15 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 		}
 		__permuteCacheLock.Unlock()
 
-		// TODO - Investigate
 		// This is using IndexAll in a loop which was faster than
 		// any implementation of Aho-Corasick or Boyer-Moore I tried
 		// but in theory Aho-Corasick / Rabin-Karp or even a modified
-		// version of Boyer-Moore should be faster than this
+		// version of Boyer-Moore should be faster than this.
+		// Especially since they should be able to do multiple comparisons
+		// at the same time.
+		// However after some investigation it turns out that this turns
+		// into a fancy  vector instruction on AMD64 (which is all we care about)
+		// and as such its pretty hard to beat.
 		for _, term := range searchTerms {
 			locs = append(locs, IndexAll(haystack, term, limit)...)
 
@@ -173,11 +177,15 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 		}
 		__permuteCacheLock.Unlock()
 
-		// TODO - Investigate
 		// This is using IndexAll in a loop which was faster than
 		// any implementation of Aho-Corasick or Boyer-Moore I tried
 		// but in theory Aho-Corasick / Rabin-Karp or even a modified
-		// version of Boyer-Moore should be faster than this
+		// version of Boyer-Moore should be faster than this.
+		// Especially since they should be able to do multiple comparisons
+		// at the same time.
+		// However after some investigation it turns out that this turns
+		// into a fancy  vector instruction on AMD64 (which is all we care about)
+		// and as such its pretty hard to beat.
 		for _, term := range searchTerms {
 			potentialMatches := IndexAll(haystack, term, -1)
 
