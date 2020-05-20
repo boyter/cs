@@ -29,6 +29,11 @@ import (
 // Note that this method is explicitly case sensitive in its matching.
 // A return value of nil indicates no match.
 func IndexAll(haystack string, needle string, limit int) [][]int {
+	// The below needed to avoid timeout crash found using go-fuzz
+	if len(haystack) == 0 || len(needle) == 0 {
+		return nil
+	}
+
 	// Return contains a slice of slices where index 0 is the location of the match in bytes
 	// and index 1 contains the end location in bytes of the match
 	locs := [][]int{}
@@ -88,6 +93,11 @@ var __permuteCacheLock = sync.Mutex{}
 // for S will search for S s and ſ which a simple strings.ToLower over the haystack
 // and the needle will not.
 func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]int {
+	// The below needed to avoid timeout crash found using go-fuzz
+	if len(haystack) == 0 || len(needle) == 0 {
+		return nil
+	}
+
 	// One of the problems with finding locations ignoring case is that
 	// the different case representations can have different byte counts
 	// which means the locations using strings or bytes Index can be off
@@ -109,8 +119,8 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	// you the need to validate a potential match after you have found one.
 	// The confirmation match is done in a loop because for some literals regular expression
 	// is still to slow, although for most its a valid option.
-
 	locs := [][]int{}
+
 	// Char limit is the cut-off where we switch from all case permutations
 	// to just the first 3 and then check for an actual match
 	// in my tests 3 speeds things up the most against test data

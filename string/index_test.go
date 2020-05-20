@@ -95,6 +95,14 @@ func TestDropInReplacementMultiple(t *testing.T) {
 	}
 }
 
+func TestIndexAllIgnoreCaseUnicodeEmpty(t *testing.T) {
+	matches := IndexAllIgnoreCaseUnicode("", "2", -1)
+
+	if matches != nil {
+		t.Error("Expected no matches")
+	}
+}
+
 func TestIndexAllIgnoreCaseUnicodeLongNeedleNoMatch(t *testing.T) {
 	matches := IndexAllIgnoreCaseUnicode("aaaaabbbbb", "aaaaaa", -1)
 
