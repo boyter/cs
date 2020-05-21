@@ -184,6 +184,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		//	fmt.Println("INFO - No space found on left. Cutting mid word ...")
 		//}
 		m.EndPos, _ = findSpaceLeft(res, m.EndPos, SNIP_SIDE_MAX)
+
 		//m.EndPos = space
 		//if !b {
 		//	fmt.Println("INFO - No space found on right. Cutting mid word ...")
@@ -286,6 +287,12 @@ func findSpaceLeft(res *fileJob, pos int, distance int) (idx int, found bool) {
 		pos = len(res.Content) - 1
 	}
 
+	// if the distance is over what we needed then just return that
+	// TODO this seems wrong...
+	if pos + distance > len(res.Content) {
+		return len(res.Content), false
+	}
+
 	// Avoid overflows from invalid distance
 	if distance > pos {
 		distance = pos
@@ -316,46 +323,76 @@ func findSpaceLeft(res *fileJob, pos int, distance int) (idx int, found bool) {
 	return
 }
 
+// Given the filejob,
+func findSpaceRight2(res *fileJob, pos int, distance int) (int, bool) {
+
+
+	return pos, false
+}
+
+
 // TODO: Look at how to merge this with `findSpaceLeft`.  Be careful with
 // indices.
 func findSpaceRight(res *fileJob, pos int, distance int) (idx int, found bool) {
 	// Deal with misuse
-	if len(res.Content) < 1 {
+	if len(res.Content) <= 0 {
 		return 0, false
 	}
 
 	// Avoid overflow from invalid pos
-	if (pos >= len(res.Content)) || (pos < 0) {
+	if pos >= len(res.Content) || pos < 0 {
 		pos = 0
 	}
 
-	// Avoid overflows from invalid distance
-	if distance > (len(res.Content) - pos) { // Up to here
-		distance = len(res.Content) - 1 - pos
+	// If we want more than there is just return from where to the end
+	if pos + distance > len(res.Content) {
+		// -1 because we return the index from where we want to cut not the length
+		// of the content itself IE we are saying cut to the end index
+		// and false because we didn't find a space as there was no need
+		return len(res.Content)-1, false
 	}
 
-	// Set default return values
+	// Set default return values IE by default we cut from where we started
+	// and didn't find any spaces
 	idx, found = pos, false
 
 	// Look for spaces // TODO could set i to idx for count up
 	for i := 0; i <= distance; i++ {
 		idx = pos + i
-		idx2 := idx + 1
-		if idx2 == len(res.Content) { // ... we'll have an index error.
-			// ∴ We need an index that is valid.
-			// All that matters here is that we don't accidentally
-			// get a match by choosing at random.  No 2 byte
-			// 'space' is a repeat of the first byte so putting
-			// the same byte in twice won't break anything.
-			idx2 = idx
-		}
-		found = str.IsSpace(res.Content[idx], res.Content[idx2])
-		if found {
-			return
+		//idx2 := idx + 1
+		//
+		//if idx2 >= len(res.Content) { // ... we'll have an index error.
+		//	// ∴ We need an index that is valid.
+		//	// All that matters here is that we don't accidentally
+		//	// get a match by choosing at random.  No 2 byte
+		//	// 'space' is a repeat of the first byte so putting
+		//	// the same byte in twice won't break anything.
+		//	idx2 = len(res.Content) - 1
+		//}
+		//
+		////fmt.Println(idx, idx2)
+		//found = str.IsSpace(res.Content[idx], res.Content[idx2])
+		//if found {
+		//	return
+		//}
+
+		if idx < len(res.Content)-1 {
+			if str.IsSpace(res.Content[idx], res.Content[idx+1]) {
+				// if we found a space then check if
+				for idx > 0 && !str.StartOfRune(res.Content[idx]) {
+					idx--
+				}
+
+				return idx, true
+			}
 		}
 	}
 
-	// No space found.  Count back up to make sure we don't split mid rune.
+	if idx == len(res.Content) {
+		idx--
+	}
+
+	// Count back up to make sure we don't split mid rune.
 	// Only count back to the largest possible index.
 	for idx > 0 && !str.StartOfRune(res.Content[idx]) {
 		idx--

@@ -17,5 +17,7 @@ func Fuzz(data []byte) int {
 	IndexAll(string(data), find[:2], -1)
 	l := IndexAllIgnoreCaseUnicode(string(data), find[:2], -1)
 	HighlightString(string(data), l, "__IN__", "__OUT__")
+	FindFirstSpaceRight(string(data), 0, 100000)
+	FindFirstSpaceLeft(string(data), 10, 100000)
 	return 1
 }

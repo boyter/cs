@@ -159,3 +159,83 @@ func TestStartOfRune(t *testing.T) {
 		}
 	}
 }
+
+
+func TestFindSpaceRight(t *testing.T) {
+	var cases = []struct {
+		s        string
+		startpos int
+		distance int
+		want     int
+		found    bool
+	}{
+		{"yo", 0, 10, 0, false},
+		{"boyterwasheredoingstuff", 0, 10, 0, false},
+		{"", 0, 10, 0, false},
+		{"", -16, 10, -16, false},
+		{"", 50, 10, 50, false},
+		{"a", 1, 10, 1, false},
+		{"a", 2, 10, 2, false},
+		{"aa", 0, 10, 0, false},
+		{"a ", 0, 10, 1, true},
+		{"aa ", 0, 10, 2, true},
+		{"🍺 ", 0, 10, 4, true},
+		{"🍺🍺 ", 0, 10, 8, true},
+		{"aaaaaaaaaaa ", 0, 10, 0, false},
+		{"aaaa ", 0, 3, 0, false},
+		{"，", 0, 10, 0, false},
+		{"“啊，公爵，热那", 0, 10, 0, false},
+		{"aaaaa aaaaa", 5, 10, 5, true},
+		{" aaaa aaaaa", 5, 10, 5, true},
+		{"    a aaaaa", 5, 10, 5, true},
+		{"     aaaaaa", 5, 10, 5, false},
+		{"aaaaaaaaaa", 9, 10, 9, false},
+	}
+
+	for i, c := range cases {
+		pos, found := FindFirstSpaceRight(c.s, c.startpos, c.distance)
+
+		if pos != c.want {
+			t.Error("  pos for", i, "wanted", c.want, "got", pos)
+		}
+
+		if found != c.found {
+			t.Error("found for", i, "wanted", c.found, "got", found)
+		}
+	}
+}
+
+func TestFindSpaceLeft(t *testing.T) {
+	var cases = []struct {
+		s        string
+		startpos int
+		distance int
+		want     int
+		found    bool
+	}{
+		{"yo", 1, 10, 1, false},
+		{"boyterwasheredoingstuff", 10, 10, 10, false},
+		{"", 10, 10, 10, false},
+		{"aaaa", 3, 10, 3, false},
+		{" aaaa", 4, 10, 0, true},
+		{"aaaabaaaa", 4, 10, 4, false},
+		{" 🍺", 4, 10, 0, true},
+		{" 🍺🍺", 6, 10, 0, true},
+		{" “啊，公爵，热那", 25, 100, 0, true},
+		{"     aaaaaa", 5, 10, 4, true},
+		{"     aaaaaa", 10, 10, 4, true},
+	}
+
+	for i, c := range cases {
+		pos, found := FindFirstSpaceLeft(c.s, c.startpos, c.distance)
+
+		if pos != c.want {
+			t.Error("  pos for", i, "wanted", c.want, "got", pos)
+		}
+
+		if found != c.found {
+			t.Error("found for", i, "wanted", c.found, "got", found)
+		}
+	}
+}
+

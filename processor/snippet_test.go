@@ -72,17 +72,25 @@ func TestFindNearbySpaceRightX(t *testing.T) {
 }
 
 // Try to find bugs by fuzzing the input to all sorts of random things
-func TestFindNearbySpaceFuzzy(t *testing.T) {
+func TestFindNearbySpaceFuzzyLeft(t *testing.T) {
 	for i := 0; i < 100000; i++ {
-		// Opt1 - Fails!! - Try running this instead of the way bellow.  ATTN Boyter
-		//findSpaceLeft(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
-		//findSpaceRight(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
+		findSpaceLeft(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
 
-		// Opt2 - Passes
 		bs := []byte(randStringBytes(1000))
 		startPos := rand.Intn(1000)
 		dist := rand.Intn(10000)
 		findSpaceLeft(&fileJob{Content: bs}, startPos, dist)
+	}
+}
+
+// Try to find bugs by fuzzing the input to all sorts of random things
+func TestFindNearbySpaceFuzzyRight(t *testing.T) {
+	for i := 0; i < 100000; i++ {
+		findSpaceRight(&fileJob{Content: []byte(randStringBytes(1000))}, rand.Intn(1000), rand.Intn(10000))
+
+		bs := []byte(randStringBytes(1000))
+		startPos := rand.Intn(1000)
+		dist := rand.Intn(10000)
 		findSpaceRight(&fileJob{Content: bs}, startPos, dist)
 	}
 }
@@ -118,8 +126,6 @@ var tempCase = spaceFinderCase{`第一章
 “啊，公爵，热那亚和卢加现在是波拿巴家族的领地，不过，我得事先对您说，如果您不对我说我们这里处于战争状态，如果您还敢袒护这个基督的敌人（我确乎相信，他是一个基督的敌人）的种种卑劣行径和他一手造成的灾祸，那么我就不再管您了。您`, 65, 10, true}
 
 func TestTims(t *testing.T) {
-	fmt.Println("Starting test main ...")
-
 	var left_idx, right_idx int
 	var found bool
 	l := tempCase
