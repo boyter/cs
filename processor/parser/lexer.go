@@ -47,30 +47,30 @@ func (p *Lexer) Tokens() []Token {
 	return nil
 }
 
-func (p *Lexer) nextToken() Token {
-	// based on the pos find the next token location
-	switch c := p.Query[p.pos]; c {
-	case '(':
-		return Token{
-			Type: "PAREN_START",
-			Pos:  p.pos,
-		}
-	case '"':
-
-	}
-
-	if p.Query[p.pos] == '"' {
-		// scan from here till we fine the next or the end and return as the token
-		for i, r := range p.Query[p.pos:] {
-			if i > p.pos {
-				if r == '"' {
-					tok := p.Query[p.pos:i+1]
-					p.pos = i+1
-					return tok
-				}
-			}
-		}
-	}
-
-	return p.Query[p.pos:]
-}
+//func (p *Lexer) nextToken() Token {
+//	// based on the pos find the next token location
+//	switch c := p.Query[p.pos]; c {
+//	case '(':
+//		return Token{
+//			Type: "PAREN_START",
+//			Pos:  p.pos,
+//		}
+//	case '"':
+//
+//	}
+//
+//	if p.Query[p.pos] == '"' {
+//		// scan from here till we fine the next or the end and return as the token
+//		for i, r := range p.Query[p.pos:] {
+//			if i > p.pos {
+//				if r == '"' {
+//					tok := p.Query[p.pos:i+1]
+//					p.pos = i+1
+//					return tok
+//				}
+//			}
+//		}
+//	}
+//
+//	return p.Query[p.pos:]
+//}

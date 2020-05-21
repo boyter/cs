@@ -1,17 +1,13 @@
 package parser
 
-import (
-	"testing"
-)
-
-func TestParseSingle(t *testing.T) {
-	parsed := NewParser(`"a" "b"`)
-
-	token := parsed.nextToken()
-	if token != `"a"` {
-		t.Error(`expected "a" got`, token)
-	}
-}
+//func TestParseSingle(t *testing.T) {
+//	parsed := NewParser(`"a" "b"`)
+//
+//	token := parsed.nextToken()
+//	if token != `"a"` {
+//		t.Error(`expected "a" got`, token)
+//	}
+//}
 
 //func TestParseDouble(t *testing.T) {
 //	parsed := Parse("a b")
