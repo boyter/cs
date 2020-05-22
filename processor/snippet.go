@@ -289,6 +289,9 @@ func findSpaceRight(content string, pos int, distance int) (int, bool) {
 	return pos, false
 }
 
+// Looks for nearby whitespace character near this position
+// up to distance away. Returns index of space if a space was found and tru
+// otherwise the original index is return and false
 func findSpaceLeft(content string, pos int, distance int) (int, bool) {
 	if len(content) == 0 {
 		return pos, false
