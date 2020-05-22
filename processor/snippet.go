@@ -9,7 +9,7 @@ import (
 
 // Defines the maximum bytes either side of the match
 // we are willing to return
-var SNIP_SIDE_MAX int = 10
+var SnipSideMax int = 10
 
 type bestMatch struct {
 	StartPos int
@@ -85,12 +85,16 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	// it means we have no content to look through so just display the first
 	// chunk of the file
 	if len(rv3) == 1 && rv3[0].Start == 0 && rv3[0].End == 0 {
-		endPos := 300
-		if len(res.Content) < 300 {
+		endPos := relLength
+		if len(res.Content) < relLength {
 			endPos = len(res.Content)
 		}
 
-		// TODO check for if we cut in the middle of a multibyte character
+		// Ensure we don't cut in the middle of a multibyte character
+		for endPos != 0 && endPos != len(res.Content) && !str.StartOfRune(res.Content[endPos]) {
+			endPos--
+		}
+
 		return []Snippet{
 			{
 				Content:  string(res.Content[:endPos]),
@@ -179,8 +183,8 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		// middle of a word if we can avoid it
 		sf := false
 		ef := false
-		m.StartPos, sf = findSpaceLeft(string(res.Content), m.StartPos, SNIP_SIDE_MAX)
-		m.EndPos, ef = findSpaceRight(string(res.Content), m.EndPos, SNIP_SIDE_MAX)
+		m.StartPos, sf = findSpaceLeft(string(res.Content), m.StartPos, SnipSideMax)
+		m.EndPos, ef = findSpaceRight(string(res.Content), m.EndPos, SnipSideMax)
 
 		// Check if we are cutting in the middle of a multibyte char and if so
 		// go looking till we find the start. We only do so if we didn't find a space,
@@ -193,7 +197,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		}
 
 		// If we are very close to the start, just push it out so we get the actual start
-		if m.StartPos <= SNIP_SIDE_MAX {
+		if m.StartPos <= SnipSideMax {
 			m.StartPos = 0
 		}
 		// As above, but against the end so we just include the rest if we are close

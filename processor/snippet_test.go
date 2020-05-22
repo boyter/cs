@@ -98,7 +98,7 @@ var leftCases = []spaceFinderCase{
 	{" aaaa", -1, 0, true}, // small position should reset to len(string)
 	{"a aaa", 4, 1, true},
 	{"aaaa ", 4, 4, true},
-	{" 12345678901", 11, 11 - SNIP_SIDE_MAX, false}, // Space after SNIP_SIDE_MAX
+	{" 12345678901", 11, 11 - SnipSideMax, false}, // Space after SNIP_SIDE_MAX
 	// 24 bytes. Searches from far right. N.B those 'spaces' are actually
 	// code-points that include the comma
 	{"“啊，公爵，热那", -1, 15, false},
@@ -117,7 +117,7 @@ var rightCases = []spaceFinderCase{
 	{" aaaa", -1, 0, true}, // small position should reset to 0
 	{"a aaa", 0, 1, true},
 	{"abcd ", 0, 4, true},
-	{"01234567890 ", 0, SNIP_SIDE_MAX, false}, // Space after SNIP_SIDE_MAX
+	{"01234567890 ", 0, SnipSideMax, false}, // Space after SNIP_SIDE_MAX
 	// 24 bytes. Searches from far left. N.B those 'spaces' are actually
 	// code-points that include the comma
 	{"“啊，公爵，热那", -1, 9, false}, // Goes to 10 then count back 1
@@ -132,7 +132,7 @@ var rightCases = []spaceFinderCase{
 
 func findNearbySpaceGenericTester(t *testing.T, cases []spaceFinderCase, finder func(*fileJob, int, int) (int, bool)) {
 	for _, testCase := range cases {
-		idx, found := finder(&fileJob{Content: []byte(testCase.text)}, testCase.startPos, SNIP_SIDE_MAX)
+		idx, found := finder(&fileJob{Content: []byte(testCase.text)}, testCase.startPos, SnipSideMax)
 
 		if idx != testCase.want {
 			t.Error("Expected", testCase.want, "got", idx)
