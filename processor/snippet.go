@@ -177,15 +177,18 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word if we can avoid it
-		m.StartPos, _ = findSpaceLeft(string(res.Content), m.StartPos, SNIP_SIDE_MAX)
-		m.EndPos, _ = findSpaceRight(string(res.Content), m.EndPos, SNIP_SIDE_MAX)
+		sf := false
+		ef := false
+		m.StartPos, sf = findSpaceLeft(string(res.Content), m.StartPos, SNIP_SIDE_MAX)
+		m.EndPos, ef = findSpaceRight(string(res.Content), m.EndPos, SNIP_SIDE_MAX)
 
 		// Check if we are cutting in the middle of a multibyte char and if so
-		// go looking till we find the start
-		for m.StartPos != 0 && m.StartPos != len(res.Content) && !str.StartOfRune(res.Content[m.StartPos]) {
+		// go looking till we find the start. We only do so if we didn't find a space,
+		// and if we aren't at the start or very end of the content
+		for sf == false && m.StartPos != 0 && m.StartPos != len(res.Content) && !str.StartOfRune(res.Content[m.StartPos]) {
 			m.StartPos--
 		}
-		for m.EndPos != 0 && m.EndPos != len(res.Content) && !str.StartOfRune(res.Content[m.EndPos]) {
+		for ef == false && m.EndPos != 0 && m.EndPos != len(res.Content) && !str.StartOfRune(res.Content[m.EndPos]) {
 			m.EndPos--
 		}
 
