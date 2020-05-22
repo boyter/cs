@@ -41,15 +41,12 @@ template example (from root)
 
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 
-example, vendor/github.com/rivo/
 
 searching for tab key usage with shift modifier, searched for keytab using ag/rg/ack and nothing useful
 try using cs and its right at the top 
 
 
 https://github.com/BurntSushi/ripgrep/issues/95
-
-
 
 Snippet generation
 
