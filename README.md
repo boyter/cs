@@ -15,7 +15,6 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 
 ```
 BUGS
-search for cs --hidden --no-gitignore --no-ignore 英文 cuts in the middle of a rune
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
 highlight on windows command line not escaped correctly

@@ -92,6 +92,12 @@ var __permuteCacheLock = sync.Mutex{}
 // checking for exact matches. It also does so in a unicode aware way such that a search
 // for S will search for S s and ſ which a simple strings.ToLower over the haystack
 // and the needle will not.
+// The result is the ability to search for literals without hitting the regex engine
+// which can at times be horribly slow. This by contrast is much faster. See
+// index_ignorecase_benchmark_test.go for some head to head results. Generally
+// so long as we arent dealing with random data this method should be considerably
+// faster (in some cases thousands of times) or just as fast. Of course it cannot
+// do regular expressions, but that's fine.
 func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]int {
 	// The below needed to avoid timeout crash found using go-fuzz
 	if len(haystack) == 0 || len(needle) == 0 {
@@ -128,10 +134,15 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	// amounts of data from /dev/urandom
 	var charLimit = 3
 
-	//var searchTerms []string
 	if utf8.RuneCountInString(needle) <= charLimit {
 		// We are below the limit we set, so get all the search
 		// terms and search for that
+
+		// Generally speaking I am against caches inside libraries but in this case...
+		// when the IndexAllIgnoreCaseUnicode method is called repeatedly it quite often
+		// ends up performing case folding on the same thing over and over again which
+		// can become the most expensive operation. So we keep a VERY small cache
+		// to avoid that being an issue.
 		__permuteCacheLock.Lock()
 		searchTerms, ok := __permuteCache[needle]
 		if !ok {
@@ -166,6 +177,11 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 		// cast things around to ensure it works
 		needleRune := []rune(needle)
 
+		// Generally speaking I am against caches inside libraries but in this case...
+		// when the IndexAllIgnoreCaseUnicode method is called repeatedly it quite often
+		// ends up performing case folding on the same thing over and over again which
+		// can become the most expensive operation. So we keep a VERY small cache
+		// to avoid that being an issue.
 		__permuteCacheLock.Lock()
 		searchTerms, ok := __permuteCache[string(needleRune[:charLimit])]
 		if !ok {

@@ -36,14 +36,14 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// result collection to finish IE the part that collects results for display
 	if tuiFileWalker.Walking() {
 		tuiFileWalker.Terminate()
-		debugLogger(fmt.Sprintf("terminate called %s %d", searchTerm, debugCount))
+		//debugLogger(fmt.Sprintf("terminate called %s %d", searchTerm, debugCount))
 	}
 
 	// We lock here because we don't want another instance to run until
 	// this one has terminated which should happen with the terminate call
 	isRunningMutex.Lock()
 	defer isRunningMutex.Unlock()
-	debugLogger(fmt.Sprintf("isRunningMutex.Lock() %s %d", searchTerm, debugCount))
+	//debugLogger(fmt.Sprintf("isRunningMutex.Lock() %s %d", searchTerm, debugCount))
 
 	// If the searchterm is empty then we draw out nothing and return
 	if strings.TrimSpace(searchTerm) == "" {
@@ -134,7 +134,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	resultsMutex.Lock()
 	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), "")
 	resultsMutex.Unlock()
-	debugLogger(fmt.Sprintf("isRunningMutex.Unlock() %s %d", searchTerm, debugCount))
+	//debugLogger(fmt.Sprintf("isRunningMutex.Unlock() %s %d", searchTerm, debugCount))
 	debugCount++
 }
 
@@ -158,20 +158,13 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
+		// NB this just gets the first snippet which should in theory be the most relevant
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
-		l := [][]int{}
-		for _, value := range res.MatchLocations {
-			for _, s := range value {
-				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-					// Have to create a new one to avoid changing the position
-					// unlike in others where we throw away the results afterwards
-					t := []int{s[0] - v3.StartPos, s[1] - v3.StartPos}
-					l = append(l, t)
-				} else {
-					debugLogger(fmt.Sprintf("%d", s[0]-v3.StartPos))
-				}
-			}
-		}
+
+		debugLogger(fmt.Sprintf("%d %d %s", v3.StartPos, v3.EndPos, v3.Content))
+		// now that we have the relevant portion we need to get just the bits related to highlight it correctly
+		// which this method does. It takes in the snippet, we extract and all of the locations and then returns just
+		l := getLocated(res, v3)
 
 		coloredContent := str.HighlightString(v3.Content, l, "[red]", "[white]")
 		resultText += coloredContent + "\n\n"
@@ -400,14 +393,3 @@ func ProcessTui(run bool) {
 	}
 }
 
-func debugLogger(text string) {
-	//f, err := os.OpenFile("cs.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//defer f.Close()
-	//
-	//if _, err = f.WriteString(strconv.Itoa(int(makeTimestampMilli())) + " " + text + "\n"); err != nil {
-	//	panic(err)
-	//}
-}
