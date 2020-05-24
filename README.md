@@ -17,8 +17,7 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 BUGS
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
-highlight on windows command line not escaped correctly
-search for "collins lizzy mr" in TUI view does not highlight mr but does pure command line
+highlight on windows command line not escaped correctly "ansi escape windows"
 
 TODO
 add a snippet overlap detector to allow multiple snippets to be displayed

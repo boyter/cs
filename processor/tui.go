@@ -80,7 +80,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	tuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
 	tuiSearcherWorker.SearchString = SearchString
-	tuiSearcherWorker.MatchLimit = 100
+	tuiSearcherWorker.MatchLimit = -1 // NB this can make things slow because we keep going
 	tuiSearcherWorker.InstanceId = instanceCount
 	tuiSearcherWorker.IncludeBinary = IncludeBinaryFiles
 	tuiSearcherWorker.CaseSensitive = CaseSensitive
@@ -161,7 +161,6 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 		// NB this just gets the first snippet which should in theory be the most relevant
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
 
-		debugLogger(fmt.Sprintf("%d %d %s", v3.StartPos, v3.EndPos, v3.Content))
 		// now that we have the relevant portion we need to get just the bits related to highlight it correctly
 		// which this method does. It takes in the snippet, we extract and all of the locations and then returns just
 		l := getLocated(res, v3)
