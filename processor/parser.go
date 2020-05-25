@@ -18,7 +18,6 @@ type searchParams struct {
 	Type int64
 }
 
-
 // Cheap and nasty parser. Needs to be reworked
 // to provide real boolean logic with AND OR NOT
 // but does enough for now

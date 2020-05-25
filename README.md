@@ -16,10 +16,10 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 ```
 BUGS
 score from TF/IDF appears to be negative in some cases (overflow??)
-searches in TUI for very large directories clobber each other making UI unresponsive
- - above id due to while the file walker is never terminated for some reason
 highlight on windows command line not escaped correctly "ansi escape windows"
 search for http://localhost:8080/?q=spdx+unlicense&ss=300 seems to miss highlights 100% works command line seems to happen all over the place
+seems to turn DeviceDescription.stories.tsx into strries.tsx not tsx func GetExtension(name string) string {
+
 
 TODO
 actually have a real parser supporting proper boolean syntax

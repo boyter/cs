@@ -19,22 +19,21 @@ package parser
 
 // This is for the parser
 type Expr struct {
-	Op string
-	Left *Expr
+	Op    string
+	Left  *Expr
 	Right *Expr
-	Val []string
+	Val   []string
 }
 
 // This is for the lexer
 type Token struct {
 	Type string
-	Pos int
+	Pos  int
 }
 
-
-type Lexer struct{
+type Lexer struct {
 	Query string
-	pos int
+	pos   int
 }
 
 func NewLexer(query string) Lexer {

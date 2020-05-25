@@ -289,7 +289,7 @@ func findSpaceRight(res *fileJob, pos int, distance int) (int, bool) {
 
 	end := pos + distance
 	if end > len(res.Content)-1 {
-		end = len(res.Content)-1
+		end = len(res.Content) - 1
 	}
 
 	// Look for spaces

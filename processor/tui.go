@@ -32,10 +32,12 @@ var debugCount = 0
 
 type searchTermStruct struct {
 	SearchTerm string
-	TimeStamp int64
+	TimeStamp  int64
 }
+
 var queuedSearch []searchTermStruct
 var queuedSearchMutex sync.Mutex
+var queuedSearchLastTime int64
 
 // If we are here that means we actually need to perform a search
 func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm searchTermStruct) {
@@ -53,24 +55,29 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 	// this one has terminated which should happen with the terminate call
 	// NB at this point we have a race condition... many searches are wanting to run in here
 	// but of course only one gets the lock, which might not be the most recent one...
-	// TODO solve the above
-	// put the current search into a array with the timestamp....
-	// once we get the lock loop through the array get the most recent one and then act on that
-	// so we always run the most recent search
-	// then split th actual search out from this because this is more like a buffer system for dealing with it
 	isRunningMutex.Lock()
 	defer isRunningMutex.Unlock()
 
+	// the search that has run before is newer than this one so abort
 	queuedSearchMutex.Lock()
-	var highest int64
+	if queuedSearchLastTime > searchTerm.TimeStamp {
+		queuedSearchMutex.Unlock()
+		return
+	}
+
 	var search string
 	for _, s := range queuedSearch {
-		if s.TimeStamp > highest {
+		if s.TimeStamp > queuedSearchLastTime {
 			search = s.SearchTerm
-			highest = s.TimeStamp
+			queuedSearchLastTime = s.TimeStamp
 		}
 	}
 	queuedSearchMutex.Unlock()
+
+	// if the search is not mine then return
+	if queuedSearchLastTime != searchTerm.TimeStamp && search != searchTerm.SearchTerm {
+		return
+	}
 
 	// If the searchterm is empty then we draw out nothing and return
 	if strings.TrimSpace(search) == "" {
@@ -409,4 +416,3 @@ func ProcessTui(run bool) {
 		}
 	}
 }
-

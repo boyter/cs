@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 func TestFindSpaceRight(t *testing.T) {
 	var cases = []struct {
 		s        string
@@ -38,7 +37,7 @@ func TestFindSpaceRight(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		pos, found := findSpaceRight(c.s, c.startpos, c.distance)
+		pos, found := findSpaceRight(&fileJob{Content: []byte(c.s)}, c.startpos, c.distance)
 
 		if pos != c.want {
 			t.Error("  pos for", i, "wanted", c.want, "got", pos)
@@ -73,7 +72,7 @@ func TestFindSpaceLeft(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		pos, found := findSpaceLeft(c.s, c.startpos, c.distance)
+		pos, found := findSpaceLeft(&fileJob{Content: []byte(c.s)}, c.startpos, c.distance)
 
 		if pos != c.want {
 			t.Error("  pos for", i, "wanted", c.want, "got", pos)
@@ -84,7 +83,6 @@ func TestFindSpaceLeft(t *testing.T) {
 		}
 	}
 }
-
 
 type spaceFinderCase = struct {
 	text           string
@@ -142,6 +140,7 @@ func findNearbySpaceGenericTester(t *testing.T, cases []spaceFinderCase, finder 
 		}
 	}
 }
+
 //
 //func TestFindNearbySpaceLeftX(t *testing.T) {
 //	findNearbySpaceGenericTester(t, leftCases, findSpaceLeft)

@@ -35,7 +35,7 @@ type FileWalker struct {
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
 	InstanceId             int
 	AllowListExtensions    []string // Which extensions should be allowed
-	UniqueId string
+	UniqueId               string
 }
 
 func NewFileWalker(directory string, fileListQueue chan *File) *FileWalker {
@@ -305,6 +305,7 @@ func checkForGitOrMercurial(curdir string) bool {
 // A custom version of extracting extensions for a file
 // which deals with extensions specific to code such as
 // .travis.yml and the like
+// TODO seems to turn DeviceDescription.stories.tsx into strries.tsx not tsx
 func GetExtension(name string) string {
 	name = strings.ToLower(name)
 	ext := filepath.Ext(name)

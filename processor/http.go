@@ -241,9 +241,9 @@ func StartHttpServer() {
 			for _, value := range res.MatchLocations {
 				for _, s := range value {
 					//if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-						s[0] = s[0] - v3.StartPos
-						s[1] = s[1] - v3.StartPos
-						l = append(l, s)
+					s[0] = s[0] - v3.StartPos
+					s[1] = s[1] - v3.StartPos
+					l = append(l, s)
 					//}
 				}
 			}
