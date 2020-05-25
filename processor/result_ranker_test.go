@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Unlicense
+
 package processor
 
 //func TestRanker2(t *testing.T) {

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Unlicense
+
 package processor
 
 // Flags set via the CLI which control how the output is displayed
