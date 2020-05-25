@@ -76,7 +76,7 @@ func (process *Process) StartProcess() {
 	fileSearcher.MinifiedLineByteLength = MinifiedLineByteLength
 
 	resultSummarizer := NewResultSummarizer(summaryQueue)
-	resultSummarizer.FileReaderWorker = &fileReader
+	resultSummarizer.FileReaderWorker = fileReader
 
 	go fileWalker.Start()
 	go fileReader.Start()

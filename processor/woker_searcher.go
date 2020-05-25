@@ -24,8 +24,8 @@ type SearcherWorker struct {
 	MinifiedLineByteLength int
 }
 
-func NewSearcherWorker(input chan *fileJob, output chan *fileJob) SearcherWorker {
-	return SearcherWorker{
+func NewSearcherWorker(input chan *fileJob, output chan *fileJob) *SearcherWorker {
+	return &SearcherWorker{
 		input:                  input,
 		output:                 output,
 		SearchString:           []string{},

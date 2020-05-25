@@ -17,22 +17,27 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 BUGS
 score from TF/IDF appears to be negative in some cases (overflow??)
 searches in TUI for very large directories clobber each other making UI unresponsive
+ - above id due to while the file walker is never terminated for some reason
 highlight on windows command line not escaped correctly "ansi escape windows"
+search for http://localhost:8080/?q=spdx+unlicense&ss=300 seems to miss highlights 100% works command line seems to happen all over the place
 
 TODO
-add a snippet overlap detector to allow multiple snippets to be displayed
-clean up parser so multiple spaces aren't tokens or flag em to be ignored
+actually have a real parser supporting proper boolean syntax
 add proximity search "this is"~5 which means they need to be within 5 bytes of each other
-add limit to number of results
-investigate string match limit (might be wrong for unicode insensitive)
-JSON endpoint for HTTP
+add limit to number of results in html with paging
+JSON endpoint for HTTP just in case someone wants to build own stuff
 Save to disk output
-Actually have a real parser supporting proper boolean syntax
+
 
 MAYBE
 
 HTML parser option
 https://stackoverflow.com/questions/44441665/how-to-extract-only-text-from-html-in-golang
+add a snippet overlap detector to allow multiple snippets to be displayed
+investigate string match limit (might be wrong for unicode insensitive)
+literal extraction engine for regex to speed it up
+query plan optimisation for boolean queries when implemented
+
 ```
 
 template example (from root)

@@ -21,8 +21,8 @@ type FileReaderWorker struct {
 	MaxReadSizeBytes int64
 }
 
-func NewFileReaderWorker(input chan *file.File, output chan *fileJob) FileReaderWorker {
-	return FileReaderWorker{
+func NewFileReaderWorker(input chan *file.File, output chan *fileJob) *FileReaderWorker {
+	return &FileReaderWorker{
 		input:            input,
 		output:           output,
 		fileCount:        0,

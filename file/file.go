@@ -35,10 +35,11 @@ type FileWalker struct {
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
 	InstanceId             int
 	AllowListExtensions    []string // Which extensions should be allowed
+	UniqueId string
 }
 
-func NewFileWalker(directory string, fileListQueue chan *File) FileWalker {
-	return FileWalker{
+func NewFileWalker(directory string, fileListQueue chan *File) *FileWalker {
+	return &FileWalker{
 		walkMutex:              sync.Mutex{},
 		fileListQueue:          fileListQueue,
 		directory:              directory,

@@ -6,15 +6,21 @@ import (
 	"github.com/boyter/cs/processor"
 	"github.com/spf13/cobra"
 	"os"
+	"runtime/pprof"
+	"time"
 )
 
 func main() {
-	//f, _ := os.Create("cs.pprof")
-	//pprof.StartCPUProfile(f)
-	//go func() {
-	//	time.Sleep(time.Second * 5)
-	//	defer pprof.StopCPUProfile()
-	//}()
+	f, _ := os.Create("cs.pprof")
+	f2, _ := os.Create("mem.pprof")
+	pprof.StartCPUProfile(f)
+
+	go func() {
+		time.Sleep(time.Second * 10)
+		pprof.WriteHeapProfile(f2)
+		f2.Close()
+		defer pprof.StopCPUProfile()
+	}()
 
 	rootCmd := &cobra.Command{
 		Use: "cs",

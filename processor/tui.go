@@ -20,9 +20,9 @@ var isRunningMutex sync.Mutex
 var resultsMutex sync.Mutex
 
 // Variables we need to keep around between searches, but are recreated on each new one
-var tuiFileWalker file.FileWalker
-var tuiFileReaderWorker FileReaderWorker
-var tuiSearcherWorker SearcherWorker
+var tuiFileWalker *file.FileWalker
+var tuiFileReaderWorker *FileReaderWorker
+var tuiSearcherWorker *SearcherWorker
 var instanceCount int
 
 // Used to show that things are happening, and can be modified to whatever is required
@@ -30,28 +30,55 @@ var spinString = `\|/-`
 
 var debugCount = 0
 
+type searchTermStruct struct {
+	SearchTerm string
+	TimeStamp int64
+}
+var queuedSearch []searchTermStruct
+var queuedSearchMutex sync.Mutex
+
 // If we are here that means we actually need to perform a search
-func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm string) {
+func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm searchTermStruct) {
+	queuedSearchMutex.Lock()
+	queuedSearch = append(queuedSearch, searchTerm)
+	queuedSearchMutex.Unlock()
+
 	// At this point we need to stop the background process that is running then wait for the
 	// result collection to finish IE the part that collects results for display
-	if tuiFileWalker.Walking() {
+	if tuiFileWalker != nil {
 		tuiFileWalker.Terminate()
-		//debugLogger(fmt.Sprintf("terminate called %s %d", searchTerm, debugCount))
 	}
 
 	// We lock here because we don't want another instance to run until
 	// this one has terminated which should happen with the terminate call
+	// NB at this point we have a race condition... many searches are wanting to run in here
+	// but of course only one gets the lock, which might not be the most recent one...
+	// TODO solve the above
+	// put the current search into a array with the timestamp....
+	// once we get the lock loop through the array get the most recent one and then act on that
+	// so we always run the most recent search
+	// then split th actual search out from this because this is more like a buffer system for dealing with it
 	isRunningMutex.Lock()
 	defer isRunningMutex.Unlock()
-	//debugLogger(fmt.Sprintf("isRunningMutex.Lock() %s %d", searchTerm, debugCount))
+
+	queuedSearchMutex.Lock()
+	var highest int64
+	var search string
+	for _, s := range queuedSearch {
+		if s.TimeStamp > highest {
+			search = s.SearchTerm
+			highest = s.TimeStamp
+		}
+	}
+	queuedSearchMutex.Unlock()
 
 	// If the searchterm is empty then we draw out nothing and return
-	if strings.TrimSpace(searchTerm) == "" {
+	if strings.TrimSpace(search) == "" {
 		drawText(app, textView, "")
 		return
 	}
 
-	SearchString = strings.Split(strings.TrimSpace(searchTerm), " ")
+	SearchString = strings.Split(strings.TrimSpace(search), " ")
 
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it
@@ -72,6 +99,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	tuiFileWalker.AllowListExtensions = AllowListExtensions
 	tuiFileWalker.InstanceId = instanceCount
 	tuiFileWalker.LocationExcludePattern = LocationExcludePattern
+	tuiFileWalker.UniqueId = search
 
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	tuiFileReaderWorker.InstanceId = instanceCount
@@ -97,9 +125,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	// painted as we go
 	results := []*fileJob{}
 
-	// Counts when we last painted on the screen
-	reset := makeTimestampMilli()
-
 	// Used to display a spinner indicating a search is happening
 	var spinLocation int
 	update := true
@@ -107,20 +132,16 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 	go func() {
 		for update {
 			// Every 50 ms redraw the current set of results
-			if makeTimestampMilli()-reset >= 50 {
-				resultsMutex.Lock()
-				drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), string(spinString[spinLocation]))
-				resultsMutex.Unlock()
+			resultsMutex.Lock()
+			drawResults(app, results, textView, search, tuiFileReaderWorker.GetFileCount(), string(spinString[spinLocation]))
+			resultsMutex.Unlock()
+			spinLocation++
 
-				reset = makeTimestampMilli()
-				spinLocation++
-
-				if spinLocation >= len(spinString) {
-					spinLocation = 0
-				}
+			if spinLocation >= len(spinString) {
+				spinLocation = 0
 			}
 
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}()
 
@@ -132,18 +153,13 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm stri
 
 	update = false
 	resultsMutex.Lock()
-	drawResults(app, results, textView, searchTerm, tuiFileReaderWorker.GetFileCount(), "")
+	drawResults(app, results, textView, search, tuiFileReaderWorker.GetFileCount(), "")
 	resultsMutex.Unlock()
-	//debugLogger(fmt.Sprintf("isRunningMutex.Unlock() %s %d", searchTerm, debugCount))
 	debugCount++
 }
 
 func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
 	rankResults(int(fileCount), results)
-
-	//if int64(len(results)) >= TotalCount {
-	//	results = results[:TotalCount]
-	//}
 
 	pResults := results
 	if len(results) > 20 {
@@ -154,7 +170,6 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, fileCount, inProgress)
 
 	documentFrequency := calculateDocumentFrequency(results)
-
 	for i, res := range pResults {
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
@@ -381,7 +396,10 @@ func ProcessTui(run bool) {
 
 	go func() {
 		for i := range eventChan {
-			go tuiSearch(app, textView, i)
+			go tuiSearch(app, textView, searchTermStruct{
+				SearchTerm: i,
+				TimeStamp:  makeTimestampNano(),
+			})
 		}
 	}()
 

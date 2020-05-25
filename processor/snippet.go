@@ -181,10 +181,11 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 		// Now we see if there are any nearby spaces to avoid us cutting in the
 		// middle of a word if we can avoid it
+		// TODO this produces a heap of gc pressure
 		sf := false
 		ef := false
-		m.StartPos, sf = findSpaceLeft(string(res.Content), m.StartPos, SnipSideMax)
-		m.EndPos, ef = findSpaceRight(string(res.Content), m.EndPos, SnipSideMax)
+		m.StartPos, sf = findSpaceLeft(res, m.StartPos, SnipSideMax)
+		m.EndPos, ef = findSpaceRight(res, m.EndPos, SnipSideMax)
 
 		// Check if we are cutting in the middle of a multibyte char and if so
 		// go looking till we find the start. We only do so if we didn't find a space,
@@ -281,19 +282,19 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 // Looks for a nearby whitespace character near this position (`pos`)
 // up to `distance` away.  Returns index of space if a space was found and
 // true, otherwise returns the original index and false
-func findSpaceRight(content string, pos int, distance int) (int, bool) {
-	if len(content) == 0 {
+func findSpaceRight(res *fileJob, pos int, distance int) (int, bool) {
+	if len(res.Content) == 0 {
 		return pos, false
 	}
 
 	end := pos + distance
-	if end > len(content)-1 {
-		end = len(content)-1
+	if end > len(res.Content)-1 {
+		end = len(res.Content)-1
 	}
 
 	// Look for spaces
 	for i := pos; i <= end; i++ {
-		if str.StartOfRune(content[i]) && unicode.IsSpace(rune(content[i])) {
+		if str.StartOfRune(res.Content[i]) && unicode.IsSpace(rune(res.Content[i])) {
 			return i, true
 		}
 	}
@@ -304,12 +305,12 @@ func findSpaceRight(content string, pos int, distance int) (int, bool) {
 // Looks for nearby whitespace character near this position
 // up to distance away. Returns index of space if a space was found and tru
 // otherwise the original index is return and false
-func findSpaceLeft(content string, pos int, distance int) (int, bool) {
-	if len(content) == 0 {
+func findSpaceLeft(res *fileJob, pos int, distance int) (int, bool) {
+	if len(res.Content) == 0 {
 		return pos, false
 	}
 
-	if pos >= len(content) {
+	if pos >= len(res.Content) {
 		return pos, false
 	}
 
@@ -320,7 +321,7 @@ func findSpaceLeft(content string, pos int, distance int) (int, bool) {
 
 	// Look for spaces
 	for i := pos; i >= end; i-- {
-		if str.StartOfRune(content[i]) && unicode.IsSpace(rune(content[i])) {
+		if str.StartOfRune(res.Content[i]) && unicode.IsSpace(rune(res.Content[i])) {
 			return i, true
 		}
 	}
