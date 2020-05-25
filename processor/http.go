@@ -18,59 +18,7 @@ import (
 	"strings"
 )
 
-type search struct {
-	SearchTerm          string
-	SnippetCount        int
-	SnippetSize         int
-	Results             []searchResult
-	ResultsCount int
-	RuntimeMilliseconds int64
-	ProcessedFileCount  int64
-	ExtensionFacet      []facet
-	Pages []pageResult
-}
-
-type pageResult struct {
-	SearchTerm          string
-	SnippetSize        int
-	Name string
-}
-
-type searchResult struct {
-	Title    string
-	Location string
-	Content  []template.HTML
-	StartPos int
-	EndPos   int
-	Score    float64
-}
-
-type fileDisplay struct {
-	Location            string
-	Content             template.HTML
-	RuntimeMilliseconds int64
-}
-
-type facet struct {
-	Title       string
-	Count       int
-	SearchTerm  string
-	SnippetSize int
-}
-
 func StartHttpServer() {
-	http.HandleFunc("/file/raw/", func(w http.ResponseWriter, r *http.Request) {
-		path := strings.Replace(r.URL.Path, "/file/raw/", "", 1)
-
-		log.Info().
-			Str("unique_code", "f24a4b1d").
-			Str("path", path).
-			Msg("raw page")
-
-		http.ServeFile(w, r, path)
-		return
-	})
-
 	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
 		startTime := makeTimestampMilli()
 		startPos := tryParseInt(r.URL.Query().Get("sp"), 0)
@@ -237,7 +185,6 @@ func StartHttpServer() {
 		searchResults := []searchResult{}
 		extensionFacets := map[string]int{}
 
-
 		// if we have more than the page size of results, lets just show the first page
 		displayResults := results
 		if page != 0 || len(results) > pageSize {
@@ -248,7 +195,7 @@ func StartHttpServer() {
 				pageEnd = len(results)
 			}
 
-			if pageStart > len(results) || pageStart < 0{
+			if pageStart > len(results) || pageStart < 0 {
 				pageStart = 0
 				pageEnd = pageSize
 			}
@@ -300,50 +247,21 @@ func StartHttpServer() {
 			})
 		}
 
-		// Create extension facet
-		ef := []facet{}
-		for k, v := range extensionFacets {
-			ef = append(ef, facet{
-				Title:       k,
-				Count:       v,
-				SearchTerm:  query,
-				SnippetSize: snippetLength,
-			})
-		}
-		sort.Slice(ef, func(i, j int) bool {
-			// If the same count sort by the name to ensure it's consistent on the display
-			if ef[i].Count == ef[j].Count {
-				return strings.Compare(ef[i].Title, ef[j].Title) < 0
-			}
-			return ef[i].Count > ef[j].Count
-		})
-
-		// lastly calculate all of the pages we need
-		pages := []pageResult{}
-		for i := 0; i<len(results)/pageSize +1; i++ {
-			pages = append(pages, pageResult{
-				SearchTerm:   query,
-				SnippetSize: snippetLength,
-				Name:         strconv.Itoa(i),
-			})
-		}
-
 		t := template.Must(template.New("search.tmpl").Parse(httpSearchTemplate))
-
 		if SearchTemplate != "" {
+			// If we have been supplied a template then load it up
 			t = template.Must(template.New("search.tmpl").ParseFiles(SearchTemplate))
 		}
 
 		err := t.Execute(w, search{
 			SearchTerm:          query,
-			SnippetCount:        1,
 			SnippetSize:         snippetLength,
 			Results:             searchResults,
-			ResultsCount: len(results),
+			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  filecount,
-			ExtensionFacet:      ef,
-			Pages: pages,
+			ExtensionFacet:      calculateExtensionFacet(extensionFacets, query, snippetLength),
+			Pages:               calculatePages(results, pageSize, query, snippetLength),
 		})
 
 		if err != nil {
@@ -358,4 +276,40 @@ func StartHttpServer() {
 		Msg("ready to serve requests")
 
 	log.Fatal().Msg(http.ListenAndServe(Address, nil).Error())
+}
+
+func calculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int) []facetResult {
+	var ef []facetResult
+
+	for k, v := range extensionFacets {
+		ef = append(ef, facetResult{
+			Title:       k,
+			Count:       v,
+			SearchTerm:  query,
+			SnippetSize: snippetLength,
+		})
+	}
+
+	sort.Slice(ef, func(i, j int) bool {
+		// If the same count sort by the name to ensure it's consistent on the display
+		if ef[i].Count == ef[j].Count {
+			return strings.Compare(ef[i].Title, ef[j].Title) < 0
+		}
+		return ef[i].Count > ef[j].Count
+	})
+
+	return ef
+}
+
+func calculatePages(results []*fileJob, pageSize int, query string, snippetLength int) []pageResult {
+	// lastly calculate all of the pages we need
+	pages := []pageResult{}
+	for i := 0; i < len(results)/pageSize+1; i++ {
+		pages = append(pages, pageResult{
+			SearchTerm:  query,
+			SnippetSize: snippetLength,
+			Name:        strconv.Itoa(i),
+		})
+	}
+	return pages
 }

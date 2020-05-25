@@ -1,5 +1,46 @@
 package processor
 
+import "html/template"
+
+type search struct {
+	SearchTerm          string
+	SnippetSize         int
+	Results             []searchResult
+	ResultsCount        int
+	RuntimeMilliseconds int64
+	ProcessedFileCount  int64
+	ExtensionFacet      []facetResult
+	Pages               []pageResult
+}
+
+type pageResult struct {
+	SearchTerm  string
+	SnippetSize int
+	Name        string
+}
+
+type searchResult struct {
+	Title    string
+	Location string
+	Content  []template.HTML
+	StartPos int
+	EndPos   int
+	Score    float64
+}
+
+type fileDisplay struct {
+	Location            string
+	Content             template.HTML
+	RuntimeMilliseconds int64
+}
+
+type facetResult struct {
+	Title       string
+	Count       int
+	SearchTerm  string
+	SnippetSize int
+}
+
 var httpFileTemplate = `<html>
 	<head>
 		<title>{{ .Location }} - cs</title>
