@@ -62,9 +62,9 @@ func StartHttpServer() {
 		// Create a random string to define where the start and end of
 		// out highlight should be which we swap out later after we have
 		// HTML escaped everything
-		md5_d := md5.New()
-		fmtBegin := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
-		fmtEnd := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
+		md5Digest := md5.New()
+		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
+		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
 		coloredContent := str.HighlightString(string(content), [][]int{{startPos, endPos}}, fmtBegin, fmtEnd)
 
@@ -99,8 +99,8 @@ func StartHttpServer() {
 		page := tryParseInt(r.URL.Query().Get("p"), 0)
 		pageSize := 20
 
-		results := []*fileJob{}
-		var filecount int64
+		var results []*fileJob
+		var fileCount int64
 
 		log.Info().
 			Str("unique_code", "1e38548a").
@@ -169,20 +169,20 @@ func StartHttpServer() {
 				results = append(results, res)
 			}
 
-			filecount = fileReader.GetFileCount()
+			fileCount = fileReader.GetFileCount()
 			rankResults(int(fileReader.GetFileCount()), results)
 		}
 
 		// Create a random string to define where the start and end of
 		// out highlight should be which we swap out later after we have
 		// HTML escaped everything
-		md5_d := md5.New()
-		fmtBegin := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
-		fmtEnd := hex.EncodeToString(md5_d.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
+		md5Digest := md5.New()
+		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
+		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
 		documentFrequency := calculateDocumentFrequency(results)
 
-		searchResults := []searchResult{}
+		var searchResults []searchResult
 		extensionFacets := map[string]int{}
 
 		// if we have more than the page size of results, lets just show the first page
@@ -215,7 +215,7 @@ func StartHttpServer() {
 			// we get all the locations that fall in the snippet length
 			// and then remove the length of the snippet cut which
 			// makes out location line up with the snippet size
-			l := [][]int{}
+			var l [][]int
 			for _, value := range res.MatchLocations {
 				for _, s := range value {
 					if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
@@ -259,7 +259,7 @@ func StartHttpServer() {
 			Results:             searchResults,
 			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
-			ProcessedFileCount:  filecount,
+			ProcessedFileCount:  fileCount,
 			ExtensionFacet:      calculateExtensionFacet(extensionFacets, query, snippetLength),
 			Pages:               calculatePages(results, pageSize, query, snippetLength),
 		})
@@ -302,8 +302,8 @@ func calculateExtensionFacet(extensionFacets map[string]int, query string, snipp
 }
 
 func calculatePages(results []*fileJob, pageSize int, query string, snippetLength int) []pageResult {
-	// lastly calculate all of the pages we need
-	pages := []pageResult{}
+	// calculate all of the pages we need
+	var pages []pageResult
 	for i := 0; i < len(results)/pageSize+1; i++ {
 		pages = append(pages, pageResult{
 			SearchTerm:  query,
