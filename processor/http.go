@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -22,9 +23,17 @@ type search struct {
 	SnippetCount        int
 	SnippetSize         int
 	Results             []searchResult
+	ResultsCount int
 	RuntimeMilliseconds int64
 	ProcessedFileCount  int64
 	ExtensionFacet      []facet
+	Pages []pageResult
+}
+
+type pageResult struct {
+	SearchTerm          string
+	SnippetSize        int
+	Name string
 }
 
 type searchResult struct {
@@ -139,6 +148,8 @@ func StartHttpServer() {
 		query := r.URL.Query().Get("q")
 		snippetLength := tryParseInt(r.URL.Query().Get("ss"), 300)
 		ext := r.URL.Query().Get("ext")
+		page := tryParseInt(r.URL.Query().Get("p"), 0)
+		pageSize := 20
 
 		results := []*fileJob{}
 		var filecount int64
@@ -226,16 +237,37 @@ func StartHttpServer() {
 		searchResults := []searchResult{}
 		extensionFacets := map[string]int{}
 
+
+		// if we have more than the page size of results, lets just show the first page
+		displayResults := results
+		if page != 0 || len(results) > pageSize {
+			pageStart := page * pageSize
+			pageEnd := page*pageSize + pageSize
+
+			if pageEnd > len(results) {
+				pageEnd = len(results)
+			}
+
+			if pageStart > len(results) || pageStart < 0{
+				pageStart = 0
+				pageEnd = pageSize
+			}
+
+			displayResults = results[pageStart:pageEnd]
+		}
+
+		// loop over all results so we can get the facets
 		for _, res := range results {
 			extensionFacets[file.GetExtension(res.Filename)] = extensionFacets[file.GetExtension(res.Filename)] + 1
+		}
 
+		for _, res := range displayResults {
 			v3 := extractRelevantV3(res, documentFrequency, snippetLength, "…")[0]
 
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
 			// and then remove the length of the snippet cut which
 			// makes out location line up with the snippet size
-			// TODO this appears to be the same as in tui so merge the code
 			l := [][]int{}
 			for _, value := range res.MatchLocations {
 				for _, s := range value {
@@ -268,8 +300,8 @@ func StartHttpServer() {
 			})
 		}
 
+		// Create extension facet
 		ef := []facet{}
-		// Create facets and sort
 		for k, v := range extensionFacets {
 			ef = append(ef, facet{
 				Title:       k,
@@ -279,11 +311,22 @@ func StartHttpServer() {
 			})
 		}
 		sort.Slice(ef, func(i, j int) bool {
+			// If the same count sort by the name to ensure it's consistent on the display
 			if ef[i].Count == ef[j].Count {
 				return strings.Compare(ef[i].Title, ef[j].Title) < 0
 			}
 			return ef[i].Count > ef[j].Count
 		})
+
+		// lastly calculate all of the pages we need
+		pages := []pageResult{}
+		for i := 0; i<len(results)/pageSize +1; i++ {
+			pages = append(pages, pageResult{
+				SearchTerm:   query,
+				SnippetSize: snippetLength,
+				Name:         strconv.Itoa(i),
+			})
+		}
 
 		t := template.Must(template.New("search.tmpl").Parse(httpSearchTemplate))
 
@@ -296,9 +339,11 @@ func StartHttpServer() {
 			SnippetCount:        1,
 			SnippetSize:         snippetLength,
 			Results:             searchResults,
+			ResultsCount: len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  filecount,
 			ExtensionFacet:      ef,
+			Pages: pages,
 		})
 
 		if err != nil {

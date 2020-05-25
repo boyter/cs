@@ -87,7 +87,7 @@ var httpSearchTemplate = `<html>
 				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
 				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
 			</select>
-			<small>[processed {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
+			<small>[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
 		</form>
 		</div>
 		<div style="display:flex;">
@@ -103,6 +103,12 @@ var httpSearchTemplate = `<html>
 					</li><small>[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to location</a>]</small>
 					{{- end }}
 				</ul>
+
+				<div>
+				{{- range .Pages }}
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&page={{ .Name }}">{{ .Name }}</a>
+				{{- end }}
+				</div>
 			</div>
 			{{- end}}
 			{{if .ExtensionFacet }}
