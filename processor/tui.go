@@ -52,6 +52,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 		tuiFileWalker.Terminate()
 	}
 
+	// TODO still a race condition here to need to resolve as we call terminate multiple times
 	// We lock here because we don't want another instance to run until
 	// this one has terminated which should happen with the terminate call
 	// NB at this point we have a race condition... many searches are wanting to run in here
@@ -59,7 +60,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 	isRunningMutex.Lock()
 	defer isRunningMutex.Unlock()
 
-	// the search that has run before is newer than this one so abort
+	// At this point we want to
 	queuedSearchMutex.Lock()
 	if queuedSearchLastTime > searchTerm.TimeStamp {
 		queuedSearchMutex.Unlock()
@@ -73,9 +74,11 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 			queuedSearchLastTime = s.TimeStamp
 		}
 	}
+
+	queuedSearch = []searchTermStruct{}
 	queuedSearchMutex.Unlock()
 
-	// if the search is not mine then return
+	// if the search is not mine then return because there is something better to do
 	if queuedSearchLastTime != searchTerm.TimeStamp && search != searchTerm.SearchTerm {
 		return
 	}
@@ -169,6 +172,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
 	rankResults(int(fileCount), results)
 
+	// TODO this should not be hardcoded
 	pResults := results
 	if len(results) > 20 {
 		pResults = results[:20]

@@ -315,7 +315,7 @@ func checkForGitOrMercurial(curdir string) bool {
 // A custom version of extracting extensions for a file
 // which deals with extensions specific to code such as
 // .travis.yml and the like
-// TODO seems to turn DeviceDescription.stories.tsx into strries.tsx not tsx
+// TODO this should just get the last extension because we use it for extension filters and not identification
 func GetExtension(name string) string {
 	name = strings.ToLower(name)
 	ext := filepath.Ext(name)
