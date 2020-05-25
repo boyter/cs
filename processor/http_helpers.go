@@ -46,7 +46,7 @@ type facetResult struct {
 
 var httpFileTemplate = `<html>
 	<head>
-		<title>{{ .Location }} - cs</title>
+		<title>{{ .Location }}</title>
 		<style>
 			strong {
 				background-color: #FFFF00
@@ -95,7 +95,7 @@ var httpFileTemplate = `<html>
 
 var httpSearchTemplate = `<html>
 	<head>
-		<title>{{ .SearchTerm }} - cs</title>
+		<title>{{ .SearchTerm }}</title>
 		<style>
 			strong {
 				background-color: #FFFF00
