@@ -11,8 +11,8 @@ import (
 // any given string slice and then returns a nice
 // duplicate free string slice
 func RemoveStringDuplicates(elements []string) []string {
-	encountered := map[string]bool{}
-	result := []string{}
+	var encountered = map[string]bool{}
+	var result []string
 
 	for v := range elements {
 		if !encountered[elements[v]] == true {
@@ -43,7 +43,7 @@ func PermuteCase(input string) []string {
 	l := len(input)
 	max := 1 << l
 
-	combinations := []string{}
+	var combinations []string
 
 	for i := 0; i < max; i++ {
 		s := ""
@@ -65,7 +65,7 @@ func PermuteCase(input string) []string {
 // with characters being folded such that S will return S s ſ
 func PermuteCaseFolding(input string) []string {
 	combinations := PermuteCase(input)
-	combos := []string{}
+	var combos []string
 
 	for _, combo := range combinations {
 		for index, runeValue := range combo {
@@ -81,7 +81,7 @@ func PermuteCaseFolding(input string) []string {
 // Given an input rune return a rune slice containing
 // all of the possible simple fold
 func AllSimpleFold(input rune) []rune {
-	res := []rune{}
+	var res []rune
 
 	// This works for getting all folded representations
 	// but feels totally wrong due to the bailout break.
