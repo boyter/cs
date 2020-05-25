@@ -3,6 +3,7 @@
 // or looking for the root directory assuming already in a git project
 // SPDX-License-Identifier: MIT
 // SPDX-License-Identifier: Unlicense
+
 package file
 
 import (
