@@ -97,3 +97,13 @@ func TestGetExtensionSecondPass(t *testing.T) {
 		t.Errorf("Expected %s got %s", expected, got)
 	}
 }
+
+func TestGetExtensionRegression(t *testing.T) {
+	got := GetExtension("DeviceDescription.stories.tsx")
+	got = GetExtension(got)
+	expected := "tsx"
+
+	if got != expected {
+		t.Errorf("Expected %s got %s", expected, got)
+	}
+}

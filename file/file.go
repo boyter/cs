@@ -172,7 +172,16 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 		// Check against extensions
 		if len(f.AllowListExtensions) != 0 {
 			ext := GetExtension(file.Name())
+
 			a := false
+			for _, v := range f.AllowListExtensions {
+				if v == ext {
+					a = true
+				}
+			}
+
+			// try again because we could have one of those pesky ones such as something.spec.tsx
+			ext = GetExtension(ext)
 			for _, v := range f.AllowListExtensions {
 				if v == ext {
 					a = true

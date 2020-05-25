@@ -155,8 +155,7 @@ func StartHttpServer() {
 				Str("ext", ext).
 				Msg("search query")
 
-			// If the user asks we should look back till we find the .git or .hg directory and start the search
-			// or in case of SVN go back till we don't find it
+			// If the user asks we should look back till we find the .git or .hg directory and start the search from there
 			directory := "."
 			if FindRoot {
 				directory = file.FindRepositoryRoot(directory)
@@ -240,19 +239,19 @@ func StartHttpServer() {
 			l := [][]int{}
 			for _, value := range res.MatchLocations {
 				for _, s := range value {
-					//if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-					s[0] = s[0] - v3.StartPos
-					s[1] = s[1] - v3.StartPos
-					l = append(l, s)
-					//}
+					if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
+						s[0] = s[0] - v3.StartPos
+						s[1] = s[1] - v3.StartPos
+						l = append(l, s)
+					}
 				}
 			}
 
 			// We want to escape the output, so we highlight, then escape then replace
 			// our special start and end strings with actual HTML
 			coloredContent := v3.Content
-			// If 0 and 0 don't highlight anything because it means its a filename match
-			if v3.StartPos != 0 && v3.EndPos != 0 {
+			// If endpos = 0 don't highlight anything because it means its a filename match
+			if v3.EndPos != 0 {
 				coloredContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
 				coloredContent = html.EscapeString(coloredContent)
 				coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
