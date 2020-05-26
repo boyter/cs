@@ -53,7 +53,7 @@ func (f *SearcherWorker) Start() {
 				// Check for the presence of a null byte indicating that this
 				// is likely a binary file and if so ignore it
 				if !f.IncludeBinary {
-					if bytes.IndexByte(res.Content, '\x00') != -1 {
+					if bytes.IndexByte(res.Content, 0) != -1 {
 						res.Binary = true
 						continue
 					}
@@ -75,7 +75,6 @@ func (f *SearcherWorker) Start() {
 				}
 
 				// Now we do the actual search against the file
-				// TODO also need to try against the filename IE even with not text matches it should count
 				for i, needle := range f.searchParams {
 					didSearch := false
 					switch needle.Type {
@@ -143,12 +142,6 @@ func (f *SearcherWorker) Start() {
 					}
 				}
 
-				//// Only if the score is 0 AND we have a single search param do we
-				//// consider looking at the filename
-				//if res.Score == 0 && len(f.searchParams) == 1 {
-				//	matchFilename(f, res)
-				//}
-
 				if res.Score != 0 {
 					f.output <- res
 				}
@@ -159,52 +152,6 @@ func (f *SearcherWorker) Start() {
 
 	wg.Wait()
 	close(f.output)
-}
-
-// If the score is 0 then lets have a look at the filename where we don't
-// factor in any AND/OR or any other logic.
-// The idea here is to allow the user to type a filename and even if
-// the content does not match the rules we show the start of the file to help
-// find what they are expecting
-// NB we add file_location_match to the needle to ensure it does not actually match
-// anything to avoid any issues later down the line
-func matchFilename(f *SearcherWorker, res *fileJob) {
-	for _, needle := range f.searchParams {
-		switch needle.Type {
-		case Default, Quoted:
-			if len(str.IndexAllIgnoreCaseUnicode(res.Location, needle.Term, f.MatchLimit)) != 0 {
-				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
-				res.Score++
-			}
-		case Regex:
-			t := []byte(res.Location)
-			_, err := f.regexSearch(needle, &t)
-			if err == nil { // Error indicates a regex compile fail so safe to ignore here
-				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
-				res.Score++
-			}
-		case Fuzzy1:
-			terms := makeFuzzyDistanceOne(needle.Term)
-			matchLocations := [][]int{}
-			for _, t := range terms {
-				matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
-			}
-			if len(matchLocations) != 0 {
-				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
-				res.Score++
-			}
-		case Fuzzy2:
-			terms := makeFuzzyDistanceTwo(needle.Term)
-			matchLocations := [][]int{}
-			for _, t := range terms {
-				matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
-			}
-			if len(matchLocations) != 0 {
-				res.MatchLocations[res.Location+"file_location_match"] = [][]int{{0, 0}}
-				res.Score++
-			}
-		}
-	}
 }
 
 func (f *SearcherWorker) regexSearch(needle searchParams, content *[]byte) (x [][]int, err error) {
