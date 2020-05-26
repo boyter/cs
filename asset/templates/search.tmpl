@@ -56,7 +56,7 @@
 
 				<div>
 				{{- range .Pages }}
-					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&page={{ .Name }}">{{ .Name }}</a>
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}">{{ .Name }}</a>
 				{{- end }}
 				</div>
 			</div>

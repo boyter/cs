@@ -190,20 +190,18 @@ func StartHttpServer() {
 
 		// if we have more than the page size of results, lets just show the first page
 		displayResults := results
-		if page != 0 || len(results) > pageSize {
-			pageStart := page * pageSize
-			pageEnd := page*pageSize + pageSize
+		pages := calculatePages(results, pageSize, query, snippetLength)
 
-			if pageEnd > len(results) {
-				pageEnd = len(results)
+		if displayResults != nil && len(displayResults) > pageSize {
+			displayResults = displayResults[:pageSize]
+		}
+		if page != 0 && page <= len(pages) {
+			end := page * pageSize + pageSize
+			if end > len(results) {
+				end = len(results)
 			}
 
-			if pageStart > len(results) || pageStart < 0 {
-				pageStart = 0
-				pageEnd = pageSize
-			}
-
-			displayResults = results[pageStart:pageEnd]
+			displayResults = results[page * pageSize:end]
 		}
 
 		// loop over all results so we can get the facets
@@ -264,7 +262,7 @@ func StartHttpServer() {
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  fileCount,
 			ExtensionFacet:      calculateExtensionFacet(extensionFacets, query, snippetLength),
-			Pages:               calculatePages(results, pageSize, query, snippetLength),
+			Pages:               pages,
 		})
 
 		if err != nil {
@@ -305,13 +303,35 @@ func calculateExtensionFacet(extensionFacets map[string]int, query string, snipp
 }
 
 func calculatePages(results []*fileJob, pageSize int, query string, snippetLength int) []pageResult {
-	// calculate all of the pages we need
 	var pages []pageResult
-	for i := 0; i < len(results)/pageSize+1; i++ {
+
+	if len(results) == 0 {
+		return pages
+	}
+
+	if len(results) <= pageSize {
 		pages = append(pages, pageResult{
 			SearchTerm:  query,
 			SnippetSize: snippetLength,
-			Name:        strconv.Itoa(i),
+			Value:       0,
+			Name:        "1",
+		})
+
+		return pages
+	}
+
+	a := 1
+	if len(results) % pageSize == 0 {
+		a = 0
+	}
+
+	for i := 0; i < len(results)/pageSize+a; i++ {
+		pages = append(pages, pageResult{
+			SearchTerm:  query,
+			SnippetSize: snippetLength,
+			Value: i,
+			Name:        strconv.Itoa(i+1),
+
 		})
 	}
 	return pages

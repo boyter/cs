@@ -19,6 +19,7 @@ type search struct {
 type pageResult struct {
 	SearchTerm  string
 	SnippetSize int
+	Value int
 	Name        string
 }
 
@@ -150,7 +151,7 @@ var httpSearchTemplate = `<html>
 
 				<div>
 				{{- range .Pages }}
-					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&page={{ .Name }}">{{ .Name }}</a>
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}">{{ .Name }}</a>
 				{{- end }}
 				</div>
 			</div>
