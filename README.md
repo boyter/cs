@@ -25,6 +25,7 @@ add proximity search "this is"~5 which means they need to be within 5 bytes of e
 add limit to number of results in html with paging
 JSON endpoint for HTTP just in case someone wants to build own stuff
 Save to disk output
+Add goroutines to search
 
 
 MAYBE
