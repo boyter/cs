@@ -22,6 +22,19 @@ import (
 )
 
 func StartHttpServer() {
+	http.HandleFunc("/file/raw/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.Replace(r.URL.Path, "/file/raw/", "", 1)
+
+		log.Info().
+			Str("unique_code", "f24a4b1d").
+			Str("path", path).
+			Msg("raw page")
+
+		w.Header().Set("Content-Type", "text/plain")
+		http.ServeFile(w, r, path)
+		return
+	})
+
 	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
 		startTime := makeTimestampMilli()
 		startPos := tryParseInt(r.URL.Query().Get("sp"), 0)
