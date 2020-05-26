@@ -4,6 +4,7 @@
 package processor
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -89,5 +90,17 @@ func TestMax(t *testing.T) {
 	got = max(1, -1)
 	if got != 1 {
 		t.Error("Expected 1 got", got)
+	}
+}
+
+func TestGetFormattedTime(t *testing.T) {
+	res := getFormattedTime()
+
+	if !strings.Contains(res, "T") {
+		t.Error("String does not contain expected T", res)
+	}
+
+	if !strings.Contains(res, "Z") {
+		t.Error("String does not contain expected Z", res)
 	}
 }

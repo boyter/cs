@@ -1,26 +1,114 @@
 package parser
 
-//func TestParseSingle(t *testing.T) {
-//	parsed := NewParser(`"a" "b"`)
-//
-//	token := parsed.nextToken()
-//	if token != `"a"` {
-//		t.Error(`expected "a" got`, token)
-//	}
-//}
+import (
+	"testing"
+)
 
-//func TestParseDouble(t *testing.T) {
-//	parsed := Parse("a b")
-//
-//	if parsed.Op != "AND" {
-//		t.Error("expected AND got", parsed.Op)
-//	}
-//
-//	if parsed.Val[0] != "a" {
-//		t.Error("expected a got", parsed.Val[0])
-//	}
-//
-//	if parsed.Val[1] != "b" {
-//		t.Error("expected b got", parsed.Val[1])
-//	}
-//}
+func TestNext(t *testing.T) {
+	lex := NewLexer(`test`)
+
+	for lex.Next() != 0 {
+		if 0 > 1 {
+			t.Error("wot the")
+		}
+	}
+}
+
+func TestPeek(t *testing.T) {
+	lex := NewLexer(`test`)
+
+	for i := 0; i < 100; i++ {
+		lex.Peek()
+	}
+}
+
+func TestNextEnd(t *testing.T) {
+	lex := NewLexer(``)
+
+	token := lex.NextToken()
+	if token.Type != "END" {
+		t.Error(`expected END got`, token.Type)
+	}
+}
+
+func TestNextTokenParenOpen(t *testing.T) {
+	lex := NewLexer(`(`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+}
+
+func TestNextTokenParenClose(t *testing.T) {
+	lex := NewLexer(`)`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+}
+
+func TestNextTokenParenOpenParenClose(t *testing.T) {
+	lex := NewLexer(`()`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+}
+
+func TestNextTokenQuote(t *testing.T) {
+	lex := NewLexer(`"`)
+
+	token := lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+}
+
+func TestNextTokenMultiple(t *testing.T) {
+	lex := NewLexer(`("")`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+}
+
+func TestNextTokenIgnoresSpace(t *testing.T) {
+	lex := NewLexer(` (`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+}
+
+func TestNextTokenQuotedTerm(t *testing.T) {
+	lex := NewLexer(`"test"`)
+
+	token := lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	if token.Value != `test` {
+		t.Error("expected test got", token.Value)
+	}
+}

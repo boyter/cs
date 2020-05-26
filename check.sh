@@ -12,7 +12,7 @@ go test -cover -race ./... || exit
 
 # Race Detection
 echo "Running race detection..."
-if  go run --race . test 2>&1 >/dev/null | grep -q "Found" ; then
+if go run --race . t NOT something test~1 "ten thousand a year" "/pr[a-z]de/" 2>&1 >/dev/null | grep -q "Found" ; then
     echo -e "${RED}======================================================="
     echo -e "FAILED race detection run 'go run --race . test' to identify"
     echo -e "=======================================================${NC}"
@@ -24,7 +24,7 @@ fi
 echo "Building application..."
 go build -ldflags="-s -w" || exit
 
-echo -e  "${NC}Checking compile targets..."
+echo -e "${NC}Checking compile targets..."
 
 echo "   darwin..."
 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w"

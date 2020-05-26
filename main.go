@@ -170,12 +170,6 @@ func main() {
 
 	// the below flags we want but are not enabled as yet
 
-	//flags.BoolVar(
-	//	&processor.Debug,
-	//	"debug",
-	//	false,
-	//	"enable debug output",
-	//)
 	//flags.Int64VarP(
 	//	&processor.ResultLimit,
 	//	"limit",
@@ -196,20 +190,6 @@ func main() {
 	//	"o",
 	//	"",
 	//	"output filename (default stdout)",
-	//)
-	//flags.BoolVarP(
-	//	&processor.Trace,
-	//	"trace",
-	//	"t",
-	//	false,
-	//	"enable trace output. Not recommended when processing multiple files",
-	//)
-	//flags.BoolVarP(
-	//	&processor.Verbose,
-	//	"verbose",
-	//	"v",
-	//	false,
-	//	"verbose output",
 	//)
 
 	if err := rootCmd.Execute(); err != nil {

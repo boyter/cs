@@ -134,7 +134,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 
 	// Updated with results as we get them NB this is
 	// painted as we go
-	results := []*fileJob{}
+	var results []*fileJob
 
 	// Used to display a spinner indicating a search is happening
 	var spinLocation int
@@ -217,7 +217,6 @@ var textMutex sync.Mutex
 const (
 	SearchMode          string = "(search box)"
 	LocationExcludeMode string = "(location exclusion)"
-	ExtensionMode       string = "(extension filter e.g. 'go' 'go,java')"
 	SnippetMode         string = "(snippet size selector)"
 	TextMode            string = "(text scroll)"
 )
@@ -229,7 +228,6 @@ func ProcessTui(run bool) {
 	var textView *tview.TextView
 	var statusView *tview.InputField
 	var searchInputField *tview.InputField
-	var extensionInputField *tview.InputField
 	var snippetInputField *tview.InputField
 	var excludeInputField *tview.InputField
 	var lastSearch string
@@ -283,8 +281,8 @@ func ProcessTui(run bool) {
 				app.SetFocus(textView)
 				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(extensionInputField)
-				statusView.SetText(ExtensionMode)
+				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			case tcell.KeyUp:
@@ -313,7 +311,7 @@ func ProcessTui(run bool) {
 		SetChangedFunc(func(text string) {
 			text = strings.TrimSpace(text)
 
-			t := []string{}
+			var t []string
 			for _, s := range strings.Split(text, ",") {
 				if strings.TrimSpace(s) != "" {
 					t = append(t, strings.TrimSpace(s))
@@ -326,46 +324,11 @@ func ProcessTui(run bool) {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(extensionInputField)
-				statusView.SetText(ExtensionMode)
-			case tcell.KeyBacktab:
-				app.SetFocus(searchInputField)
-				statusView.SetText(SearchMode)
-			}
-		})
-
-	extensionInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.ColorDefault).
-		SetLabel(" ").
-		SetLabelColor(tcell.ColorWhite).
-		SetText(strings.Join(AllowListExtensions, ",")).
-		SetFieldWidth(10).
-		SetAcceptanceFunc(func(text string, c rune) bool {
-			if c == ' ' {
-				return false
-			}
-
-			return true
-		}).
-		SetChangedFunc(func(text string) {
-			if strings.TrimSpace(text) == "" {
-				AllowListExtensions = []string{}
-			} else {
-				AllowListExtensions = strings.Split(text, ",")
-			}
-
-			eventChan <- lastSearch
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
 				app.SetFocus(snippetInputField)
 				statusView.SetText(SnippetMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(excludeInputField)
-				statusView.SetText(LocationExcludeMode)
-			case tcell.KeyEnter:
-				eventChan <- lastSearch
+				app.SetFocus(searchInputField)
+				statusView.SetText(SearchMode)
 			}
 		})
 
@@ -397,7 +360,6 @@ func ProcessTui(run bool) {
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(searchInputField, 0, 8, false).
 		AddItem(excludeInputField, 10, 0, false).
-		AddItem(extensionInputField, 10, 0, false).
 		AddItem(snippetInputField, 5, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).

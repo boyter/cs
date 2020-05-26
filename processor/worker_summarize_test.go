@@ -4,7 +4,6 @@
 package processor
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -33,18 +32,6 @@ func TestPrintError(t *testing.T) {
 	Error = true
 	printError("Testing print error")
 	Error = false
-}
-
-func TestGetFormattedTime(t *testing.T) {
-	res := getFormattedTime()
-
-	if !strings.Contains(res, "T") {
-		t.Error("String does not contain expected T", res)
-	}
-
-	if !strings.Contains(res, "Z") {
-		t.Error("String does not contain expected Z", res)
-	}
 }
 
 //func TestToJson(t *testing.T) {

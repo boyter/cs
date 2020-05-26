@@ -16,7 +16,7 @@ import (
 	"sync"
 )
 
-var TerminateWalkError = errors.New("Walker terminated")
+var TerminateWalkError = errors.New("walker terminated")
 
 type File struct {
 	Location string

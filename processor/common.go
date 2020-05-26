@@ -12,7 +12,7 @@ import (
 // duplicate free int slice
 func removeIntDuplicates(elements []int) []int {
 	encountered := map[int]bool{}
-	result := []int{}
+	var result []int
 
 	for v := range elements {
 		if !encountered[elements[v]] == true {

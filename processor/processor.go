@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var Version = "0.7.0 alpha"
+var Version = "0.9.0 alpha"
 
 // Clean up the input to avoid searching for spaces etc...
 // Take the string cut it up, lower case everything except

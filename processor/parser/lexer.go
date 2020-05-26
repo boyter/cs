@@ -1,5 +1,10 @@
 package parser
 
+import (
+	"strings"
+	"unicode"
+)
+
 // Requirements
 // Should parse boolean search queries and get something out
 // that we can use for searching
@@ -16,6 +21,8 @@ package parser
 // https://godoc.org/github.com/cznic/goyacc
 // https://github.com/Meyhem/go-simple-expression-eval
 // https://about.sourcegraph.com/go/gophercon-2018-how-to-write-a-parser-in-go
+// http://web.eecs.utk.edu/~azh/blog/teenytinycompiler1.html
+// https://ruslanspivak.com/lsbasi-part1/
 
 // This is for the parser
 type Expr struct {
@@ -27,49 +34,89 @@ type Expr struct {
 
 // This is for the lexer
 type Token struct {
-	Type string
-	Pos  int
+	Type     string
+	StartPos int
+	Value    string
 }
 
 type Lexer struct {
-	Query string
+	query string
 	pos   int
 }
 
 func NewLexer(query string) Lexer {
 	return Lexer{
-		Query: query,
+		query: query,
 	}
 }
 
-func (p *Lexer) Tokens() []Token {
-	return nil
+// Peek at the next byte
+func (l *Lexer) Peek() byte {
+	if l.pos < len(l.query) {
+		return l.query[l.pos]
+	}
+
+	// return null byte when at the end
+	return 0
 }
 
-//func (p *Lexer) nextToken() Token {
-//	// based on the pos find the next token location
-//	switch c := p.Query[p.pos]; c {
-//	case '(':
-//		return Token{
-//			Type: "PAREN_START",
-//			Pos:  p.pos,
-//		}
-//	case '"':
-//
-//	}
-//
-//	if p.Query[p.pos] == '"' {
-//		// scan from here till we fine the next or the end and return as the token
-//		for i, r := range p.Query[p.pos:] {
-//			if i > p.pos {
-//				if r == '"' {
-//					tok := p.Query[p.pos:i+1]
-//					p.pos = i+1
-//					return tok
-//				}
-//			}
-//		}
-//	}
-//
-//	return p.Query[p.pos:]
-//}
+// Return the next byte
+func (l *Lexer) Next() byte {
+	if l.pos < len(l.query) {
+		l.pos++
+		return l.query[l.pos-1]
+	}
+
+	// return null byte when at the end
+	return 0
+}
+
+func (l *Lexer) NextToken() Token {
+
+	// at the end so return end token
+	if l.Peek() == 0 {
+		return Token{
+			Type:     "END",
+			StartPos: l.pos,
+			Value:    "",
+		}
+	}
+
+	// skip whitespace
+	for unicode.IsSpace(rune(l.Peek())) {
+		l.Next()
+	}
+
+	switch c := l.Next(); c {
+	case '(':
+		return Token{
+			Type:     "PAREN_OPEN",
+			StartPos: l.pos,
+			Value:    "(",
+		}
+	case ')':
+		return Token{
+			Type:     "PAREN_CLOSE",
+			StartPos: l.pos,
+			Value:    ")",
+		}
+	case '"':
+		// loop till we hit another " or the end
+		var sb strings.Builder
+		for l.Peek() != '"' && l.Peek() != 0 {
+			sb.WriteByte(l.Next())
+		}
+
+		return Token{
+			Type:     "QUOTED_TERM",
+			StartPos: l.pos,
+			Value:    sb.String(),
+		}
+	}
+
+	return Token{}
+}
+
+func (l *Lexer) Tokens() []Token {
+	return nil
+}

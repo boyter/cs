@@ -139,10 +139,10 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 	return results
 }
 
-// TODO add test for this
 func calculateDocumentFrequency(results []*fileJob) map[string]int {
 	// Calculate the document frequency for all words across all documents
-	// that we have to get the term frequency for each
+	// that we have to get the term frequency for each allowing us to determine
+	// how rare or common a word is across the corpus
 	documentFrequencies := map[string]int{}
 	for i := 0; i < len(results); i++ {
 		for k := range results[i].MatchLocations {
