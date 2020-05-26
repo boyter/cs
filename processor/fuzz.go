@@ -31,8 +31,8 @@ func Fuzz(data []byte) int {
 
 	extractRelevantV3(res, freq, 300, "...")
 
-	//findSpaceRight(string(data), 0, 10000)
-	//findSpaceRight(string(data), len(data) - 1, 10000)
+	findSpaceRight(&fileJob{Content: data}, 0, 10000)
+	findSpaceLeft(&fileJob{Content: data}, len(data)-1, 10000)
 
 	return 1
 }
