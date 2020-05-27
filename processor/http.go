@@ -209,12 +209,12 @@ func StartHttpServer() {
 			displayResults = displayResults[:pageSize]
 		}
 		if page != 0 && page <= len(pages) {
-			end := page * pageSize + pageSize
+			end := page*pageSize + pageSize
 			if end > len(results) {
 				end = len(results)
 			}
 
-			displayResults = results[page * pageSize:end]
+			displayResults = results[page*pageSize : end]
 		}
 
 		// loop over all results so we can get the facets
@@ -334,7 +334,7 @@ func calculatePages(results []*fileJob, pageSize int, query string, snippetLengt
 	}
 
 	a := 1
-	if len(results) % pageSize == 0 {
+	if len(results)%pageSize == 0 {
 		a = 0
 	}
 
@@ -342,9 +342,8 @@ func calculatePages(results []*fileJob, pageSize int, query string, snippetLengt
 		pages = append(pages, pageResult{
 			SearchTerm:  query,
 			SnippetSize: snippetLength,
-			Value: i,
-			Name:        strconv.Itoa(i+1),
-
+			Value:       i,
+			Name:        strconv.Itoa(i + 1),
 		})
 	}
 	return pages

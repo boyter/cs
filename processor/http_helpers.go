@@ -19,7 +19,7 @@ type search struct {
 type pageResult struct {
 	SearchTerm  string
 	SnippetSize int
-	Value int
+	Value       int
 	Name        string
 }
 

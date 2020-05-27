@@ -5,8 +5,7 @@ import (
 )
 
 func TestCalculatePagesNone(t *testing.T) {
-	var pages = calculatePages([]*fileJob{
-	}, 20, "", 100)
+	var pages = calculatePages([]*fileJob{}, 20, "", 100)
 
 	if len(pages) != 0 {
 		t.Error("expected no result")
@@ -15,7 +14,7 @@ func TestCalculatePagesNone(t *testing.T) {
 
 func TestCalculatePagesSingle(t *testing.T) {
 	var pages = calculatePages([]*fileJob{
-		&fileJob{},
+		{},
 	}, 20, "", 100)
 
 	if len(pages) != 1 {
@@ -33,7 +32,7 @@ func TestCalculatePagesSingle(t *testing.T) {
 
 func TestCalculatePagesEdgeStart(t *testing.T) {
 	var fj []*fileJob
-	for i:=0;i<20; i++ {
+	for i := 0; i < 20; i++ {
 		fj = append(fj, &fileJob{})
 	}
 
@@ -46,7 +45,7 @@ func TestCalculatePagesEdgeStart(t *testing.T) {
 
 func TestCalculatePagesEdgeOver(t *testing.T) {
 	var fj []*fileJob
-	for i:=0;i<21; i++ {
+	for i := 0; i < 21; i++ {
 		fj = append(fj, &fileJob{})
 	}
 
@@ -59,7 +58,7 @@ func TestCalculatePagesEdgeOver(t *testing.T) {
 
 func TestCalculatePagesSecondPageEdge(t *testing.T) {
 	var fj []*fileJob
-	for i:=0;i<40; i++ {
+	for i := 0; i < 40; i++ {
 		fj = append(fj, &fileJob{})
 	}
 
@@ -72,7 +71,7 @@ func TestCalculatePagesSecondPageEdge(t *testing.T) {
 
 func TestCalculatePagesSecondPageEdgeOver(t *testing.T) {
 	var fj []*fileJob
-	for i:=0;i<41; i++ {
+	for i := 0; i < 41; i++ {
 		fj = append(fj, &fileJob{})
 	}
 
