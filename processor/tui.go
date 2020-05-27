@@ -234,11 +234,12 @@ func ProcessTui(run bool) {
 
 	eventChan := make(chan string)
 
-	// For displaying status of where you are
+	// For displaying mode IE are we searching, or filtering locations or changing snippet size
 	statusView = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetText(SearchMode)
 
+	// This is where results are actually displayed
 	textView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
@@ -252,6 +253,35 @@ func ProcessTui(run bool) {
 			case tcell.KeyBacktab:
 				app.SetFocus(snippetInputField)
 				statusView.SetText(SnippetMode)
+			}
+		})
+
+	// This is used to allow filtering out of paths and the like
+	excludeInputField = tview.NewInputField().
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetText(strings.Join(LocationExcludePattern, ",")).
+		SetFieldWidth(30).
+		SetChangedFunc(func(text string) {
+			text = strings.TrimSpace(text)
+
+			var t []string
+			for _, s := range strings.Split(text, ",") {
+				if strings.TrimSpace(s) != "" {
+					t = append(t, strings.TrimSpace(s))
+				}
+			}
+			LocationExcludePattern = t
+
+			eventChan <- lastSearch
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				app.SetFocus(snippetInputField)
+				statusView.SetText(SnippetMode)
+			case tcell.KeyBacktab:
+				app.SetFocus(searchInputField)
+				statusView.SetText(SearchMode)
 			}
 		})
 
@@ -281,8 +311,8 @@ func ProcessTui(run bool) {
 				app.SetFocus(textView)
 				statusView.SetText(TextMode)
 			case tcell.KeyBacktab:
-				app.SetFocus(snippetInputField)
-				statusView.SetText(SnippetMode)
+				app.SetFocus(excludeInputField)
+				statusView.SetText(LocationExcludeMode)
 			case tcell.KeyEnter:
 				eventChan <- lastSearch
 			case tcell.KeyUp:
@@ -301,34 +331,6 @@ func ProcessTui(run bool) {
 				SnippetLength = max(50, SnippetLength-200)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 				eventChan <- lastSearch
-			}
-		})
-
-	excludeInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.ColorDefault).
-		SetText(strings.Join(LocationExcludePattern, ",")).
-		SetFieldWidth(10).
-		SetChangedFunc(func(text string) {
-			text = strings.TrimSpace(text)
-
-			var t []string
-			for _, s := range strings.Split(text, ",") {
-				if strings.TrimSpace(s) != "" {
-					t = append(t, strings.TrimSpace(s))
-				}
-			}
-			LocationExcludePattern = t
-
-			eventChan <- lastSearch
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				app.SetFocus(snippetInputField)
-				statusView.SetText(SnippetMode)
-			case tcell.KeyBacktab:
-				app.SetFocus(searchInputField)
-				statusView.SetText(SearchMode)
 			}
 		})
 
@@ -357,9 +359,10 @@ func ProcessTui(run bool) {
 			}
 		})
 
+	// top flex container which holds the controls such as the text, the
 	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(searchInputField, 0, 8, false).
-		AddItem(excludeInputField, 10, 0, false).
+		AddItem(excludeInputField, 30, 0, false).
 		AddItem(snippetInputField, 5, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
