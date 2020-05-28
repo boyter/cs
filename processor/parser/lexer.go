@@ -102,6 +102,13 @@ func (l *Lexer) NextToken() Token {
 		}
 	case '"':
 		// loop till we hit another " or the end
+
+		// if the next is " then we should skip
+		if l.Peek() == '"' {
+			//l.NextToken()
+			return l.NextToken()
+		}
+
 		var sb strings.Builder
 		for l.Peek() != '"' && l.Peek() != 0 {
 			sb.WriteByte(l.Next())
