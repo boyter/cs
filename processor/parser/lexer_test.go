@@ -112,3 +112,22 @@ func TestNextTokenQuotedTerm(t *testing.T) {
 	//	t.Error("expected test got", token.Value)
 	//}
 }
+
+func TestNextTokenMultipleSomethingQuote(t *testing.T) {
+	lex := NewLexer(`("test")`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+}
