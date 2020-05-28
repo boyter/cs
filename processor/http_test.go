@@ -25,7 +25,7 @@ func TestCalculatePagesSingle(t *testing.T) {
 		t.Error("expected snippet size to be 100")
 	}
 
-	if pages[0].Name != "0" {
+	if pages[0].Name != "1" {
 		t.Error("page name incorrect")
 	}
 }
