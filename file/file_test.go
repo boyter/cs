@@ -55,7 +55,7 @@ func TestGetExtensionNoExtension(t *testing.T) {
 
 func TestGetExtensionMultipleDots(t *testing.T) {
 	got := GetExtension(".travis.yml")
-	expected := "travis.yml"
+	expected := "yml"
 
 	if got != expected {
 		t.Errorf("Expected %s got %s", expected, got)
@@ -64,7 +64,7 @@ func TestGetExtensionMultipleDots(t *testing.T) {
 
 func TestGetExtensionMultipleExtensions(t *testing.T) {
 	got := GetExtension("something.go.yml")
-	expected := "go.yml"
+	expected := "yml"
 
 	if got != expected {
 		t.Errorf("Expected %s got %s", expected, got)
@@ -82,16 +82,6 @@ func TestGetExtensionStartsWith(t *testing.T) {
 
 func TestGetExtensionTypeScriptDefinition(t *testing.T) {
 	got := GetExtension("test.d.ts")
-	expected := "d.ts"
-
-	if got != expected {
-		t.Errorf("Expected %s got %s", expected, got)
-	}
-}
-
-func TestGetExtensionSecondPass(t *testing.T) {
-	got := GetExtension("test.d.ts")
-	got = GetExtension(got)
 	expected := "ts"
 
 	if got != expected {
@@ -101,7 +91,6 @@ func TestGetExtensionSecondPass(t *testing.T) {
 
 func TestGetExtensionRegression(t *testing.T) {
 	got := GetExtension("DeviceDescription.stories.tsx")
-	got = GetExtension(got)
 	expected := "tsx"
 
 	if got != expected {

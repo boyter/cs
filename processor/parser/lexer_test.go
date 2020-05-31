@@ -108,9 +108,44 @@ func TestNextTokenQuotedTerm(t *testing.T) {
 		t.Error(`expected QUOTED_TERM got`, token.Type)
 	}
 
-	//if token.Value != `test` {
-	//	t.Error("expected test got", token.Value)
-	//}
+	if token.Value != `test` {
+		t.Error("expected test got", token.Value)
+	}
+}
+
+func TestNextTokenQuotedTermNoEnd(t *testing.T) {
+	lex := NewLexer(`"test`)
+
+	token := lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	if token.Value != `test` {
+		t.Error("expected test got", token.Value)
+	}
+}
+
+func TestNextTokenQuotedTermMultiple(t *testing.T) {
+	lex := NewLexer(`"test" "something"`)
+
+	token := lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	if token.Value != `test` {
+		t.Error("expected test got", token.Value)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	if token.Value != `something` {
+		t.Error("expected something got", token.Value)
+	}
 }
 
 func TestNextTokenMultipleSomethingQuote(t *testing.T) {

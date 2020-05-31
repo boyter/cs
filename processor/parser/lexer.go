@@ -108,7 +108,7 @@ func (l *Lexer) NextToken() Token {
 		}
 
 		if l.Peek() == '"' {
-			sb.WriteByte(l.Next())
+			l.Next()
 		}
 
 		return Token{

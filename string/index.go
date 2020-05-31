@@ -231,7 +231,6 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 
 					// Check against the actual term and if that's a match we can avoid folding
 					// and doing those comparisons to hopefully save some CPU time
-					// TODO confirm this actually makes a difference
 					if toMatch[i] == needleRune[i] {
 						isMatch = true
 					} else {

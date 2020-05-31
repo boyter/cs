@@ -110,7 +110,7 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 			// its likely that a search for "a b" is missing the counts
 			// for documents that have a but not b and as such
 			// the document frequencies are off with respect to the total
-			// corpus... although we could get that if needed since we do calculate it... TODO investigate
+			// corpus... although we could get that if needed since we do calculate it...
 			// Anyway this isn't a huge issue in practice because TF/IDF
 			// still works for a search of a single term such as a or if multiple terms
 			// happen to match every document in the corpus which while unlikely

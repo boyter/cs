@@ -38,7 +38,8 @@ func (f *ResultSummarizer) Start() {
 		results = append(results, res)
 	}
 
-	// TODO this should probably be done inside the processor to save on CPU there
+	// Consider moving this check into processor to save on CPU burn there at some point in
+	// the future
 	if f.ResultLimit != -1 {
 		if int64(len(results)) > f.ResultLimit {
 			results = results[:f.ResultLimit]

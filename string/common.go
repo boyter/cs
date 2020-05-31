@@ -87,7 +87,7 @@ func AllSimpleFold(input rune) []rune {
 	// This works for getting all folded representations
 	// but feels totally wrong due to the bailout break.
 	// That said its simpler than a while with checks
-	// TODO https://github.com/golang/go/blob/master/src/regexp/syntax/prog.go#L215 possible way to implement
+	// Investigate https://github.com/golang/go/blob/master/src/regexp/syntax/prog.go#L215 as a possible way to implement
 	for i := 0; i < 255; i++ {
 		input = unicode.SimpleFold(input)
 		if containsRune(res, input) {

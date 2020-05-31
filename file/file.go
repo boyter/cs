@@ -11,6 +11,7 @@ import (
 	"github.com/monochromegane/go-gitignore"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -315,21 +316,16 @@ func checkForGitOrMercurial(curdir string) bool {
 // A custom version of extracting extensions for a file
 // which deals with extensions specific to code such as
 // .travis.yml and the like
-// TODO this should just get the last extension because we use it for extension filters and not identification
 func GetExtension(name string) string {
-	name = strings.ToLower(name)
-	ext := filepath.Ext(name)
 
-	if ext == "" || strings.LastIndex(name, ".") == 0 {
-		ext = name
-	} else {
-		// Handling multiple dots or multiple extensions only needs to delete the last extension
-		// and then call filepath.Ext.
-		// If there are multiple extensions, it is the value of subExt,
-		// otherwise subExt is an empty string.
-		subExt := filepath.Ext(strings.TrimSuffix(name, ext))
-		ext = strings.TrimPrefix(subExt+ext, ".")
+	name = strings.ToLower(name)
+	if !strings.Contains(name, ".") {
+		return name
 	}
 
-	return ext
+	if strings.LastIndex(name, ".") == 0 {
+		return name
+	}
+
+	return path.Ext(name)[1:]
 }

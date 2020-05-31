@@ -38,7 +38,6 @@ func parseArguments(args []string) []searchParams {
 
 	// With the arguments cleaned up parse out what we need
 	// note that this is very ugly
-	// TODO add proximity search EG "the dog"~5 where the and dog are 5 chars apart or less
 	for ind, arg := range cleanArgs {
 		if strings.HasPrefix(arg, `"`) {
 			if len(arg) != 1 {
