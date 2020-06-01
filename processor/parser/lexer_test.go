@@ -166,3 +166,37 @@ func TestNextTokenMultipleSomethingQuote(t *testing.T) {
 		t.Error(`expected PAREN_CLOSE got`, token.Type)
 	}
 }
+
+func TestNextTokenMultipleEverythingQuote(t *testing.T) {
+	lex := NewLexer(`("test") ("test")`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+}
