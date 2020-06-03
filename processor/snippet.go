@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	SnipSideMax      int = 10 // Defines the maximum bytes either side of the match we are willing to return
+	SnipSideMax int = 10 // Defines the maximum bytes either side of the match we are willing to return
 	// The below are used for adding boosts to match conditions of snippets to hopefully produce the best match
-	PhraseHeavyBoost     = 20
-	SpaceBoundBoost      = 5
-	ExactMatchBoost      = 5
+	PhraseHeavyBoost = 20
+	SpaceBoundBoost  = 5
+	ExactMatchBoost  = 5
 )
 
 type bestMatch struct {

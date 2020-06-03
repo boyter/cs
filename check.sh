@@ -21,6 +21,21 @@ else
     echo -e "${GREEN}PASSED race detection${NC}"
 fi
 
+echo "Running fuzz checks..."
+pushd string || exit
+  go-fuzz-build
+  go-fuzz &
+  sleep 60
+  pkill -9 go-fuzz
+popd || exit
+
+pushd processor || exit
+  go-fuzz-build
+  go-fuzz &
+  sleep 60
+  pkill -9 go-fuzz
+popd || exit
+
 echo "Building application..."
 go build -ldflags="-s -w" || exit
 
