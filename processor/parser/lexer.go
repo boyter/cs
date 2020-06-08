@@ -22,6 +22,7 @@ import (
 // https://github.com/Meyhem/go-simple-expression-eval
 // https://about.sourcegraph.com/go/gophercon-2018-how-to-write-a-parser-in-go
 // http://web.eecs.utk.edu/~azh/blog/teenytinycompiler1.html
+// http://web.eecs.utk.edu/~azh/blog/teenytinycompiler2.html
 // https://ruslanspivak.com/lsbasi-part1/
 
 
