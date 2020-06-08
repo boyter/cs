@@ -24,6 +24,9 @@ import (
 // http://web.eecs.utk.edu/~azh/blog/teenytinycompiler1.html
 // https://ruslanspivak.com/lsbasi-part1/
 
+
+// https://www.aaronraff.dev/blog/how-to-write-a-lexer-in-go
+
 // This is for the parser
 type Expr struct {
 	Op    string
