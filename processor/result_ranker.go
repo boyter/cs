@@ -11,7 +11,8 @@ import (
 )
 
 // Takes in the search terms and results and applies chained
-// ranking over them to produce a score
+// ranking over them to produce a score and then sort those results
+// and return them
 // Note that this method will evolve over time
 // and as such you should never rely on the returned results being
 // the same
@@ -71,7 +72,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 					}
 				}
 
-				results[i].Score = results[i].Score * float64(1.0-(float64(low)*0.02))
+				results[i].Score = results[i].Score *1.0-(float64(low)*0.02)
 			}
 		}
 
