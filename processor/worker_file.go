@@ -101,7 +101,7 @@ func (f *FileReaderWorker) processPdf(res *file.File) {
 		Extension:      "",
 		Location:       res.Location,
 		Content:        []byte(content),
-		Bytes:          0,
+		Bytes:          len(content),
 		Score:          0,
 		MatchLocations: map[string][][]int{},
 	}
@@ -141,7 +141,7 @@ func (f *FileReaderWorker) processUnknown(res *file.File) {
 			Extension:      "",
 			Location:       res.Location,
 			Content:        content,
-			Bytes:          0,
+			Bytes:          len(content),
 			Score:          0,
 			MatchLocations: map[string][][]int{},
 		}

@@ -9,7 +9,7 @@ type fileJob struct {
 	Extension      string
 	Location       string
 	Content        []byte
-	Bytes          int64
+	Bytes          int
 	Hash           []byte
 	Binary         bool
 	Score          float64

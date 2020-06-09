@@ -4,7 +4,8 @@
 package processor
 
 import (
-	"math/rand"
+	str "github.com/boyter/cs/string"
+	"strings"
 	"testing"
 )
 
@@ -87,69 +88,159 @@ func TestFindSpaceLeft(t *testing.T) {
 	}
 }
 
-type spaceFinderCase = struct {
-	text           string
-	startPos, want int
-	found          bool
-}
+func TestExtractRelevantV3PaintedShip(t *testing.T) {
+	terms := []string{
+		"painted",
+		"ship",
+		"ocean",
+	}
 
-var leftCases = []spaceFinderCase{
-	{" aaaa", 4, 0, true},
-	{" aaaa", 24, 0, true}, // large position should reset to len(string)
-	{" aaaa", -1, 0, true}, // small position should reset to len(string)
-	{"a aaa", 4, 1, true},
-	{"aaaa ", 4, 4, true},
-	{" 12345678901", 11, 11 - SnipSideMax, false}, // Space after SNIP_SIDE_MAX
-	// 24 bytes. Searches from far right. N.B those 'spaces' are actually
-	// code-points that include the comma
-	{"“啊，公爵，热那", -1, 15, false},
-	// Start just far enough away to not hit byte 0, make sure it counts back
-	// to nearest whole rune
-	{"“啊，公爵，热那", 11, 3, false},
-	{"", -1, 0, false},  // position should reset to len(string)
-	{"，", 11, 0, false}, // Single 3byte rune
-	//Only contains continuation bytes.
-	{"\x82\x83", -1, 1, false}, // position should reset to len(string)
-}
+	res := &fileJob{
+		Content:        []byte(rhymeOfTheAncient),
+		MatchLocations: map[string][][]int{},
+	}
 
-var rightCases = []spaceFinderCase{
-	{" aaaa", 0, 0, true},
-	{" aaaa", 24, 0, true}, // large position should reset to 0
-	{" aaaa", -1, 0, true}, // small position should reset to 0
-	{"a aaa", 0, 1, true},
-	{"abcd ", 0, 4, true},
-	{"01234567890 ", 0, SnipSideMax, false}, // Space after SNIP_SIDE_MAX
-	// 24 bytes. Searches from far left. N.B those 'spaces' are actually
-	// code-points that include the comma
-	{"“啊，公爵，热那", -1, 9, false}, // Goes to 10 then count back 1
-	// Start just far enough away to not hit byte 0, make sure it counts back
-	// to nearest whole rune
-	{"“啊，公爵，热那", 13, 21, false},
-	{"", -1, 0, false},  // position should reset to 0 when searching right
-	{"，", 11, 0, false}, // Single 3byte rune
-	// Only contains continuation bytes.
-	{"\x82\x83", 0, 0, false}, // position should reset to 0 when searching right
-}
+	for _, t := range terms {
+		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+	}
 
-func findNearbySpaceGenericTester(t *testing.T, cases []spaceFinderCase, finder func(*fileJob, int, int) (int, bool)) {
-	for _, testCase := range cases {
-		idx, found := finder(&fileJob{Content: []byte(testCase.text)}, testCase.startPos, SnipSideMax)
+	df := calculateDocumentFrequency([]*fileJob{res})
+	snippets := extractRelevantV3(res, df, 300, "")
 
-		if idx != testCase.want {
-			t.Error("Expected", testCase.want, "got", idx)
-		}
-		if found != testCase.found {
-			t.Error("Expected", testCase.found, "got", found)
-		}
+	if !strings.Contains(snippets[0].Content, `Day after day, day after day,
+We stuck, nor breath nor motion;
+As idle as a painted ship
+Upon a painted ocean.`) {
+		t.Error("expected to have snippet")
 	}
 }
 
-const letterBytes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890~!@#$%^&*()_+{}|:<>?                        "
-
-func randStringBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+func TestExtractRelevantV3WaterWaterEverywhere(t *testing.T) {
+	terms := []string{
+		"water",
+		"every",
+		"where",
+		"drink",
 	}
-	return string(b)
+
+	res := &fileJob{
+		Content:        []byte(rhymeOfTheAncient),
+		MatchLocations: map[string][][]int{},
+	}
+
+	for _, t := range terms {
+		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+	}
+
+	df := calculateDocumentFrequency([]*fileJob{res})
+	snippets := extractRelevantV3(res, df, 300, "")
+
+	if !strings.Contains(snippets[0].Content, `Water, water, every where,
+And all the boards did shrink;
+Water, water, every where,
+Nor any drop to drink.`) {
+		t.Error("expected to have snippet")
+	}
+}
+
+func TestExtractRelevantV3GroanedDead(t *testing.T) {
+	terms := []string{
+		"groaned",
+		"dead",
+	}
+
+	res := &fileJob{
+		Content:        []byte(rhymeOfTheAncient),
+		MatchLocations: map[string][][]int{},
+	}
+
+	for _, t := range terms {
+		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+	}
+
+	df := calculateDocumentFrequency([]*fileJob{res})
+	snippets := extractRelevantV3(res, df, 300, "")
+
+	if !strings.Contains(snippets[0].Content, `They groaned, they stirred, they all uprose,
+Nor spake, nor moved their eyes;
+It had been strange, even in a dream,
+To have seen those dead men rise.`) {
+		t.Error("expected to have snippet")
+	}
+}
+
+func TestExtractRelevantV3DeathFires(t *testing.T) {
+	terms := []string{
+		"death",
+		"fires",
+	}
+
+	res := &fileJob{
+		Content:        []byte(rhymeOfTheAncient),
+		MatchLocations: map[string][][]int{},
+	}
+
+	for _, t := range terms {
+		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+	}
+
+	df := calculateDocumentFrequency([]*fileJob{res})
+	snippets := extractRelevantV3(res, df, 300, "")
+
+	if !strings.Contains(snippets[0].Content, `About, about, in reel and rout
+The death-fires danced at night;
+The water, like a witch's oils,
+Burnt green, and blue and white.`) {
+		t.Error("expected to have snippet")
+	}
+}
+
+func TestExtractRelevantV3PoorNerves(t *testing.T) {
+	terms := []string{
+		"poor",
+		"nerves",
+	}
+
+	res := &fileJob{
+		Content:        []byte(prideAndPrejudice),
+		MatchLocations: map[string][][]int{},
+	}
+
+	for _, t := range terms {
+		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
+	}
+
+	df := calculateDocumentFrequency([]*fileJob{res})
+	snippets := extractRelevantV3(res, df, 300, "")
+
+	if !strings.Contains(snippets[0].Content, `You take delight in vexing me. You have no compassion for my poor
+      nerves`) {
+		t.Error("expected to have snippet")
+	}
+}
+
+func TestExtractRelevantV3TenThousandAYear(t *testing.T) {
+	terms := []string{
+		"ten",
+		"thousand",
+		"a",
+		"year",
+	}
+
+	res := &fileJob{
+		Content:        []byte(prideAndPrejudice),
+		MatchLocations: map[string][][]int{},
+	}
+
+	for _, t := range terms {
+		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
+	}
+
+	df := calculateDocumentFrequency([]*fileJob{res})
+	snippets := extractRelevantV3(res, df, 300, "")
+
+	if !strings.Contains(snippets[0].Content, `of his having
+      ten thousand a year. The gentlemen pronounced him to be a fine`) {
+		t.Error("expected to have snippet")
+	}
 }

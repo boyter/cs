@@ -104,10 +104,15 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 	for i := 0; i < len(results); i++ {
 		weight = 0
 
+		// we don't know how many words are actually in this document... and I don't want to check
+		// because its going to slow things down, so take a guess based on how large the file is
+		// where we assume about 100 words per 1000 byes of text ensure that it is at least 1 to avoid divide by zero
+		words := float64(maxInt(1, results[i].Bytes / 10))
+
 		for key, value := range results[i].MatchLocations {
 			// Technically the IDF for this is wrong because we only
 			// have the count for the matches of the document not all the terms
-			// that are actually required IE
+			// that are actually required I.E.
 			// its likely that a search for "a b" is missing the counts
 			// for documents that have a but not b and as such
 			// the document frequencies are off with respect to the total
@@ -116,22 +121,22 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 			// still works for a search of a single term such as a or if multiple terms
 			// happen to match every document in the corpus which while unlikely
 			// is still something that could happen
+			// Its also slightly off due to the fact that we don't know the number of words
+			// in the document anyway but it should be close enough
 
-			// TF  = number of this words in this document
+			// TF  = number of this words in this document / words in entire document
 			// IDF = number of documents that contain this word
-			// N   = total number of documents
 
-			tf := float64(len(value))
-			idf := float64(documentFrequencies[key])
-			n := corpusCount
+			tf := float64(len(value)) / words
+			idf := float64(corpusCount) / float64(documentFrequencies[key])
 
-			weight += tf * math.Log(float64(n)/idf)
+			weight += tf * math.Log(idf)
 		}
 
 		// For filename matches we have potentially no tf so apply a simple weight that
 		// allows the location boost to do its thing
 		if math.IsNaN(weight) {
-			weight = 1
+			weight = 0.001
 		}
 
 		results[i].Score = weight

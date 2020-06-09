@@ -66,6 +66,9 @@ type Snippet struct {
 //	They are my old friends. I have heard you mention them with
 //	consideration these last
 //
+// The above are captured in the tests for this method along with extractions from rhyme of the ancient mariner
+// and generally we do not want them to regress for any other gains.
+//
 // Please note that testing this is... hard. This is because what is considered relevant also happens
 // to differ between people. Heck a few times I have been disappointed with results that I was previously happy with.
 // As such this is not tested as much as other methods and you should not rely on the results being static over time

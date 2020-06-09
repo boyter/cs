@@ -91,6 +91,13 @@ func max(a, b int64) int64 {
 	return b
 }
 
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // Get the time as standard UTC/Zulu format
 func getFormattedTime() string {
 	return time.Now().UTC().Format(time.RFC3339)
