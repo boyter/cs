@@ -37,11 +37,11 @@ func TestRankResultsLocation(t *testing.T) {
 	s := []*fileJob{
 		{
 			MatchLocations: ml,
-			Location: "/test/other.go",
+			Location:       "/test/other.go",
 		},
 		{
 			MatchLocations: ml,
-			Location: "/test/test.go",
+			Location:       "/test/test.go",
 		},
 	}
 
@@ -51,7 +51,6 @@ func TestRankResultsLocation(t *testing.T) {
 		t.Error("index 0 should have lower score than 1")
 	}
 }
-
 
 func TestCalculateDocumentFrequency(t *testing.T) {
 	ml := map[string][][]int{}

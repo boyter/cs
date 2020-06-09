@@ -72,7 +72,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 					}
 				}
 
-				results[i].Score = results[i].Score *1.0-(float64(low)*0.02)
+				results[i].Score = results[i].Score*1.0 - (float64(low) * 0.02)
 			}
 		}
 
@@ -106,8 +106,8 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 
 		// we don't know how many words are actually in this document... and I don't want to check
 		// because its going to slow things down, so take a guess based on how large the file is
-		// where we assume about 100 words per 1000 byes of text ensure that it is at least 1 to avoid divide by zero
-		words := float64(maxInt(1, results[i].Bytes / 10))
+		// where we assume about 100 words per 1000 bytes of text ensure that it is at least 1 to avoid divide by zero
+		words := float64(maxInt(1, results[i].Bytes/10))
 
 		for key, value := range results[i].MatchLocations {
 			// Technically the IDF for this is wrong because we only
