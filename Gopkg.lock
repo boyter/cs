@@ -126,14 +126,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e7a1af77ee190b4c4558142e769a6ab5df14e9f5768119f630128cff9060df54"
-  name = "github.com/monochromegane/go-gitignore"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "38717d0a108ca0e5af632cd6845ca77d45b50729"
-
-[[projects]]
-  branch = "master"
   digest = "1:10c3f233d978ae758665b17daa2883d23911b67384ce96d602ce0f8db3593616"
   name = "github.com/rivo/tview"
   packages = ["."]
@@ -222,7 +214,6 @@
     "github.com/fatih/color",
     "github.com/gdamore/tcell",
     "github.com/ledongthuc/pdf",
-    "github.com/monochromegane/go-gitignore",
     "github.com/rivo/tview",
     "github.com/rs/zerolog/log",
     "github.com/spf13/cobra",

@@ -8,7 +8,7 @@ package file
 
 import (
 	"errors"
-	"github.com/monochromegane/go-gitignore"
+	"github.com/boyter/cs/processor/go-gitignore"
 	"io/ioutil"
 	"os"
 	"path"
