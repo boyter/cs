@@ -78,23 +78,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	wrapLength := relLength / 2
 	var bestMatches []bestMatch
 
-	var rv3 []relevantV3
-	// Get all of the locations into a new data structure
-	// which makes things easy to sort and deal with
-	for k, v := range res.MatchLocations {
-		for _, i := range v {
-			rv3 = append(rv3, relevantV3{
-				Word:  k,
-				Start: i[0],
-				End:   i[1],
-			})
-		}
-	}
-
-	// Sort the results so when we slide around everything is in order
-	sort.Slice(rv3, func(i, j int) bool {
-		return rv3[i].Start < rv3[j].Start
-	})
+	rv3 := convertToRelevant(res)
 
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
@@ -266,6 +250,29 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	}
 
 	return snippets
+}
+
+// Get all of the locations into a new data structure
+// which makes things easy to sort and deal with
+func convertToRelevant(res *fileJob) []relevantV3 {
+	var rv3 []relevantV3
+
+	for k, v := range res.MatchLocations {
+		for _, i := range v {
+			rv3 = append(rv3, relevantV3{
+				Word:  k,
+				Start: i[0],
+				End:   i[1],
+			})
+		}
+	}
+
+	// Sort the results so when we slide around everything is in order
+	sort.Slice(rv3, func(i, j int) bool {
+		return rv3[i].Start < rv3[j].Start
+	})
+
+	return rv3
 }
 
 // Looks for a nearby whitespace character near this position (`pos`)

@@ -30,6 +30,7 @@ func rankResults(corpusCount int, results []*fileJob) []*fileJob {
 // should be boosted by
 const (
 	LocationBoostValue = 0.05
+	PhraseBoostValue   = 1.00
 )
 
 // Given the results boost based on how close the phrases are to each other IE make it slightly phrase
@@ -38,26 +39,7 @@ const (
 // NB this is one of the more expensive parts of the ranking
 func rankResultsPhrase(results []*fileJob, documentFrequencies map[string]int) []*fileJob {
 	for i := 0; i < len(results); i++ {
-
-		// TODO this is common and should be moved out shared with snippet.go
-		var rv3 []relevantV3
-		// Get all of the locations into a new data structure
-		// which makes things easy to sort and deal with
-		for k, v := range results[i].MatchLocations {
-			for _, i := range v {
-				rv3 = append(rv3, relevantV3{
-					Word:  k,
-					Start: i[0],
-					End:   i[1],
-				})
-			}
-		}
-
-		// Sort the results so when we slide around everything is in order
-		sort.Slice(rv3, func(i, j int) bool {
-			return rv3[i].Start < rv3[j].Start
-		})
-		// TODO end todo
+		rv3 := convertToRelevant(results[i])
 
 		for j := 0; j < len(rv3); j++ {
 			if j == 0 {
@@ -69,7 +51,7 @@ func rankResultsPhrase(results []*fileJob, documentFrequencies map[string]int) [
 			// less than something like 'cromulent' which in theory should not occur as much
 			if rv3[j].Start-rv3[j-1].End < 5 {
 				// Set to 1 which seems to produce reasonable results by only boosting a little per term
-				results[i].Score += 1 / float64(documentFrequencies[rv3[j].Word])
+				results[i].Score += PhraseBoostValue / float64(documentFrequencies[rv3[j].Word])
 			}
 		}
 	}
