@@ -17,7 +17,10 @@ import (
 // and as such you should never rely on the returned results being
 // the same
 func rankResults(corpusCount int, results []*fileJob) []*fileJob {
-	results = rankResultsTFIDF(corpusCount, results) // needs to come first because it resets the scores
+	documentFrequencies := calculateDocumentFrequency(results)
+
+	results = rankResultsTFIDF(corpusCount, results, documentFrequencies) // needs to come first because it resets the scores
+	results = rankResultsPhrase(results, documentFrequencies)
 	results = rankResultsLocation(results)
 	sortResults(results)
 	return results
@@ -28,6 +31,51 @@ func rankResults(corpusCount int, results []*fileJob) []*fileJob {
 const (
 	LocationBoostValue = 0.05
 )
+
+// Given the results boost based on how close the phrases are to each other IE make it slightly phrase
+// heavy. This is fairly similar to how the snippet extraction works but with less work because it does
+// not need to deal with cutting between unicode endpoints
+// NB this is one of the more expensive parts of the ranking
+func rankResultsPhrase(results []*fileJob, documentFrequencies map[string]int) []*fileJob {
+	for i := 0; i < len(results); i++ {
+
+		// TODO this is common and should be moved out shared with snippet.go
+		var rv3 []relevantV3
+		// Get all of the locations into a new data structure
+		// which makes things easy to sort and deal with
+		for k, v := range results[i].MatchLocations {
+			for _, i := range v {
+				rv3 = append(rv3, relevantV3{
+					Word:  k,
+					Start: i[0],
+					End:   i[1],
+				})
+			}
+		}
+
+		// Sort the results so when we slide around everything is in order
+		sort.Slice(rv3, func(i, j int) bool {
+			return rv3[i].Start < rv3[j].Start
+		})
+		// TODO end todo
+
+		for j := 0; j < len(rv3); j++ {
+			if j == 0 {
+				continue
+			}
+
+			// If the word is within a reasonable distance of this word boost the score
+			// weighted by how common that word is so that matches like 'a' impact the rank
+			// less than something like 'cromulent' which in theory should not occur as much
+			if rv3[j].Start-rv3[j-1].End < 5 {
+				// Set to 1 which seems to produce reasonable results by only boosting a little per term
+				results[i].Score += 1 / float64(documentFrequencies[rv3[j].Word])
+			}
+		}
+	}
+
+	return results
+}
 
 // Given the results will boost the rank of them based on matches in the
 // file location field.
@@ -95,9 +143,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 // NB loops in here use increment to avoid duffcopy
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
 // due to how often it is called by things like the TUI mode
-func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
-	documentFrequencies := calculateDocumentFrequency(results)
-
+func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies map[string]int) []*fileJob {
 	// Get the number of docs with each word in it, which is just the number of results because we are AND only
 	// and as such each document must contain all the words although they may have different counts
 	var weight float64

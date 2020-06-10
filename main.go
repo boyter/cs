@@ -17,7 +17,7 @@ func main() {
 	//	time.Sleep(time.Second * 10)
 	//	pprof.WriteHeapProfile(f2)
 	//	f2.Close()
-	//	defer pprof.StopCPUProfile()
+	//	pprof.StopCPUProfile()
 	//}()
 
 	rootCmd := &cobra.Command{
