@@ -59,7 +59,7 @@ func (f *ResultSummarizer) Start() {
 func (f *ResultSummarizer) formatJson(results []*fileJob) {
 	jsonResults := []jsonResult{}
 
-	documentFrequency := calculateDocumentFrequency(results)
+	documentFrequency := calculateDocumentTermFrequency(results)
 
 	for _, res := range results {
 		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
@@ -100,7 +100,7 @@ func (f *ResultSummarizer) formatDefault(results []*fileJob) {
 		fmtEnd = ""
 	}
 
-	documentFrequency := calculateDocumentFrequency(results)
+	documentFrequency := calculateDocumentTermFrequency(results)
 
 	for _, res := range results {
 		color.Magenta(fmt.Sprintf("%s (%.3f)", res.Location, res.Score))

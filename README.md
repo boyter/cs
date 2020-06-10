@@ -15,7 +15,6 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 
 ```
 BUGS
-score from TF/IDF appears to be negative in some cases (overflow??)
 need to clear pdf cache
 searching for http://localhost:8080/?q=%22about+to+explore%22&ss=300 seems to highlight to for some reason, same in TUI mode
 

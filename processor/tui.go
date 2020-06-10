@@ -181,10 +181,10 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	var resultText string
 	resultText += fmt.Sprintf("%d results(s) for '%s' from %d files %s\n\n", len(results), searchTerm, fileCount, inProgress)
 
-	documentFrequency := calculateDocumentFrequency(results)
+	documentTermFrequency := calculateDocumentTermFrequency(results)
 	for i, res := range pResults {
 		// NB this just gets the first snippet which should in theory be the most relevant
-		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
+		v3 := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")[0]
 
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 

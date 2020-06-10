@@ -196,7 +196,7 @@ func StartHttpServer() {
 		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
 		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
-		documentFrequency := calculateDocumentFrequency(results)
+		documentTermFrequency := calculateDocumentTermFrequency(results)
 
 		var searchResults []searchResult
 		extensionFacets := map[string]int{}
@@ -223,7 +223,7 @@ func StartHttpServer() {
 		}
 
 		for _, res := range displayResults {
-			v3 := extractRelevantV3(res, documentFrequency, snippetLength, "…")[0]
+			v3 := extractRelevantV3(res, documentTermFrequency, snippetLength, "…")[0]
 
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
