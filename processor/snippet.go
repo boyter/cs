@@ -36,6 +36,7 @@ type Snippet struct {
 	Content  string
 	StartPos int
 	EndPos   int
+	Score    float64
 }
 
 // Looks though the locations using a sliding window style algorithm
@@ -260,6 +261,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 			Content:  string(res.Content[b.StartPos:b.EndPos]),
 			StartPos: b.StartPos,
 			EndPos:   b.EndPos,
+			Score:    b.Score,
 		})
 	}
 

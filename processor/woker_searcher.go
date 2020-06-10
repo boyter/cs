@@ -137,7 +137,9 @@ func (f *SearcherWorker) Start() {
 						}
 
 						// Without ranking this score favors the most matches which is
-						// basic but better than nothing
+						// basic but better than nothing NB this is almost always
+						// overridden inside the actual ranker so its only here in case
+						// we ever forget that so we at least get something
 						res.Score += float64(len(res.MatchLocations[needle.Term]))
 					}
 				}

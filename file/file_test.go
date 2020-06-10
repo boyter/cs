@@ -57,7 +57,6 @@ func TestNewFileWalkerStuff(t *testing.T) {
 	}
 }
 
-
 func TestGetExtension(t *testing.T) {
 	got := GetExtension("something.c")
 	expected := "c"

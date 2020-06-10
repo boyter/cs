@@ -17,7 +17,7 @@ import (
 // and as such you should never rely on the returned results being
 // the same
 func rankResults(corpusCount int, results []*fileJob) []*fileJob {
-	results = rankResultsTFIDF(corpusCount, results)
+	results = rankResultsTFIDF(corpusCount, results) // needs to come first because it resets the scores
 	results = rankResultsLocation(results)
 	sortResults(results)
 	return results
@@ -104,10 +104,12 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 	for i := 0; i < len(results); i++ {
 		weight = 0
 
-		// we don't know how many words are actually in this document... and I don't want to check
-		// because its going to slow things down, so take a guess based on how large the file is
-		// where we assume about 100 words per 1000 bytes of text ensure that it is at least 1 to avoid divide by zero
-		words := float64(maxInt(1, results[i].Bytes/10))
+		// We don't know how many words are actually in this document... and I don't want to check
+		// because its going to slow things down. Keep in mind that this works inside the words themselves
+		// I.E. partial matches are the norm so it makes sense to base it on the number of bytes
+		// where we assume about 50 "words" per 1000 bytes of text.
+		// Also ensure that it is at least 1 to avoid divide by zero errors later on.
+		words := float64(maxInt(1, results[i].Bytes/20))
 
 		for key, value := range results[i].MatchLocations {
 			// Technically the IDF for this is wrong because we only
@@ -130,15 +132,12 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob) []*fileJob {
 			tf := float64(len(value)) / words
 			idf := float64(corpusCount) / float64(documentFrequencies[key])
 
-			weight += tf * math.Log(idf)
+			weight += tf * math.Log2(idf)
 		}
 
-		// For filename matches we have potentially no tf so apply a simple weight that
-		// allows the location boost to do its thing
-		if math.IsNaN(weight) {
-			weight = 0.001
-		}
-
+		// Override the score here because we don't want whatever we got originally
+		// which is just based on the number of keyword matches... of course this assumes
+		// that
 		results[i].Score = weight
 	}
 
