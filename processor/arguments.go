@@ -41,6 +41,9 @@ var IncludeBinaryFiles = false
 // Format sets the output format of the formatter
 var Format = ""
 
+// Ranker sets which ranking algorithm to use
+var Ranker = ""
+
 // FileOutput sets the file that output should be written to
 var FileOutput = ""
 

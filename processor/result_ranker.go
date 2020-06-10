@@ -157,7 +157,12 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies m
 			tf := float64(len(wordCount)) / words
 			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
 
-			weight += tf * idf
+			// TODO adding math.Sqrt around tf can improve results https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/
+			if Ranker == "tfidfl" {
+				weight += math.Sqrt(tf) * idf * (1/math.Sqrt(words))
+			} else {
+				weight += tf * idf
+			}
 		}
 
 		// Override the score here because we don't want whatever we got originally

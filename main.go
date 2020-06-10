@@ -167,6 +167,12 @@ func main() {
 		"text",
 		"set output format [text, json]",
 	)
+	flags.StringVar(
+		&processor.Ranker,
+		"ranker",
+		"tfidfl",
+		"set ranking algorithm [tfidf, tfidfl]",
+	)
 
 	// the below flags we want but are not enabled as yet
 
