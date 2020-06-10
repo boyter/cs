@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/boyter/cs/file"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"github.com/rs/zerolog/log"
 	"html"
 	"html/template"
@@ -75,7 +75,7 @@ func StartHttpServer() {
 			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		}
 
-		// Create a random string to define where the start and end of
+		// Create a random str to define where the start and end of
 		// out highlight should be which we swap out later after we have
 		// HTML escaped everything
 		md5Digest := md5.New()
@@ -189,7 +189,7 @@ func StartHttpServer() {
 			rankResults(int(fileReader.GetFileCount()), results)
 		}
 
-		// Create a random string to define where the start and end of
+		// Create a random str to define where the start and end of
 		// out highlight should be which we swap out later after we have
 		// HTML escaped everything
 		md5Digest := md5.New()

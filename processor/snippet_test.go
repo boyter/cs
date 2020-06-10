@@ -4,7 +4,7 @@
 package processor
 
 import (
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"strings"
 	"testing"
 )

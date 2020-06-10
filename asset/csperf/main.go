@@ -5,7 +5,7 @@ package main
 
 import (
 	"fmt"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"io/ioutil"
 	"os"
 	"regexp"

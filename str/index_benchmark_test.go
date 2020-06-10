@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-License-Identifier: Unlicense
 
-package string
+package str
 
 import (
 	"regexp"

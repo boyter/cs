@@ -6,7 +6,7 @@ package processor
 import (
 	"crypto/md5"
 	"encoding/hex"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 )
 
 // For fuzz testing...

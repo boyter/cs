@@ -6,7 +6,7 @@ package processor
 import (
 	"fmt"
 	"github.com/boyter/cs/file"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"runtime"
 	"strconv"
 	"strings"

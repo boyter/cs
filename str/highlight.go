@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-License-Identifier: Unlicense
 
-package string
+package str
 
 import (
 	"strings"
@@ -24,7 +24,7 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 		highlightCache[val[0]] = true
 	}
 
-	// Range over string which is rune aware so even if we get invalid
+	// Range over str which is rune aware so even if we get invalid
 	// locations we should hopefully ignore them as the byte offset wont
 	// match
 	for i, x := range content {
@@ -32,14 +32,14 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 
 		_, ok := highlightCache[i]
 		// Find which of the locations match
-		// and if so write the start string
+		// and if so write the start str
 		if ok {
 			for _, val := range locations {
 
 				// We have a match where the outer index matches
 				// against the val[0] which contains the location of the match
 				if i == val[0] {
-					// We only write the found string once per match and
+					// We only write the found str once per match and
 					// only if we are not in the middle of one
 					if !found && end <= 0 {
 						str.WriteString(in)
@@ -70,7 +70,7 @@ func HighlightString(content string, locations [][]int, in string, out string) s
 		str.WriteString(string(x))
 
 		// If at the end, and its not -1 meaning the first char
-		// which should never happen (I hope!) then write the end string
+		// which should never happen (I hope!) then write the end str
 		if i == end && end != -1 {
 			str.WriteString(out)
 			end = 0

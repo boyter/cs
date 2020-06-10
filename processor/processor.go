@@ -12,7 +12,7 @@ import (
 var Version = "0.9.0 alpha"
 
 // Clean up the input to avoid searching for spaces etc...
-// Take the string cut it up, lower case everything except
+// Take the str cut it up, lower case everything except
 // boolean operators and join it all back into the same slice
 func CleanSearchString() {
 	tmp := [][]byte{}

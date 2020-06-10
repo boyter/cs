@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-License-Identifier: Unlicense
 
-package string
+package str
 
 import (
 	"math"
@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-// IndexAll extracts all of the locations of a string inside another string
+// IndexAll extracts all of the locations of a str inside another str
 // up-to the defined limit and does so without regular expressions
 // which makes it faster than FindAllIndex in most situations while
 // not being any slower. It performs worst when working against random
@@ -71,7 +71,7 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 		// We need to keep the offset of the match so we continue searching
 		offSet += loc + len(needle)
 
-		// strings.Index does checks of if the string is empty so we don't need
+		// strings.Index does checks of if the str is empty so we don't need
 		// to explicitly do it ourselves
 		loc = strings.Index(searchText, needle)
 	}
@@ -87,9 +87,9 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 var __permuteCache = map[string][]string{}
 var __permuteCacheLock = sync.Mutex{}
 
-// IndexAllIgnoreCaseUnicode extracts all of the locations of a string inside another string
+// IndexAllIgnoreCaseUnicode extracts all of the locations of a str inside another str
 // up-to the defined limit. It is designed to be faster than uses of FindAllIndex with
-// case insenstive matching enabled, by looking for string literals first and then
+// case insenstive matching enabled, by looking for str literals first and then
 // checking for exact matches. It also does so in a unicode aware way such that a search
 // for S will search for S s and ſ which a simple strings.ToLower over the haystack
 // and the needle will not.
@@ -115,7 +115,7 @@ func IndexAllIgnoreCaseUnicode(haystack string, needle string, limit int) [][]in
 	// insensitive match there.
 	//
 	// This method tries something else which is used by some regex engines
-	// such as the one in Rust where given a string literal if you get
+	// such as the one in Rust where given a str literal if you get
 	// all the case options of that such as turning foo into foo Foo fOo FOo foO FoO fOO FOO
 	// and then use Boyer-Moore or some such for those. Of course using something
 	// like Aho-Corasick or Rabin-Karp to get multi match would be a better idea so you

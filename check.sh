@@ -22,7 +22,7 @@ else
 fi
 
 echo "Running fuzz checks..."
-pushd string || exit
+pushd str || exit
   go-fuzz-build
   go-fuzz &
   sleep 60

@@ -6,7 +6,7 @@ package processor
 import (
 	"encoding/json"
 	"fmt"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"github.com/fatih/color"
 	"github.com/mattn/go-isatty"
 	"os"

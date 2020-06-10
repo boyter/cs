@@ -5,7 +5,7 @@ package processor
 
 import (
 	"fmt"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"os"
 	"time"
 )
@@ -24,7 +24,7 @@ func makeTimestampNano() int64 {
 const letterDigitFuzzyBytes = `abcdefghijklmnopqrstuvwxyz1234567890~!@#$%^&*()_+-=[]\{}|;':"',./<>?~`
 
 // Takes in a term and returns a slice of them which contains all the
-// fuzzy versions of that string with things such as mis-spellings
+// fuzzy versions of that str with things such as mis-spellings
 // somewhat based on https://norvig.com/spell-correct.html
 func makeFuzzyDistanceOne(term string) []string {
 	vals := []string{term}

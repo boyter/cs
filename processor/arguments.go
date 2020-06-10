@@ -59,7 +59,7 @@ var FindRoot = false
 // AllowListExtensions is a list of extensions which are whitelisted to be processed
 var AllowListExtensions = []string{}
 
-// Search string if set to anything is what we want to run the search for against the current directory
+// Search str if set to anything is what we want to run the search for against the current directory
 var SearchString = []string{}
 
 var SearchBytes = [][]byte{}

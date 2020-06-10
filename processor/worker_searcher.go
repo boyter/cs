@@ -6,7 +6,7 @@ package processor
 import (
 	"bytes"
 	"errors"
-	str "github.com/boyter/cs/string"
+	str "github.com/boyter/cs/str"
 	"gopkg.in/src-d/enry.v1/regex"
 	"runtime"
 	"strings"
