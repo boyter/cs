@@ -9,7 +9,7 @@ import (
 
 // This is based roughly the example provided by https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 // with the output for it compared to ensure the results are fairly similar
-func TestRankResultsTFIDF(t *testing.T) {
+func TestRankResultsTFIDFTraditional(t *testing.T) {
 	ml1 := map[string][][]int{}
 
 	ml2 := map[string][][]int{}
@@ -28,7 +28,7 @@ func TestRankResultsTFIDF(t *testing.T) {
 		},
 	}
 
-	s = rankResultsTFIDF(2, s, calculateDocumentFrequency(s))
+	s = rankResultsTFIDF(2, s, calculateDocumentFrequency(s), true)
 
 	if s[0].Score > s[1].Score {
 		t.Error("index 0 should have lower score than 1")

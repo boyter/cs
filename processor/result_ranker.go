@@ -17,11 +17,16 @@ import (
 // and as such you should never rely on the returned results being
 // the same
 func rankResults(corpusCount int, results []*fileJob) []*fileJob {
-	if Ranker == "bm25" {
+	// needs to come first because it resets the scores
+	switch Ranker {
+	case "bm25":
 		results = rankResultsBM25(corpusCount, results, calculateDocumentFrequency(results))
-	} else {
-		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results)) // needs to come first because it resets the scores
+	case "tfidfl":
+		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results), false)
+	default:
+		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results), true)
 	}
+
 	results = rankResultsLocation(results)
 	// TODO maybe need to add something here to reward phrases
 	sortResults(results)
@@ -128,7 +133,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 // NB loops in here use increment to avoid duffcopy
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
 // due to how often it is called by things like the TUI mode
-func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies map[string]int) []*fileJob {
+func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies map[string]int, classic bool) []*fileJob {
 	var weight float64
 	for i := 0; i < len(results); i++ {
 		weight = 0
@@ -162,11 +167,11 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies m
 			tf := float64(len(wordCount)) / words
 			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
 
-			if Ranker == "tfidfl" {
+			if classic {
+				weight += tf * idf
+			} else {
 				// Lucene modification to improve results https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/
 				weight += math.Sqrt(tf) * idf * (1 / math.Sqrt(words))
-			} else {
-				weight += tf * idf
 			}
 		}
 
