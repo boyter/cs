@@ -24,7 +24,6 @@ add proximity search "this is"~5 which means they need to be within 5 bytes of e
 JSON endpoint for HTTP just in case someone wants to build own stuff
 Save to disk output
 
-
 MAYBE
 
 HTML parser option

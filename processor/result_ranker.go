@@ -34,7 +34,7 @@ const (
 	LocationBoostValue = 0.05
 	DefaultScoreValue  = 0.01
 	PhraseBoostValue   = 1.00
-	BytesWordDivisor = 2
+	BytesWordDivisor   = 2
 )
 
 // Given the results boost based on how close the phrases are to each other IE make it slightly phrase
@@ -164,7 +164,7 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies m
 
 			if Ranker == "tfidfl" {
 				// Lucene modification to improve results https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/
-				weight += math.Sqrt(tf) * idf * (1/math.Sqrt(words))
+				weight += math.Sqrt(tf) * idf * (1 / math.Sqrt(words))
 			} else {
 				weight += tf * idf
 			}
@@ -200,7 +200,7 @@ func rankResultsBM25(corpusCount int, results []*fileJob, documentFrequencies ma
 	for i := 0; i < len(results); i++ {
 		averageDocumentWords += float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
 	}
-	averageDocumentWords = averageDocumentWords/float64(len(results))
+	averageDocumentWords = averageDocumentWords / float64(len(results))
 
 	k1 := 1.2
 	b := 0.75
@@ -224,7 +224,7 @@ func rankResultsBM25(corpusCount int, results []*fileJob, documentFrequencies ma
 			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
 
 			step1 := idf * tf * (k1 + 1)
-			step2 := tf + k1 * (1 - b + (b * words / averageDocumentWords))
+			step2 := tf + k1*(1-b+(b*words/averageDocumentWords))
 
 			weight += step1 / step2
 		}
