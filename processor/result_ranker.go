@@ -17,7 +17,11 @@ import (
 // and as such you should never rely on the returned results being
 // the same
 func rankResults(corpusCount int, results []*fileJob) []*fileJob {
-	results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results)) // needs to come first because it resets the scores
+	if Ranker == "bm25" {
+		results = rankResultsBM25(corpusCount, results, calculateDocumentFrequency(results))
+	} else {
+		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results)) // needs to come first because it resets the scores
+	}
 	results = rankResultsLocation(results)
 	// TODO maybe need to add something here to reward phrases
 	sortResults(results)
@@ -30,6 +34,7 @@ const (
 	LocationBoostValue = 0.05
 	DefaultScoreValue  = 0.01
 	PhraseBoostValue   = 1.00
+	BytesWordDivisor = 2
 )
 
 // Given the results boost based on how close the phrases are to each other IE make it slightly phrase
@@ -132,7 +137,7 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies m
 		// because its going to slow things down. Keep in mind that this works inside the words themselves
 		// I.E. partial matches are the norm so it makes sense to base it on the number of bytes
 		// Also ensure that it is at least 1 to avoid divide by zero errors later on.
-		words := float64(maxInt(1, results[i].Bytes/2))
+		words := float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
 
 		// word in the case is the word we are dealing with IE what the user actually searched for
 		// and wordCount is the locations of those words allowing us to know the number of words matching
@@ -157,12 +162,71 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies m
 			tf := float64(len(wordCount)) / words
 			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
 
-			// TODO adding math.Sqrt around tf can improve results https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/
 			if Ranker == "tfidfl" {
+				// Lucene modification to improve results https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/
 				weight += math.Sqrt(tf) * idf * (1/math.Sqrt(words))
 			} else {
 				weight += tf * idf
 			}
+		}
+
+		// Override the score here because we don't want whatever we got originally
+		// which is just based on the number of keyword matches... of course this assumes
+		// that
+		results[i].Score = weight
+	}
+
+	return results
+}
+
+// BM25 implementation which ranks the results
+// Technically this is not a real BM25 because we don't
+// have counts of terms for documents that don't match
+// so the IDF value is not correctly calculated
+// https://en.wikipedia.org/wiki/Okapi_BM25
+//
+// NB loops in here use increment to avoid duffcopy
+// https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
+// due to how often it is called by things like the TUI mode
+//
+//                 IDF * TF * (k1 + 1)
+// BM25 = sum ----------------------------
+//            TF + k1 * (1 - b + b * D / L)
+func rankResultsBM25(corpusCount int, results []*fileJob, documentFrequencies map[string]int) []*fileJob {
+	var weight float64
+
+	// Get the average number of words across all documents because we need that in BM25 to calculate correctly
+	var averageDocumentWords float64
+	for i := 0; i < len(results); i++ {
+		averageDocumentWords += float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
+	}
+	averageDocumentWords = averageDocumentWords/float64(len(results))
+
+	k1 := 1.2
+	b := 0.75
+
+	for i := 0; i < len(results); i++ {
+		weight = 0
+
+		// We don't know how many words are actually in this document... and I don't want to check
+		// because its going to slow things down. Keep in mind that this works inside the words themselves
+		// I.E. partial matches are the norm so it makes sense to base it on the number of bytes
+		// Also ensure that it is at least 1 to avoid divide by zero errors later on.
+		words := float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
+
+		// word in the case is the word we are dealing with IE what the user actually searched for
+		// and wordCount is the locations of those words allowing us to know the number of words matching
+		for word, wordCount := range results[i].MatchLocations {
+
+			// TF  = number of this words in this document / words in entire document
+			// IDF = number of documents that contain this word
+			tf := float64(len(wordCount)) / words
+			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
+
+			step1 := idf * tf * (k1 + 1)
+			step2 := tf + k1 * (1 - b + (b * words / averageDocumentWords))
+
+			weight += step1 / step2
 		}
 
 		// Override the score here because we don't want whatever we got originally

@@ -170,8 +170,8 @@ func main() {
 	flags.StringVar(
 		&processor.Ranker,
 		"ranker",
-		"tfidfl",
-		"set ranking algorithm [tfidf, tfidfl]",
+		"tfidf",
+		"set ranking algorithm [tfidf, tfidfl, bm25]",
 	)
 
 	// the below flags we want but are not enabled as yet
