@@ -24,7 +24,11 @@ func main() {
 		Use: "cs",
 		Long: "code spelunker (cs) code search.\n" +
 			"Version " + processor.Version + "\n" +
-			"Ben Boyter <ben@boyter.org>",
+			"Ben Boyter <ben@boyter.org>" +
+			"\n\n" +
+			"cs recursively searches the current directory using boolean logic\n" +
+			"optionally combined with regular expressions." +
+			"\n",
 		Version: processor.Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			processor.SearchString = args
@@ -101,14 +105,14 @@ func main() {
 		"include-ext",
 		"i",
 		[]string{},
-		"limit to file extensions case sensitive [comma separated list: e.g. go,java,js,C,cpp]",
+		"limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]",
 	)
 	flags.BoolVarP(
 		&processor.FindRoot,
 		"find-root",
 		"r",
 		false,
-		"attempts to find the root of this repository by reverse recursively looking for .git or .hg",
+		"attempts to find the root of this repository by traversing in reverse looking for .git or .hg",
 	)
 	flags.StringSliceVar(
 		&processor.PathDenylist,
@@ -170,7 +174,7 @@ func main() {
 	flags.StringVar(
 		&processor.Ranker,
 		"ranker",
-		"tfidf",
+		"bm25",
 		"set ranking algorithm [tfidf, tfidfl, bm25]",
 	)
 
