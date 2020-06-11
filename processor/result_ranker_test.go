@@ -39,6 +39,29 @@ func TestRankResultsTFIDFTraditional(t *testing.T) {
 	}
 }
 
+func TestRankResultsTFIDFComparison(t *testing.T) {
+	ml1 := map[string][][]int{}
+	ml1["example"] = [][]int{{1}, {2}, {3}}
+
+	s := []*fileJob{
+		{
+			MatchLocations: ml1,
+			Location:       "/test/other.go",
+			Bytes:          12,
+		},
+	}
+
+	s = rankResultsTFIDF(2, s, calculateDocumentFrequency(s), true)
+	score1 := s[0].Score
+
+	s = rankResultsTFIDF(2, s, calculateDocumentFrequency(s), false)
+	score2 := s[0].Score
+
+	if score1 == score2 {
+		t.Error("expected scores to be slightly different")
+	}
+}
+
 func TestRankResultsLocation(t *testing.T) {
 	ml := map[string][][]int{}
 	ml["test"] = [][]int{{1}, {2}, {3}}
