@@ -1,8 +1,8 @@
 // Package file provides file operations specific to code repositories
 // such as walking the file tree obeying .ignore and .gitignore files
 // or looking for the root directory assuming already in a git project
-// SPDX-License-Identifier: MIT
-// SPDX-License-Identifier: Unlicense
+
+// SPDX-License-Identifier: MIT OR Unlicense
 
 package file
 
