@@ -20,7 +20,7 @@ func rankResults(corpusCount int, results []*fileJob) []*fileJob {
 	switch Ranker {
 	case "bm25":
 		results = rankResultsBM25(corpusCount, results, calculateDocumentFrequency(results))
-	case "tfidfl":
+	case "tfidf2":
 		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results), false)
 	default:
 		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results), true)

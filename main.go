@@ -175,7 +175,7 @@ func main() {
 		&processor.Ranker,
 		"ranker",
 		"bm25",
-		"set ranking algorithm [tfidf, tfidfl, bm25]",
+		"set ranking algorithm [tfidf, tfidf2, bm25]",
 	)
 
 	// the below flags we want but are not enabled as yet
