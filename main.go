@@ -98,7 +98,7 @@ func main() {
 		&processor.SearchPDF,
 		"pdf",
 		false,
-		"attempt to extract text from pdf and search the result install pdf2txt for best results",
+		"attempt to extract text from pdf and search the result requires pdf2txt/pdftotext to be installed",
 	)
 	flags.StringSliceVarP(
 		&processor.AllowListExtensions,
@@ -144,7 +144,7 @@ func main() {
 		"exclude-pattern",
 		"x",
 		[]string{},
-		"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,node_modules]",
+		"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]",
 	)
 	flags.BoolVar(
 		&processor.IncludeMinified,
