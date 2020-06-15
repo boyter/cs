@@ -8,6 +8,7 @@ import (
 	str "github.com/boyter/cs/str"
 	"github.com/fatih/color"
 	"github.com/mattn/go-isatty"
+	"io/ioutil"
 	"os"
 )
 
@@ -18,6 +19,7 @@ type ResultSummarizer struct {
 	SnippetCount     int
 	NoColor          bool
 	Format           string
+	FileOutput       string
 }
 
 func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
@@ -27,6 +29,7 @@ func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
 		SnippetCount: 1,
 		NoColor:      os.Getenv("TERM") == "dumb" || (!isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd())),
 		Format:       Format,
+		FileOutput:   FileOutput,
 	}
 }
 
@@ -88,7 +91,12 @@ func (f *ResultSummarizer) formatJson(results []*fileJob) {
 	}
 
 	jsonString, _ := json.Marshal(jsonResults)
-	fmt.Println(string(jsonString))
+	if f.FileOutput == "" {
+		fmt.Println(string(jsonString))
+	} else {
+		_ = ioutil.WriteFile(FileOutput, []byte(jsonString), 0600)
+		fmt.Println("results written to " + FileOutput)
+	}
 }
 
 func (f *ResultSummarizer) formatDefault(results []*fileJob) {

@@ -177,30 +177,13 @@ func main() {
 		"bm25",
 		"set ranking algorithm [tfidf, tfidf2, bm25]",
 	)
-
-	// the below flags we want but are not enabled as yet
-
-	//flags.Int64VarP(
-	//	&processor.ResultLimit,
-	//	"limit",
-	//	"l",
-	//	100,
-	//	"number of matching results to process",
-	//)
-	//flags.StringVarP(
-	//	&processor.Format,
-	//	"format",
-	//	"f",
-	//	"text",
-	//	"set output format [text, json]",
-	//)
-	//flags.StringVarP(
-	//	&processor.FileOutput,
-	//	"output",
-	//	"o",
-	//	"",
-	//	"output filename (default stdout)",
-	//)
+	flags.StringVarP(
+		&processor.FileOutput,
+		"output",
+		"o",
+		"",
+		"output filename (default stdout)",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
