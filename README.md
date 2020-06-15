@@ -17,7 +17,7 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 BUGS
 need to clear pdf cache
 searching for http://localhost:8080/?q=%22about+to+explore%22&ss=300 seems to highlight to for some reason, same in TUI mode
-pdf without pdf2txt seems to crash a lot
+pdf without pdf2txt seems to crash a lot xpdf
 
 TODO
 actually have a real parser supporting proper boolean syntax IN PROGRESS
@@ -35,6 +35,11 @@ literal extraction engine for regex to speed it up
 query plan optimisation for boolean queries when implemented
 
 ```
+
+```
+brew install xpdf
+```
+
 
 template example (from root)
 

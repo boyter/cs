@@ -12,6 +12,9 @@ import (
 // option because it actually works
 func convertPDFTextPdf2Txt(path string) (string, error) {
 	body, err := exec.Command("pdf2txt", path).Output()
+	if err != nil {
+		body, err = exec.Command("pdftotext", path).Output()
+	}
 	return string(body), err
 }
 
