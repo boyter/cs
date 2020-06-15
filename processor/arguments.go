@@ -4,9 +4,6 @@ package processor
 
 // Flags set via the CLI which control how the output is displayed
 
-// Files indicates if there should be file output or not when formatting
-var Files = false
-
 // Verbose enables verbose logging output
 var Verbose = false
 
@@ -41,7 +38,7 @@ var IncludeBinaryFiles = false
 var Format = ""
 
 // Ranker sets which ranking algorithm to use
-var Ranker = ""
+var Ranker = "bm25"
 
 // FileOutput sets the file that output should be written to
 var FileOutput = ""
@@ -52,32 +49,35 @@ var PathDenylist = []string{}
 // Allow ignoring files by location
 var LocationExcludePattern = []string{}
 
-// Allow turning on case sensitive search
+// CaseSensitive allows tweaking of case in/sensitive search
 var CaseSensitive = false
 
-// Allow turning on case sensitive search
+// FindRoot flag to check for the root of git or hg when run from a deeper directory and search from there
 var FindRoot = false
 
 // AllowListExtensions is a list of extensions which are whitelisted to be processed
-var AllowListExtensions = []string{}
+var AllowListExtensions []string
 
-// Search str if set to anything is what we want to run the search for against the current directory
-var SearchString = []string{}
+// SearchString str if set to anything is what we want to run the search for against the current directory
+var SearchString []string
 
-var SearchBytes = [][]byte{}
-
-// Number of results to process before bailing out
-var ResultLimit int64 = 0
-
-// How many characters out of the file to display in snippets
-var SnippetLength int64 = 0
+// SnippetLength contains many characters out of the file to display in snippets
+var SnippetLength int64 = 300
 
 // Include hidden files and directories in search
 var IncludeHidden = false
 
+// Address is the address to listen on when in HTTP mode
 var Address string = ":8080"
+
+// HttpServer indicates if we should fork into HTTP mode or not
 var HttpServer bool = false
+
+// SearchPDF is the flag to indicate if search should attempt to process PDF files
 var SearchPDF = false
 
+// SearchTemplate is the location to the search page template
 var SearchTemplate = ""
+
+// DisplayTemplate is the location to the display page template
 var DisplayTemplate = ""

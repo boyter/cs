@@ -15,8 +15,4 @@ func TestCleanSearchString(t *testing.T) {
 		"THE",
 	}
 	CleanSearchString()
-
-	if len(SearchBytes) != 4 {
-		t.Error("Expected 4")
-	}
 }

@@ -29,8 +29,6 @@ func CleanSearchString() {
 			tmp = append(tmp, []byte(s))
 		}
 	}
-
-	SearchBytes = tmp
 }
 
 type Process struct {
