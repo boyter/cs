@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var Version = "0.11.0 alpha"
+var Version = "0.12.0 beta"
 
 // Clean up the input to avoid searching for spaces etc...
 // Take the str cut it up, lower case everything except
