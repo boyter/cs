@@ -240,11 +240,11 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 	for _, b := range bestMatches {
 		isOverlap := false
 		for _, r := range ranges {
-			if b.StartPos >= r[0] || b.StartPos <= r[1] {
+			if b.StartPos >= r[0] && b.StartPos <= r[1] {
 				isOverlap = true
 			}
 
-			if b.EndPos >= r[0] || b.EndPos <= r[1] {
+			if b.EndPos >= r[0] && b.EndPos <= r[1] {
 				isOverlap = true
 			}
 		}
@@ -257,12 +257,12 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 
 	// Limit to the 20 best matches
-	if len(bestMatches) > 20 {
-		bestMatches = bestMatches[:20]
+	if len(bestMatchesClean) > 20 {
+		bestMatchesClean = bestMatchesClean[:20]
 	}
 
 	var snippets []Snippet
-	for _, b := range bestMatches {
+	for _, b := range bestMatchesClean {
 		snippets = append(snippets, Snippet{
 			Content:  string(res.Content[b.StartPos:b.EndPos]),
 			StartPos: b.StartPos,
