@@ -191,7 +191,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 			snippets = snippets[:SnippetCount]
 		}
 
-		for i:= 0; i< len(snippets); i++ {
+		for i := 0; i < len(snippets); i++ {
 			// now that we have the relevant portion we need to get just the bits related to highlight it correctly
 			// which this method does. It takes in the snippet, we extract and all of the locations and then returns just
 			l := getLocated(res, snippets[i])
@@ -201,7 +201,7 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 			if i == len(snippets)-1 {
 				resultText += coloredContent + "\n\n"
 			} else {
-				resultText += coloredContent + "\n\n-----------\n\n"
+				resultText += coloredContent + "\n\n[grey]……………snip……………[white]\n\n"
 			}
 		}
 	}

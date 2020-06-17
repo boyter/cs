@@ -118,9 +118,7 @@ func (f *ResultSummarizer) formatDefault(results []*fileJob) {
 			snippets = snippets[:f.SnippetCount]
 		}
 
-
-		for i:= 0; i< len(snippets); i++ {
-
+		for i := 0; i < len(snippets); i++ {
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
 			// and then remove the length of the snippet cut which
@@ -149,7 +147,7 @@ func (f *ResultSummarizer) formatDefault(results []*fileJob) {
 				fmt.Println("")
 			} else {
 				fmt.Println("")
-				fmt.Println("----------")
+				fmt.Println("\u001B[1;37m……………snip……………\u001B[0m")
 				fmt.Println("")
 			}
 		}

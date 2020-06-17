@@ -255,7 +255,6 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 		}
 	}
 
-
 	// Limit to the 20 best matches
 	if len(bestMatchesClean) > 20 {
 		bestMatchesClean = bestMatchesClean[:20]
