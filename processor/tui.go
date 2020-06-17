@@ -183,16 +183,27 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 	documentTermFrequency := calculateDocumentTermFrequency(results)
 	for i, res := range pResults {
 		// NB this just gets the first snippet which should in theory be the most relevant
-		v3 := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")[0]
+		snippets := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")
 
 		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
-		// now that we have the relevant portion we need to get just the bits related to highlight it correctly
-		// which this method does. It takes in the snippet, we extract and all of the locations and then returns just
-		l := getLocated(res, v3)
+		if int64(len(snippets)) > SnippetCount {
+			snippets = snippets[:SnippetCount]
+		}
 
-		coloredContent := str.HighlightString(v3.Content, l, "[red]", "[white]")
-		resultText += coloredContent + "\n\n"
+		for i:= 0; i< len(snippets); i++ {
+			// now that we have the relevant portion we need to get just the bits related to highlight it correctly
+			// which this method does. It takes in the snippet, we extract and all of the locations and then returns just
+			l := getLocated(res, snippets[i])
+
+			coloredContent := str.HighlightString(snippets[i].Content, l, "[red]", "[white]")
+
+			if i == len(snippets)-1 {
+				resultText += coloredContent + "\n\n"
+			} else {
+				resultText += coloredContent + "\n\n-----------\n\n"
+			}
+		}
 	}
 
 	drawText(app, textView, resultText)

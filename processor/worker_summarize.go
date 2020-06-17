@@ -16,7 +16,7 @@ type ResultSummarizer struct {
 	input            chan *fileJob
 	ResultLimit      int64
 	FileReaderWorker *FileReaderWorker
-	SnippetCount     int
+	SnippetCount     int64
 	NoColor          bool
 	Format           string
 	FileOutput       string
@@ -59,7 +59,7 @@ func (f *ResultSummarizer) Start() {
 }
 
 func (f *ResultSummarizer) formatJson(results []*fileJob) {
-	jsonResults := []jsonResult{}
+	var jsonResults []jsonResult
 
 	documentFrequency := calculateDocumentTermFrequency(results)
 
@@ -70,7 +70,7 @@ func (f *ResultSummarizer) formatJson(results []*fileJob) {
 		// we get all the locations that fall in the snippet length
 		// and then remove the length of the snippet cut which
 		// makes out location line up with the snippet size
-		l := [][]int{}
+		var l [][]int
 		for _, value := range res.MatchLocations {
 			for _, s := range value {
 				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
@@ -112,33 +112,47 @@ func (f *ResultSummarizer) formatDefault(results []*fileJob) {
 	for _, res := range results {
 		color.Magenta(fmt.Sprintf("%s (%.3f)", res.Location, res.Score))
 
-		v3 := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")[0]
+		snippets := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
 
-		// We have the snippet so now we need to highlight it
-		// we get all the locations that fall in the snippet length
-		// and then remove the length of the snippet cut which
-		// makes out location line up with the snippet size
-		l := [][]int{}
-		for _, value := range res.MatchLocations {
-			for _, s := range value {
-				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-					s[0] = s[0] - v3.StartPos
-					s[1] = s[1] - v3.StartPos
-					l = append(l, s)
+		if int64(len(snippets)) > f.SnippetCount {
+			snippets = snippets[:f.SnippetCount]
+		}
+
+
+		for i:= 0; i< len(snippets); i++ {
+
+			// We have the snippet so now we need to highlight it
+			// we get all the locations that fall in the snippet length
+			// and then remove the length of the snippet cut which
+			// makes out location line up with the snippet size
+			var l [][]int
+			for _, value := range res.MatchLocations {
+				for _, s := range value {
+					if s[0] >= snippets[i].StartPos && s[1] <= snippets[i].EndPos {
+						s[0] = s[0] - snippets[i].StartPos
+						s[1] = s[1] - snippets[i].StartPos
+						l = append(l, s)
+					}
 				}
 			}
+
+			displayContent := snippets[i].Content
+
+			// If the start and end pos are 0 then we don't need to highlight because there is
+			// nothing to do so, which means its likely to be a filename match with no content
+			if !(snippets[i].StartPos == 0 && snippets[i].EndPos == 0) {
+				displayContent = str.HighlightString(snippets[i].Content, l, fmtBegin, fmtEnd)
+			}
+
+			fmt.Println(displayContent)
+			if i == len(snippets)-1 {
+				fmt.Println("")
+			} else {
+				fmt.Println("")
+				fmt.Println("----------")
+				fmt.Println("")
+			}
 		}
-
-		displayContent := v3.Content
-
-		// If the start and end pos are 0 then we don't need to highlight because there is
-		// nothing to do so, which means its likely to be a filename match with no content
-		if !(v3.StartPos == 0 && v3.EndPos == 0) {
-			displayContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
-		}
-
-		fmt.Println(displayContent)
-		fmt.Println("")
 	}
 }
 

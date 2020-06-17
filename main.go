@@ -12,12 +12,12 @@ func main() {
 	//f, _ := os.Create("cs.pprof")
 	//f2, _ := os.Create("mem.pprof")
 	//pprof.StartCPUProfile(f)
-	//
+
 	//go func() {
 	//	time.Sleep(time.Second * 10)
 	//	pprof.WriteHeapProfile(f2)
 	//	f2.Close()
-	//	pprof.StopCPUProfile()
+	//	defer pprof.StopCPUProfile()
 	//}()
 
 	rootCmd := &cobra.Command{
@@ -83,10 +83,17 @@ func main() {
 	)
 	flags.Int64VarP(
 		&processor.SnippetLength,
-		"snippet",
-		"s",
+		"snippet-length",
+		"n",
 		300,
-		"number of matching results to process",
+		"size of the snippet to display",
+	)
+	flags.Int64VarP(
+		&processor.SnippetCount,
+		"snippet-count",
+		"s",
+		1,
+		"number of snippets to display",
 	)
 	flags.BoolVar(
 		&processor.IncludeHidden,

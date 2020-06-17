@@ -64,6 +64,9 @@ var SearchString []string
 // SnippetLength contains many characters out of the file to display in snippets
 var SnippetLength int64 = 300
 
+// SnippetCount is the number of snippets per file to display
+var SnippetCount int64 = 1
+
 // Include hidden files and directories in search
 var IncludeHidden = false
 
