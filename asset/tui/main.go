@@ -6,105 +6,122 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
+	"strings"
 )
+
+type CodeResult struct {
+	Title *tview.TextView
+	Body *tview.TextView
+	BodyHeight int
+}
 
 func main() {
 	app := tview.NewApplication()
 
-	var dropdown *tview.DropDown
 	var inputField *tview.InputField
-	var extInputField *tview.InputField
+	var queryFlex *tview.Flex
+	var resultsFlex *tview.Flex
+	var overallFlex *tview.Flex
 
-	textView = tview.NewTextView().
-		SetDynamicColors(true).
-		SetRegions(true).
-		SetScrollable(true).
-		ScrollToBeginning()
 
-	list := NewCsList().
-		AddItem("csperf/main.go (0.003)", "Some explanatory text", '1', func() {
-			app.Stop()
-			fmt.Println("csperf/main.go")
-		}).
-		AddItem("corpus/1080-0.txt", `var textView *tview.TextView
-	var dropdown *tview.DropDown
-	var inputField *tview.InputField
-	var extInputField *tview.InputField
+	var codeResults []CodeResult
 
-	textView = tview.NewTextView().
-		SetDynamicColors(true).
-		SetRegions(true).
-		SetScrollable(true).
-		ScrollToBeginning()`, '2', nil).
-		AddItem("corpus/pg16328.txt", "Some explanatory text", '3', nil).
-		AddItem("corpus/84-0.txt", "Some explanatory text", '4', nil).
-		AddItem("corpus/pg2542.txt", "Some explanatory text", '5', nil).
-		AddItem("corpus/snippet/chinese_war_and_peace.txt", "Some explanatory text", '6', nil).
-		AddItem("corpus/844.txt.utf-8", "Some explanatory text", '7', nil).
-		AddItem("corpus/46-0.txt", "Some explanatory text Some explanatory\n text Some explanatory text Some explanatory text\n Some explanatory text Some explanatory text Some explanatory text Some\n explanatory text Some explanatory text ", 'h', nil).
-		AddItem("corpus/prideandprejudice.txt", "Some explanatory text", '8', nil).
-		AddItem("corpus/2701-0.txt", "Some explanatory text", '9', nil).
-		AddItem("Quit", "Press to exit", 'q', func() {
-			app.Stop()
+	for i:=1;i<100;i++ {
+		var textViewTitle *tview.TextView
+		var textViewBody *tview.TextView
+
+		textViewTitle = tview.NewTextView().
+			SetDynamicColors(true).
+			SetRegions(true).
+			ScrollToBeginning()
+		textViewTitle.SetText(fmt.Sprintf(`[purple]main%d.go (0.0%d)[white]`, i, i))
+
+		textViewBody = tview.NewTextView().
+			SetDynamicColors(true).
+			SetRegions(true).
+			ScrollToBeginning()
+
+		textViewBody.SetText(`import (
+	"fmt"
+	"github.com/gdamore/tcell"
+	"github.com/rivo/tview"
+)
+
+type CodeResult struct {
+	Title *tview.TextView
+	Body *tview.TextView
+}`)
+
+		codeResults = append(codeResults, CodeResult{
+			Title: textViewTitle,
+			Body:  textViewBody,
+			BodyHeight: len(strings.Split(textViewBody.GetText(false), "\n")),
 		})
+	}
 
-	dropdown = tview.NewDropDown().
-		SetOptions([]string{"50", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, nil).
-		SetCurrentOption(3).
-		SetLabelColor(tcell.ColorWhite).
-		SetFieldBackgroundColor(tcell.Color16).
-		SetSelectedFunc(func(text string, index int) {
-			app.SetFocus(inputField)
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				app.SetFocus(inputField)
-			}
-		})
-
-	extInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.Color16).
-		SetLabel("> ").
-		SetLabelColor(tcell.ColorWhite).
-		SetFieldWidth(10).
-		SetChangedFunc(func(text string) {
-
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				app.SetFocus(dropdown)
-			}
-		})
+	selected := 0
 
 	inputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
 		SetLabel("> ").
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
-		SetChangedFunc(func(text string) {
-
-		}).
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyTab:
-				app.SetFocus(extInputField)
+			//app.SetFocus(textView) need to change focus to the others but not the text itself
+			case tcell.KeyUp:
+				if selected != 0 {
+					selected--
+				}
+
+				resultsFlex.Clear()
+				for i, t := range codeResults {
+					if i >= selected {
+						resultsFlex.AddItem(nil, 1, 0, false)
+						resultsFlex.AddItem(t.Title, 1, 0, false)
+						resultsFlex.AddItem(nil, 1, 0, false)
+						resultsFlex.AddItem(t.Body, t.BodyHeight, 1, false)
+					}
+				}
+			case tcell.KeyDown:
+				if selected != len(codeResults) -1 {
+					selected++
+				}
+
+				resultsFlex.Clear()
+				for i, t := range codeResults {
+					if i >= selected {
+						resultsFlex.AddItem(nil, 1, 0, false)
+						resultsFlex.AddItem(t.Title, 1, 0, false)
+						resultsFlex.AddItem(nil, 1, 0, false)
+						resultsFlex.AddItem(t.Body, t.BodyHeight, 1, false)
+					}
+				}
 			}
 		})
 
-	queryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputField, 0, 8, false).
-		AddItem(extInputField, 10, 0, false).
-		AddItem(dropdown, 4, 1, false)
 
-	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+	queryFlex = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(inputField, 0, 8, false)
+
+	resultsFlex = tview.NewFlex().SetDirection(tview.FlexRow)
+
+	overallFlex = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 1, 0, false).
-		//AddItem(textView, 0, 3, false)
-		AddItem(list, 0, 3, false)
+		AddItem(resultsFlex, 0, 1, false)
 
 
-	if err := app.SetRoot(flex, true).SetFocus(list).Run(); err != nil {
+	for i, t := range codeResults {
+		if i >= selected {
+			resultsFlex.AddItem(nil, 1, 0, false)
+			resultsFlex.AddItem(t.Title, 1, 0, false)
+			resultsFlex.AddItem(nil, 1, 0, false)
+			resultsFlex.AddItem(t.Body, t.BodyHeight, 1, false)
+		}
+	}
+
+	if err := app.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
 	}
 }

@@ -394,6 +394,10 @@ func (l *List) Draw(screen tcell.Screen) {
 	// Determine the dimensions.
 	x, y, width, height := l.GetInnerRect()
 	bottomLimit := y + height
+	_, totalHeight := screen.Size()
+	if bottomLimit > totalHeight {
+		bottomLimit = totalHeight
+	}
 
 	// Do we show any shortcuts?
 	var showShortcuts bool
@@ -474,6 +478,15 @@ func (l *List) Draw(screen tcell.Screen) {
 // InputHandler returns the handler for this primitive.
 func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primitive)) {
 	return l.WrapInputHandler(func(event *tcell.EventKey, setFocus func(p Primitive)) {
+		if event.Key() == tcell.KeyEscape {
+			if l.done != nil {
+				l.done()
+			}
+			return
+		} else if len(l.items) == 0 {
+			return
+		}
+
 		previousItem := l.currentItem
 
 		switch key := event.Key(); key {
@@ -486,9 +499,11 @@ func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primit
 		case tcell.KeyEnd:
 			l.currentItem = len(l.items) - 1
 		case tcell.KeyPgDn:
-			l.currentItem += 5
+			_, _, _, height := l.GetInnerRect()
+			l.currentItem += height
 		case tcell.KeyPgUp:
-			l.currentItem -= 5
+			_, _, _, height := l.GetInnerRect()
+			l.currentItem -= height
 		case tcell.KeyEnter:
 			if l.currentItem >= 0 && l.currentItem < len(l.items) {
 				item := l.items[l.currentItem]
@@ -498,10 +513,6 @@ func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primit
 				if l.selected != nil {
 					l.selected(l.currentItem, item.MainText, item.SecondaryText, item.Shortcut)
 				}
-			}
-		case tcell.KeyEscape:
-			if l.done != nil {
-				l.done()
 			}
 		case tcell.KeyRune:
 			ch := event.Rune()
@@ -547,5 +558,71 @@ func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primit
 			item := l.items[l.currentItem]
 			l.changed(l.currentItem, item.MainText, item.SecondaryText, item.Shortcut)
 		}
+	})
+}
+
+// indexAtPoint returns the index of the list item found at the given position
+// or a negative value if there is no such list item.
+func (l *List) indexAtPoint(x, y int) int {
+	rectX, rectY, width, height := l.GetInnerRect()
+	if rectX < 0 || rectX >= rectX+width || y < rectY || y >= rectY+height {
+		return -1
+	}
+
+	index := y - rectY
+	if l.showSecondaryText {
+		index /= 2
+	}
+	index += l.offset
+
+	if index >= len(l.items) {
+		return -1
+	}
+	return index
+}
+
+// MouseHandler returns the mouse handler for this primitive.
+func (l *List) MouseHandler() func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+	return l.WrapMouseHandler(func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+		if !l.InRect(event.Position()) {
+			return false, nil
+		}
+
+		// Process mouse event.
+		switch action {
+		case MouseLeftClick:
+			setFocus(l)
+			index := l.indexAtPoint(event.Position())
+			if index != -1 {
+				item := l.items[index]
+				if item.Selected != nil {
+					item.Selected()
+				}
+				if l.selected != nil {
+					l.selected(index, item.MainText, item.SecondaryText, item.Shortcut)
+				}
+				if index != l.currentItem && l.changed != nil {
+					l.changed(index, item.MainText, item.SecondaryText, item.Shortcut)
+				}
+				l.currentItem = index
+			}
+			consumed = true
+		case MouseScrollUp:
+			if l.offset > 0 {
+				l.offset--
+			}
+			consumed = true
+		case MouseScrollDown:
+			lines := len(l.items) - l.offset
+			if l.showSecondaryText {
+				lines *= 2
+			}
+			if _, _, _, height := l.GetInnerRect(); lines > height {
+				l.offset++
+			}
+			consumed = true
+		}
+
+		return
 	})
 }

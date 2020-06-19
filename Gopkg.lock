@@ -109,20 +109,20 @@
   version = "v0.0.12"
 
 [[projects]]
-  digest = "1:eb1bffab7260bf5ddc95fc2c41d4bfee1a4f5fe18194b3946fe8a9e9121a282f"
+  digest = "1:38286a6220cf5b85bae83d5754bbfd7218c833b4fc8b56f5d168ea4bc073ad27"
   name = "github.com/mattn/go-runewidth"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a4df4ddbff020e131056d91f580a1cdcd806e3ae"
-  version = "v0.0.8"
+  revision = "14e809f6d78fcf9f48ff9b70981472b64c05f754"
+  version = "v0.0.9"
 
 [[projects]]
   branch = "master"
-  digest = "1:10c3f233d978ae758665b17daa2883d23911b67384ce96d602ce0f8db3593616"
+  digest = "1:1074aa7a52ded34e6877d7b08a5b473f7deaa0ddeb5fc011a5339df2a883ff74"
   name = "github.com/rivo/tview"
   packages = ["."]
   pruneopts = "UT"
-  revision = "1316ea7a4b35c640ef8b54bf3718f41949001c5c"
+  revision = "fe953220389fed743d3d5ee872695abab0ae68e0"
 
 [[projects]]
   digest = "1:557a3527e466dd95ec976b81888f6d5a12059be38f5198a5804564cebf9f5277"
@@ -133,7 +133,7 @@
   version = "v0.1.0"
 
 [[projects]]
-  digest = "1:3d227582ae6369408a8a9a1f4ae30b0ae16db480c0f27a0376514967d910e03d"
+  digest = "1:342baf1b227dbc8829a60dc06cd7a5e70d3de350b501e2184ec8f19fe4418d4a"
   name = "github.com/rs/zerolog"
   packages = [
     ".",
@@ -142,16 +142,16 @@
     "log",
   ]
   pruneopts = "UT"
-  revision = "f7c93dce1c970bb6e76646ef657fd55b066d0b45"
-  version = "v1.18.0"
+  revision = "7825d863376faee2723fc99c061c538bd80812c8"
+  version = "v1.19.0"
 
 [[projects]]
-  digest = "1:e096613fb7cf34743d49af87d197663cfccd61876e2219853005a57baedfa562"
+  digest = "1:1e80255eea46af2e2db7da90f95e4b5cfe84f3b58d9a8598ec35b0f2a75c60e4"
   name = "github.com/spf13/cobra"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5"
-  version = "v0.0.5"
+  revision = "6607e6b8603f56adb027298ee6695e06ffb3a819"
+  version = "0.0.7"
 
 [[projects]]
   digest = "1:524b71991fc7d9246cc7dc2d9e0886ccb97648091c63e30eef619e6862c955dd"
@@ -171,14 +171,17 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8a44970c7e8c0a1c8646af14605c1ffd31374074d68101c2e11d7761df12c9d1"
+  digest = "1:a88fe0246d085e14829adc0333b68f26934b9898ad6a1cbe48bd4b4a24cb5a9a"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "internal/unsafeheader",
+    "unix",
+  ]
   pruneopts = "UT"
-  revision = "e047566fdf82409bf7a52212cf71df83ea2772fb"
+  revision = "f1bc736245b146b19d485cdbc534f9a765257080"
 
 [[projects]]
-  digest = "1:cc38c2209a6c1f94debdfd96934865a258eac2f905a8d3f8fd56e7d0cfb85edd"
+  digest = "1:b5a4f29531bbd07d6167716abc6f16dcea93325cb000d942a4706a037599438e"
   name = "golang.org/x/text"
   packages = [
     "encoding",
@@ -188,8 +191,8 @@
     "unicode/cldr",
   ]
   pruneopts = "UT"
-  revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
-  version = "v0.3.2"
+  revision = "23ae387dee1f90d29a23c0e87ee0b46038fbed0e"
+  version = "v0.3.3"
 
 [[projects]]
   digest = "1:c7705a0384ef5968c906c16fd2d6f1e8e3e307218214fa7d41b85c2e157a7e2a"

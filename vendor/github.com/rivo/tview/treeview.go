@@ -277,6 +277,10 @@ type TreeView struct {
 	// An optional function which is called when a tree item was selected.
 	selected func(node *TreeNode)
 
+	// An optional function which is called when the user moves away from this
+	// primitive.
+	done func(key tcell.Key)
+
 	// The visible nodes, top-down, as set by process().
 	nodes []*TreeNode
 }
@@ -375,6 +379,13 @@ func (t *TreeView) SetSelectedFunc(handler func(node *TreeNode)) *TreeView {
 	return t
 }
 
+// SetDoneFunc sets a handler which is called whenever the user presses the
+// Escape, Tab, or Backtab key.
+func (t *TreeView) SetDoneFunc(handler func(key tcell.Key)) *TreeView {
+	t.done = handler
+	return t
+}
+
 // GetScrollOffset returns the number of node rows that were skipped at the top
 // of the tree view. Note that when the user navigates the tree view, this value
 // is only updated after the tree view has been redrawn.
@@ -398,6 +409,9 @@ func (t *TreeView) process() {
 	// Determine visible nodes and their placement.
 	var graphicsOffset, maxTextX int
 	t.nodes = nil
+	if t.root == nil {
+		return
+	}
 	selectedIndex := -1
 	topLevelGraphicsX := -1
 	if t.graphics {
@@ -561,6 +575,7 @@ func (t *TreeView) Draw(screen tcell.Screen) {
 	if t.root == nil {
 		return
 	}
+	_, totalHeight := screen.Size()
 
 	t.process()
 
@@ -595,7 +610,7 @@ func (t *TreeView) Draw(screen tcell.Screen) {
 	lineStyle := tcell.StyleDefault.Background(t.backgroundColor).Foreground(t.graphicsColor)
 	for index, node := range t.nodes {
 		// Skip invisible parts.
-		if posY >= y+height+1 {
+		if posY >= y+height+1 || posY >= totalHeight {
 			break
 		}
 		if index < t.offsetY {
@@ -666,12 +681,13 @@ func (t *TreeView) Draw(screen tcell.Screen) {
 func (t *TreeView) InputHandler() func(event *tcell.EventKey, setFocus func(p Primitive)) {
 	return t.WrapInputHandler(func(event *tcell.EventKey, setFocus func(p Primitive)) {
 		selectNode := func() {
-			if t.currentNode != nil {
+			node := t.currentNode
+			if node != nil {
 				if t.selected != nil {
-					t.selected(t.currentNode)
+					t.selected(node)
 				}
-				if t.currentNode.selected != nil {
-					t.currentNode.selected()
+				if node.selected != nil {
+					node.selected()
 				}
 			}
 		}
@@ -679,9 +695,13 @@ func (t *TreeView) InputHandler() func(event *tcell.EventKey, setFocus func(p Pr
 		// Because the tree is flattened into a list only at drawing time, we also
 		// postpone the (selection) movement to drawing time.
 		switch key := event.Key(); key {
-		case tcell.KeyTab, tcell.KeyDown, tcell.KeyRight:
+		case tcell.KeyTab, tcell.KeyBacktab, tcell.KeyEscape:
+			if t.done != nil {
+				t.done(key)
+			}
+		case tcell.KeyDown, tcell.KeyRight:
 			t.movement = treeDown
-		case tcell.KeyBacktab, tcell.KeyUp, tcell.KeyLeft:
+		case tcell.KeyUp, tcell.KeyLeft:
 			t.movement = treeUp
 		case tcell.KeyHome:
 			t.movement = treeHome
@@ -709,5 +729,47 @@ func (t *TreeView) InputHandler() func(event *tcell.EventKey, setFocus func(p Pr
 		}
 
 		t.process()
+	})
+}
+
+// MouseHandler returns the mouse handler for this primitive.
+func (t *TreeView) MouseHandler() func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+	return t.WrapMouseHandler(func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+		x, y := event.Position()
+		if !t.InRect(x, y) {
+			return false, nil
+		}
+
+		switch action {
+		case MouseLeftClick:
+			setFocus(t)
+			_, rectY, _, _ := t.GetInnerRect()
+			y -= rectY
+			if y >= 0 && y < len(t.nodes) {
+				node := t.nodes[y]
+				if node.selectable {
+					previousNode := t.currentNode
+					t.currentNode = node
+					if previousNode != node && t.changed != nil {
+						t.changed(node)
+					}
+					if t.selected != nil {
+						t.selected(node)
+					}
+					if node.selected != nil {
+						node.selected()
+					}
+				}
+			}
+			consumed = true
+		case MouseScrollUp:
+			t.movement = treeUp
+			consumed = true
+		case MouseScrollDown:
+			t.movement = treeDown
+			consumed = true
+		}
+
+		return
 	})
 }

@@ -619,3 +619,45 @@ func (f *Form) focusIndex() int {
 	}
 	return -1
 }
+
+// MouseHandler returns the mouse handler for this primitive.
+func (f *Form) MouseHandler() func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+	return f.WrapMouseHandler(func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+		if !f.InRect(event.Position()) {
+			return false, nil
+		}
+
+		// At the end, update f.focusedElement and prepare current item/button.
+		defer func() {
+			if consumed {
+				index := f.focusIndex()
+				if index >= 0 {
+					f.focusedElement = index
+				}
+				f.Focus(setFocus)
+			}
+		}()
+
+		// Determine items to pass mouse events to.
+		for _, item := range f.items {
+			consumed, capture = item.MouseHandler()(action, event, setFocus)
+			if consumed {
+				return
+			}
+		}
+		for _, button := range f.buttons {
+			consumed, capture = button.MouseHandler()(action, event, setFocus)
+			if consumed {
+				return
+			}
+		}
+
+		// A mouse click anywhere else will return the focus to the last selected
+		// element.
+		if action == MouseLeftClick {
+			consumed = true
+		}
+
+		return
+	})
+}

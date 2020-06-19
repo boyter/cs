@@ -470,8 +470,11 @@ func (l *CsList) Draw(screen tcell.Screen) {
 
 		// Secondary text.
 		if l.showSecondaryText {
-			tview.Print(screen, item.SecondaryText, x, y, width, tview.AlignLeft, l.secondaryTextColor)
-			y++
+
+			for _, s := range strings.Split(item.SecondaryText, "\n") {
+				tview.Print(screen, s, x, y, width, tview.AlignLeft, l.secondaryTextColor)
+				y++
+			}
 		}
 	}
 }

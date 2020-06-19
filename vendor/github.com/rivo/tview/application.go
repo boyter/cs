@@ -2,12 +2,54 @@ package tview
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gdamore/tcell"
 )
 
-// The size of the event/update/redraw channels.
-const queueSize = 100
+const (
+	// The size of the event/update/redraw channels.
+	queueSize = 100
+
+	// The minimum time between two consecutive redraws.
+	redrawPause = 50 * time.Millisecond
+)
+
+// DoubleClickInterval specifies the maximum time between clicks to register a
+// double click rather than click.
+var DoubleClickInterval = 500 * time.Millisecond
+
+// MouseAction indicates one of the actions the mouse is logically doing.
+type MouseAction int16
+
+// Available mouse actions.
+const (
+	MouseMove MouseAction = iota
+	MouseLeftDown
+	MouseLeftUp
+	MouseLeftClick
+	MouseLeftDoubleClick
+	MouseMiddleDown
+	MouseMiddleUp
+	MouseMiddleClick
+	MouseMiddleDoubleClick
+	MouseRightDown
+	MouseRightUp
+	MouseRightClick
+	MouseRightDoubleClick
+	MouseScrollUp
+	MouseScrollDown
+	MouseScrollLeft
+	MouseScrollRight
+)
+
+// queuedUpdate represented the execution of f queued by
+// Application.QueueUpdate(). The "done" channel receives exactly one element
+// after f has executed.
+type queuedUpdate struct {
+	f    func()
+	done chan struct{}
+}
 
 // Application represents the top node of an application.
 //
@@ -38,6 +80,9 @@ type Application struct {
 	// Whether or not the application resizes the root primitive.
 	rootFullscreen bool
 
+	// Set to true if mouse events are enabled.
+	enableMouse bool
+
 	// An optional capture function which receives a key event and returns the
 	// event to be forwarded to the default input handler (nil if nothing should
 	// be forwarded).
@@ -55,20 +100,31 @@ type Application struct {
 	events chan tcell.Event
 
 	// Functions queued from goroutines, used to serialize updates to primitives.
-	updates chan func()
+	updates chan queuedUpdate
 
 	// An object that the screen variable will be set to after Fini() was called.
 	// Use this channel to set a new screen object for the application
 	// (screen.Init() and draw() will be called implicitly). A value of nil will
 	// stop the application.
 	screenReplacement chan tcell.Screen
+
+	// An optional capture function which receives a mouse event and returns the
+	// event to be forwarded to the default mouse handler (nil if nothing should
+	// be forwarded).
+	mouseCapture func(event *tcell.EventMouse, action MouseAction) (*tcell.EventMouse, MouseAction)
+
+	mouseCapturingPrimitive Primitive        // A Primitive returned by a MouseHandler which will capture future mouse events.
+	lastMouseX, lastMouseY  int              // The last position of the mouse.
+	mouseDownX, mouseDownY  int              // The position of the mouse when its button was last pressed.
+	lastMouseClick          time.Time        // The time when a mouse button was last clicked.
+	lastMouseButtons        tcell.ButtonMask // The last mouse button state.
 }
 
 // NewApplication creates and returns a new application.
 func NewApplication() *Application {
 	return &Application{
 		events:            make(chan tcell.Event, queueSize),
-		updates:           make(chan func(), queueSize),
+		updates:           make(chan queuedUpdate, queueSize),
 		screenReplacement: make(chan tcell.Screen, 1),
 	}
 }
@@ -91,6 +147,22 @@ func (a *Application) SetInputCapture(capture func(event *tcell.EventKey) *tcell
 // if no such function has been installed.
 func (a *Application) GetInputCapture() func(event *tcell.EventKey) *tcell.EventKey {
 	return a.inputCapture
+}
+
+// SetMouseCapture sets a function which captures mouse events (consisting of
+// the original tcell mouse event and the semantic mouse action) before they are
+// forwarded to the appropriate mouse event handler. This function can then
+// choose to forward that event (or a different one) by returning it or stop
+// the event processing by returning a nil mouse event.
+func (a *Application) SetMouseCapture(capture func(event *tcell.EventMouse, action MouseAction) (*tcell.EventMouse, MouseAction)) *Application {
+	a.mouseCapture = capture
+	return a
+}
+
+// GetMouseCapture returns the function installed with SetMouseCapture() or nil
+// if no such function has been installed.
+func (a *Application) GetMouseCapture() func(event *tcell.EventMouse, action MouseAction) (*tcell.EventMouse, MouseAction) {
+	return a.mouseCapture
 }
 
 // SetScreen allows you to provide your own tcell.Screen object. For most
@@ -121,10 +193,30 @@ func (a *Application) SetScreen(screen tcell.Screen) *Application {
 	return a
 }
 
+// EnableMouse enables mouse events.
+func (a *Application) EnableMouse(enable bool) *Application {
+	a.Lock()
+	defer a.Unlock()
+	if enable != a.enableMouse && a.screen != nil {
+		if enable {
+			a.screen.EnableMouse()
+		} else {
+			a.screen.DisableMouse()
+		}
+	}
+	a.enableMouse = enable
+	return a
+}
+
 // Run starts the application and thus the event loop. This function returns
 // when Stop() was called.
 func (a *Application) Run() error {
-	var err error
+	var (
+		err           error
+		width, height int         // The current size of the screen.
+		lastRedraw    time.Time   // The time the screen was last redrawn.
+		redrawTimer   *time.Timer // A timer to schedule the next redraw.
+	)
 	a.Lock()
 
 	// Make a screen if there is none yet.
@@ -137,6 +229,9 @@ func (a *Application) Run() error {
 		if err = a.screen.Init(); err != nil {
 			a.Unlock()
 			return err
+		}
+		if a.enableMouse {
+			a.screen.EnableMouse()
 		}
 	}
 
@@ -238,19 +333,43 @@ EventLoop:
 					}
 				}
 			case *tcell.EventResize:
+				if time.Since(lastRedraw) < redrawPause {
+					if redrawTimer != nil {
+						redrawTimer.Stop()
+					}
+					redrawTimer = time.AfterFunc(redrawPause, func() {
+						a.events <- event
+					})
+				}
 				a.RLock()
 				screen := a.screen
 				a.RUnlock()
 				if screen == nil {
 					continue
 				}
+				newWidth, newHeight := screen.Size()
+				if newWidth == width && newHeight == height {
+					continue
+				}
+				width, height = newWidth, newHeight
+				lastRedraw = time.Now()
 				screen.Clear()
 				a.draw()
+			case *tcell.EventMouse:
+				consumed, isMouseDownAction := a.fireMouseActions(event)
+				if consumed {
+					a.draw()
+				}
+				a.lastMouseButtons = event.Buttons()
+				if isMouseDownAction {
+					a.mouseDownX, a.mouseDownY = event.Position()
+				}
 			}
 
 		// If we have updates, now is the time to execute them.
-		case updater := <-a.updates:
-			updater()
+		case update := <-a.updates:
+			update.f()
+			update.done <- struct{}{}
 		}
 	}
 
@@ -259,6 +378,105 @@ EventLoop:
 	a.screen = nil
 
 	return nil
+}
+
+// fireMouseActions analyzes the provided mouse event, derives mouse actions
+// from it and then forwards them to the corresponding primitives.
+func (a *Application) fireMouseActions(event *tcell.EventMouse) (consumed, isMouseDownAction bool) {
+	// We want to relay follow-up events to the same target primitive.
+	var targetPrimitive Primitive
+
+	// Helper function to fire a mouse action.
+	fire := func(action MouseAction) {
+		switch action {
+		case MouseLeftDown, MouseMiddleDown, MouseRightDown:
+			isMouseDownAction = true
+		}
+
+		// Intercept event.
+		if a.mouseCapture != nil {
+			event, action = a.mouseCapture(event, action)
+			if event == nil {
+				consumed = true
+				return // Don't forward event.
+			}
+		}
+
+		// Determine the target primitive.
+		var primitive, capturingPrimitive Primitive
+		if a.mouseCapturingPrimitive != nil {
+			primitive = a.mouseCapturingPrimitive
+			targetPrimitive = a.mouseCapturingPrimitive
+		} else if targetPrimitive != nil {
+			primitive = targetPrimitive
+		} else {
+			primitive = a.root
+		}
+		if primitive != nil {
+			if handler := primitive.MouseHandler(); handler != nil {
+				var wasConsumed bool
+				wasConsumed, capturingPrimitive = handler(action, event, func(p Primitive) {
+					a.SetFocus(p)
+				})
+				if wasConsumed {
+					consumed = true
+				}
+			}
+		}
+		a.mouseCapturingPrimitive = capturingPrimitive
+	}
+
+	x, y := event.Position()
+	buttons := event.Buttons()
+	clickMoved := x != a.mouseDownX || y != a.mouseDownY
+	buttonChanges := buttons ^ a.lastMouseButtons
+
+	if x != a.lastMouseX || y != a.lastMouseY {
+		fire(MouseMove)
+		a.lastMouseX = x
+		a.lastMouseY = y
+	}
+
+	for _, buttonEvent := range []struct {
+		button                  tcell.ButtonMask
+		down, up, click, dclick MouseAction
+	}{
+		{tcell.Button1, MouseLeftDown, MouseLeftUp, MouseLeftClick, MouseLeftDoubleClick},
+		{tcell.Button2, MouseMiddleDown, MouseMiddleUp, MouseMiddleClick, MouseMiddleDoubleClick},
+		{tcell.Button3, MouseRightDown, MouseRightUp, MouseRightClick, MouseRightDoubleClick},
+	} {
+		if buttonChanges&buttonEvent.button != 0 {
+			if buttons&buttonEvent.button != 0 {
+				fire(buttonEvent.down)
+			} else {
+				fire(buttonEvent.up)
+				if !clickMoved {
+					if a.lastMouseClick.Add(DoubleClickInterval).Before(time.Now()) {
+						fire(buttonEvent.click)
+						a.lastMouseClick = time.Now()
+					} else {
+						fire(buttonEvent.dclick)
+						a.lastMouseClick = time.Time{} // reset
+					}
+				}
+			}
+		}
+	}
+
+	for _, wheelEvent := range []struct {
+		button tcell.ButtonMask
+		action MouseAction
+	}{
+		{tcell.WheelUp, MouseScrollUp},
+		{tcell.WheelDown, MouseScrollDown},
+		{tcell.WheelLeft, MouseScrollLeft},
+		{tcell.WheelRight, MouseScrollRight}} {
+		if buttons&wheelEvent.button != 0 {
+			fire(wheelEvent.action)
+		}
+	}
+
+	return consumed, isMouseDownAction
 }
 
 // Stop stops the application, causing Run() to return.
@@ -310,7 +528,8 @@ func (a *Application) Suspend(f func()) bool {
 
 // Draw refreshes the screen (during the next update cycle). It calls the Draw()
 // function of the application's root primitive and then syncs the screen
-// buffer.
+// buffer. It is almost never necessary to call this function. Please see
+// https://github.com/rivo/tview/wiki/Concurrency for details.
 func (a *Application) Draw() *Application {
 	a.QueueUpdate(func() {
 		a.draw()
@@ -481,8 +700,12 @@ func (a *Application) GetFocus() Primitive {
 // may not be desirable. You can call Draw() from f if the screen should be
 // refreshed after each update. Alternatively, use QueueUpdateDraw() to follow
 // up with an immediate refresh of the screen.
+//
+// This function returns after f has executed.
 func (a *Application) QueueUpdate(f func()) *Application {
-	a.updates <- f
+	ch := make(chan struct{})
+	a.updates <- queuedUpdate{f: f, done: ch}
+	<-ch
 	return a
 }
 

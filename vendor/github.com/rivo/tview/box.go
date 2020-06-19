@@ -4,12 +4,13 @@ import (
 	"github.com/gdamore/tcell"
 )
 
-// Box implements Primitive with a background and optional elements such as a
-// border and a title. Most subclasses keep their content contained in the box
-// but don't necessarily have to.
+// Box implements the Primitive interface with an empty background and optional
+// elements such as a border and a title. Box itself does not hold any content
+// but serves as the superclass of all other primitives. Subclasses add their
+// own content, typically (but not necessarily) keeping their content within the
+// box's rectangle.
 //
-// Note that all classes which subclass from Box will also have access to its
-// functions.
+// Box provides a number of utility functions available to all primitives.
 //
 // See https://github.com/rivo/tview/wiki/Box for an example.
 type Box struct {
@@ -58,6 +59,11 @@ type Box struct {
 
 	// An optional function which is called before the box is drawn.
 	draw func(screen tcell.Screen, x, y, width, height int) (int, int, int, int)
+
+	// An optional capture function which receives a mouse event and returns the
+	// event to be forwarded to the primitive's default mouse event handler (at
+	// least one nil if nothing should be forwarded).
+	mouseCapture func(action MouseAction, event *tcell.EventMouse) (MouseAction, *tcell.EventMouse)
 }
 
 // NewBox returns a Box without a border.
@@ -192,6 +198,60 @@ func (b *Box) GetInputCapture() func(event *tcell.EventKey) *tcell.EventKey {
 	return b.inputCapture
 }
 
+// WrapMouseHandler wraps a mouse event handler (see MouseHandler()) with the
+// functionality to capture mouse events (see SetMouseCapture()) before passing
+// them on to the provided (default) event handler.
+//
+// This is only meant to be used by subclassing primitives.
+func (b *Box) WrapMouseHandler(mouseHandler func(MouseAction, *tcell.EventMouse, func(p Primitive)) (bool, Primitive)) func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+	return func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+		if b.mouseCapture != nil {
+			action, event = b.mouseCapture(action, event)
+		}
+		if event != nil && mouseHandler != nil {
+			consumed, capture = mouseHandler(action, event, setFocus)
+		}
+		return
+	}
+}
+
+// MouseHandler returns nil.
+func (b *Box) MouseHandler() func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+	return b.WrapMouseHandler(func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+		if action == MouseLeftClick && b.InRect(event.Position()) {
+			setFocus(b)
+			consumed = true
+		}
+		return
+	})
+}
+
+// SetMouseCapture sets a function which captures mouse events (consisting of
+// the original tcell mouse event and the semantic mouse action) before they are
+// forwarded to the primitive's default mouse event handler. This function can
+// then choose to forward that event (or a different one) by returning it or
+// returning a nil mouse event, in which case the default handler will not be
+// called.
+//
+// Providing a nil handler will remove a previously existing handler.
+func (b *Box) SetMouseCapture(capture func(action MouseAction, event *tcell.EventMouse) (MouseAction, *tcell.EventMouse)) *Box {
+	b.mouseCapture = capture
+	return b
+}
+
+// InRect returns true if the given coordinate is within the bounds of the box's
+// rectangle.
+func (b *Box) InRect(x, y int) bool {
+	rectX, rectY, width, height := b.GetRect()
+	return x >= rectX && x < rectX+width && y >= rectY && y < rectY+height
+}
+
+// GetMouseCapture returns the function installed with SetMouseCapture() or nil
+// if no such function has been installed.
+func (b *Box) GetMouseCapture() func(action MouseAction, event *tcell.EventMouse) (MouseAction, *tcell.EventMouse) {
+	return b.mouseCapture
+}
+
 // SetBackgroundColor sets the box's background color.
 func (b *Box) SetBackgroundColor(color tcell.Color) *Box {
 	b.backgroundColor = color
@@ -218,6 +278,21 @@ func (b *Box) SetBorderColor(color tcell.Color) *Box {
 func (b *Box) SetBorderAttributes(attr tcell.AttrMask) *Box {
 	b.borderAttributes = attr
 	return b
+}
+
+// GetBorderAttributes returns the border's style attributes.
+func (b *Box) GetBorderAttributes() tcell.AttrMask {
+	return b.borderAttributes
+}
+
+// GetBorderColor returns the box's border color.
+func (b *Box) GetBorderColor() tcell.Color {
+	return b.borderColor
+}
+
+// GetBackgroundColor returns the box's background color.
+func (b *Box) GetBackgroundColor() tcell.Color {
+	return b.backgroundColor
 }
 
 // SetTitle sets the box's title.
@@ -313,29 +388,6 @@ func (b *Box) Draw(screen tcell.Screen) {
 		// Remember the inner rect.
 		b.innerX = -1
 		b.innerX, b.innerY, b.innerWidth, b.innerHeight = b.GetInnerRect()
-	}
-
-	// Clamp inner rect to screen.
-	width, height := screen.Size()
-	if b.innerX < 0 {
-		b.innerWidth += b.innerX
-		b.innerX = 0
-	}
-	if b.innerX+b.innerWidth >= width {
-		b.innerWidth = width - b.innerX
-	}
-	if b.innerY+b.innerHeight >= height {
-		b.innerHeight = height - b.innerY
-	}
-	if b.innerY < 0 {
-		b.innerHeight += b.innerY
-		b.innerY = 0
-	}
-	if b.innerWidth < 0 {
-		b.innerWidth = 0
-	}
-	if b.innerHeight < 0 {
-		b.innerHeight = 0
 	}
 }
 

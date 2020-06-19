@@ -101,6 +101,12 @@ func (f *Flex) RemoveItem(p Primitive) *Flex {
 	return f
 }
 
+// Clear removes all items from the container.
+func (f *Flex) Clear() *Flex {
+	f.items = nil
+	return f
+}
+
 // ResizeItem sets a new size for the item(s) with the given primitive. If there
 // are multiple Flex items with the same primitive, they will all receive the
 // same size. For details regarding the size parameters, see AddItem().
@@ -194,4 +200,26 @@ func (f *Flex) HasFocus() bool {
 		}
 	}
 	return false
+}
+
+// MouseHandler returns the mouse handler for this primitive.
+func (f *Flex) MouseHandler() func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+	return f.WrapMouseHandler(func(action MouseAction, event *tcell.EventMouse, setFocus func(p Primitive)) (consumed bool, capture Primitive) {
+		if !f.InRect(event.Position()) {
+			return false, nil
+		}
+
+		// Pass mouse events along to the first child item that takes it.
+		for _, item := range f.items {
+			if item.Item == nil {
+				continue
+			}
+			consumed, capture = item.Item.MouseHandler()(action, event, setFocus)
+			if consumed {
+				return
+			}
+		}
+
+		return
+	})
 }
