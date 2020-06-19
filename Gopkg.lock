@@ -85,14 +85,6 @@
   version = "v1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:43b1602e6d0aa00b3e783fdec56fde859e1c05a22ca2fb84466d6b54f5f24a94"
-  name = "github.com/ledongthuc/pdf"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "8ac343ec9fdd6e969831c7e6e0713747d90589cc"
-
-[[projects]]
   digest = "1:c864b8e8084dfb30c03e26af1eb338f13fce00f34244627fa7ce240904a80e17"
   name = "github.com/lucasb-eyer/go-colorful"
   packages = ["."]
@@ -213,7 +205,7 @@
   input-imports = [
     "github.com/fatih/color",
     "github.com/gdamore/tcell",
-    "github.com/ledongthuc/pdf",
+    "github.com/mattn/go-isatty",
     "github.com/rivo/tview",
     "github.com/rs/zerolog/log",
     "github.com/spf13/cobra",
