@@ -18,6 +18,8 @@ import (
 func rankResults(corpusCount int, results []*fileJob) []*fileJob {
 	// needs to come first because it resets the scores
 	switch Ranker {
+	case "count":
+		results = results
 	case "bm25":
 		results = rankResultsBM25(corpusCount, results, calculateDocumentFrequency(results))
 	case "tfidf2":
