@@ -22,11 +22,10 @@ func main() {
 	var queryFlex *tview.Flex
 	var resultsFlex *tview.Flex
 	var overallFlex *tview.Flex
-
-
+	
 	var codeResults []CodeResult
 
-	for i:=1;i<100;i++ {
+	for i:=1;i<4;i++ {
 		var textViewTitle *tview.TextView
 		var textViewBody *tview.TextView
 
@@ -101,7 +100,6 @@ type CodeResult struct {
 			}
 		})
 
-
 	queryFlex = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputField, 0, 8, false)
 
@@ -110,7 +108,6 @@ type CodeResult struct {
 	overallFlex = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(queryFlex, 1, 0, false).
 		AddItem(resultsFlex, 0, 1, false)
-
 
 	for i, t := range codeResults {
 		if i >= selected {
