@@ -182,7 +182,7 @@ func main() {
 		&processor.Ranker,
 		"ranker",
 		"bm25",
-		"set ranking algorithm [count, tfidf, tfidf2, bm25]",
+		"set ranking algorithm [wc, tfidf, tfidf2, bm25]",
 	)
 	flags.StringVarP(
 		&processor.FileOutput,
