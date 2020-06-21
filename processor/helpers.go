@@ -4,9 +4,10 @@ package processor
 
 import (
 	"fmt"
-	str "github.com/boyter/cs/str"
 	"os"
 	"time"
+
+	str "github.com/boyter/cs/str"
 )
 
 // Returns the current time as a millisecond timestamp
@@ -32,16 +33,16 @@ func makeFuzzyDistanceOne(term string) []string {
 		return vals
 	}
 
-	// This tends to produce bad results
-	// Split apart so turn "test" into "t" "est" then "te" "st"
-	//for i := 0; i < len(term); i++ {
-	//	vals = append(vals, term[:i])
-	//	vals = append(vals, term[i:])
-	//}
-
 	// Delete letters so turn "test" into "est" "tst" "tet"
 	for i := 0; i < len(term); i++ {
 		vals = append(vals, term[:i]+term[i+1:])
+	}
+
+	// Replace a letter or digit which effectively does transpose for us
+	for i := 0; i < len(term); i++ {
+		for _, b := range letterDigitFuzzyBytes {
+			vals = append(vals, term[:i]+string(b)+term[i+1:])
+		}
 	}
 
 	// Replace a letter or digit which effectively does transpose for us
