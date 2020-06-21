@@ -4,13 +4,14 @@ package processor
 
 import (
 	"fmt"
-	"github.com/boyter/cs/file"
-	str "github.com/boyter/cs/str"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/boyter/cs/file"
+	str "github.com/boyter/cs/str"
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
@@ -47,6 +48,10 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 
 	// At this point we need to stop the background process that is running then wait for the
 	// result collection to finish IE the part that collects results for display
+	if tuiFileWalker != nil {
+		tuiFileWalker.Terminate()
+	}
+
 	if tuiFileWalker != nil {
 		tuiFileWalker.Terminate()
 	}
