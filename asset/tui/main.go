@@ -75,17 +75,19 @@ func main() {
 			case tcell.KeyTab:
 				//app.SetFocus(textView) need to change focus to the others but not the text itself
 			case tcell.KeyUp:
+				drawResultsSync.Lock()
 				if selected != 0 {
 					selected--
 				}
-				drawResults(displayResults, codeResults, selected, resultsFlex, app)
-
+				drawResultsChanged = true
+				drawResultsSync.Unlock()
 			case tcell.KeyDown:
+				drawResultsSync.Lock()
 				if selected != len(codeResults)-1 {
 					selected++
 				}
-
-				drawResults(displayResults, codeResults, selected, resultsFlex, app)
+				drawResultsChanged = true
+				drawResultsSync.Unlock()
 			}
 		})
 
@@ -122,10 +124,11 @@ func main() {
 		})
 	}
 
+	// render loop
 	go func() {
 		for {
 			drawResults(displayResults, codeResults, selected, resultsFlex, app)
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}()
 
@@ -134,13 +137,18 @@ func main() {
 	}
 }
 
-
+// below needs to go into a struct
 var drawResultsCount int
 var drawResultsSync sync.Mutex
+var drawResultsChanged bool
 
 // This is responsible for drawing all changes on the screen
 func drawResults(displayResults []DisplayResult, codeResults []Result, selected int, resultsFlex *tview.Flex, app *tview.Application) {
 	drawResultsSync.Lock()
+	defer drawResultsSync.Unlock()
+	if !drawResultsChanged {
+		return
+	}
 	drawResultsCount++
 
 	// reset the elements by clearing out every one
@@ -167,5 +175,6 @@ func drawResults(displayResults []DisplayResult, codeResults []Result, selected 
 			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
 		}
 	})
-	drawResultsSync.Unlock()
+
+	drawResultsChanged = false
 }
