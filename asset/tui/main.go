@@ -75,19 +75,15 @@ func main() {
 			case tcell.KeyTab:
 				//app.SetFocus(textView) need to change focus to the others but not the text itself
 			case tcell.KeyUp:
-				drawResultsSync.Lock()
 				if selected != 0 {
 					selected--
 				}
-				drawResultsChanged = true
-				drawResultsSync.Unlock()
+				drawResultsState.SetChanged()
 			case tcell.KeyDown:
-				drawResultsSync.Lock()
 				if selected != len(codeResults)-1 {
 					selected++
 				}
-				drawResultsChanged = true
-				drawResultsSync.Unlock()
+				drawResultsState.SetChanged()
 			}
 		})
 
@@ -124,11 +120,11 @@ func main() {
 		})
 	}
 
-	// render loop
+	// render loop running background is the only thing responsible for updating
 	go func() {
 		for {
 			drawResults(displayResults, codeResults, selected, resultsFlex, app)
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 		}
 	}()
 
@@ -137,19 +133,28 @@ func main() {
 	}
 }
 
-// below needs to go into a struct
-var drawResultsCount int
-var drawResultsSync sync.Mutex
-var drawResultsChanged bool
+type drawResultsStruct struct {
+	DrawResultsCount int
+	DrawResultsSync sync.Mutex
+	DrawResultsChanged bool
+}
+
+func (srs *drawResultsStruct) SetChanged() {
+	srs.DrawResultsSync.Lock()
+	srs.DrawResultsChanged = true
+	srs.DrawResultsSync.Unlock()
+}
+
+var drawResultsState = drawResultsStruct{}
 
 // This is responsible for drawing all changes on the screen
 func drawResults(displayResults []DisplayResult, codeResults []Result, selected int, resultsFlex *tview.Flex, app *tview.Application) {
-	drawResultsSync.Lock()
-	defer drawResultsSync.Unlock()
-	if !drawResultsChanged {
+	drawResultsState.DrawResultsSync.Lock()
+	defer drawResultsState.DrawResultsSync.Unlock()
+	if !drawResultsState.DrawResultsChanged {
 		return
 	}
-	drawResultsCount++
+	drawResultsState.DrawResultsCount++
 
 	// reset the elements by clearing out every one
 	for _, t := range displayResults {
@@ -168,7 +173,7 @@ func drawResults(displayResults []DisplayResult, codeResults []Result, selected 
 	// render out what the user wants to see based on the results that have been choser
 	app.QueueUpdateDraw(func() {
 		for i, t := range p {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", drawResultsCount, t.Title, t.Score))
+			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", drawResultsState.DrawResultsCount, t.Title, t.Score))
 			displayResults[i].Body.SetText(t.Content)
 
 			// we need to update the item so that it displays everything we have put in
@@ -176,5 +181,5 @@ func drawResults(displayResults []DisplayResult, codeResults []Result, selected 
 		}
 	})
 
-	drawResultsChanged = false
+	drawResultsState.DrawResultsChanged = false
 }
