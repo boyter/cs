@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-type DisplayResult struct {
+type displayResult struct {
 	Title      *tview.TextView
 	Body       *tview.TextView
 	BodyHeight int
 }
 
-type Result struct {
+type codeResult struct {
 	Title   string
 	Content string
 	Score   float64
@@ -31,10 +31,9 @@ func main() {
 	var inputField *tview.InputField
 	var queryFlex *tview.Flex
 	var resultsFlex *tview.Flex
-	var displayResults []DisplayResult
+	var displayResults []displayResult
 
-	//var codeResultMutex sync.Mutex
-	var codeResults []Result
+	var codeResults []codeResult
 
 	// Sets up all of the UI components we need to actually display
 	for i := 1; i < 50; i++ {
@@ -51,7 +50,7 @@ func main() {
 			SetRegions(true).
 			ScrollToBeginning()
 
-		displayResults = append(displayResults, DisplayResult{
+		displayResults = append(displayResults, displayResult{
 			Title:      textViewTitle,
 			Body:       textViewBody,
 			BodyHeight: -1,
@@ -106,7 +105,7 @@ func main() {
 	}
 
 	for i := 1; i < 21; i++ {
-		codeResults = append(codeResults, Result{
+		codeResults = append(codeResults, codeResult{
 			Title: fmt.Sprintf(`main.go`),
 			Score: float64(i),
 			Content: fmt.Sprintf(`%d func NewFlex%d() *Flex {
@@ -119,6 +118,8 @@ func main() {
 }`, 1, i),
 		})
 	}
+
+	drawResultsState.SetChanged()
 
 	// render loop running background is the only thing responsible for updating
 	go func() {
@@ -134,27 +135,27 @@ func main() {
 }
 
 type drawResultsStruct struct {
-	DrawResultsCount int
-	DrawResultsSync sync.Mutex
-	DrawResultsChanged bool
+	Count   int
+	Sync    sync.Mutex
+	Changed bool
 }
 
 func (srs *drawResultsStruct) SetChanged() {
-	srs.DrawResultsSync.Lock()
-	srs.DrawResultsChanged = true
-	srs.DrawResultsSync.Unlock()
+	srs.Sync.Lock()
+	defer srs.Sync.Unlock()
+	srs.Changed = true
 }
 
 var drawResultsState = drawResultsStruct{}
 
 // This is responsible for drawing all changes on the screen
-func drawResults(displayResults []DisplayResult, codeResults []Result, selected int, resultsFlex *tview.Flex, app *tview.Application) {
-	drawResultsState.DrawResultsSync.Lock()
-	defer drawResultsState.DrawResultsSync.Unlock()
-	if !drawResultsState.DrawResultsChanged {
+func drawResults(displayResults []displayResult, codeResults []codeResult, selected int, resultsFlex *tview.Flex, app *tview.Application) {
+	drawResultsState.Sync.Lock()
+	defer drawResultsState.Sync.Unlock()
+	if !drawResultsState.Changed {
 		return
 	}
-	drawResultsState.DrawResultsCount++
+	drawResultsState.Count++
 
 	// reset the elements by clearing out every one
 	for _, t := range displayResults {
@@ -163,7 +164,7 @@ func drawResults(displayResults []DisplayResult, codeResults []Result, selected 
 	}
 
 	// go and get the codeResults the user wants to see IE based on their up/down keypresses
-	var p []Result
+	var p []codeResult
 	for i, t := range codeResults {
 		if i >= selected {
 			p = append(p, t)
@@ -173,7 +174,7 @@ func drawResults(displayResults []DisplayResult, codeResults []Result, selected 
 	// render out what the user wants to see based on the results that have been choser
 	app.QueueUpdateDraw(func() {
 		for i, t := range p {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", drawResultsState.DrawResultsCount, t.Title, t.Score))
+			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", drawResultsState.Count, t.Title, t.Score))
 			displayResults[i].Body.SetText(t.Content)
 
 			// we need to update the item so that it displays everything we have put in
@@ -181,5 +182,5 @@ func drawResults(displayResults []DisplayResult, codeResults []Result, selected 
 		}
 	})
 
-	drawResultsState.DrawResultsChanged = false
+	drawResultsState.Changed = false
 }
