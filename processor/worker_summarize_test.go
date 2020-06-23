@@ -35,9 +35,9 @@ func TestPrintError(t *testing.T) {
 
 //func TestToJson(t *testing.T) {
 //	ResultLimit = 100
-//	fileListQueue := make(chan *fileJob, 100)
+//	fileListQueue := make(chan *FileJob, 100)
 //
-//	fileListQueue <- &fileJob{
+//	fileListQueue <- &FileJob{
 //		Filename:  "",
 //		Extension: "",
 //		Location:  "",
@@ -59,9 +59,9 @@ func TestPrintError(t *testing.T) {
 
 //func TestToJsonMultiple(t *testing.T) {
 //	ResultLimit = 100
-//	fileListQueue := make(chan *fileJob, 100)
+//	fileListQueue := make(chan *FileJob, 100)
 //
-//	fileListQueue <- &fileJob{
+//	fileListQueue <- &FileJob{
 //		Filename:  "Something",
 //		Extension: "",
 //		Location:  "",
@@ -74,7 +74,7 @@ func TestPrintError(t *testing.T) {
 //	}
 //
 //	for i := 0; i < 10; i++ {
-//		fileListQueue <- &fileJob{
+//		fileListQueue <- &FileJob{
 //			Filename:  strconv.Itoa(i),
 //			Extension: "",
 //			Location:  "",
@@ -98,9 +98,9 @@ func TestPrintError(t *testing.T) {
 //func TestFileSummerize(t *testing.T) {
 //	ResultLimit = 100
 //	Format = "text"
-//	fileListQueue := make(chan *fileJob, 100)
+//	fileListQueue := make(chan *FileJob, 100)
 //
-//	fileListQueue <- &fileJob{
+//	fileListQueue <- &FileJob{
 //		Filename:  "Something",
 //		Extension: "",
 //		Location:  "",
@@ -113,7 +113,7 @@ func TestPrintError(t *testing.T) {
 //	}
 //
 //	for i := 0; i < 10; i++ {
-//		fileListQueue <- &fileJob{
+//		fileListQueue <- &FileJob{
 //			Filename:  strconv.Itoa(i),
 //			Extension: "",
 //			Location:  "",

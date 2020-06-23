@@ -15,20 +15,22 @@ import (
 // Note that this method will evolve over time
 // and as such you should never rely on the returned results being
 // the same
-func rankResults(corpusCount int, results []*fileJob) []*fileJob {
+func rankResults(corpusCount int, results []*FileJob) []*FileJob {
 	// needs to come first because it resets the scores
 	switch Ranker {
-	case "wc":
-		results = results
+	case "simple":
+		// in this case the results are already ranked by the number of matches
 	case "bm25":
 		results = rankResultsBM25(corpusCount, results, calculateDocumentFrequency(results))
+		results = rankResultsLocation(results)
 	case "tfidf2":
 		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results), false)
+		results = rankResultsLocation(results)
 	default:
 		results = rankResultsTFIDF(corpusCount, results, calculateDocumentFrequency(results), true)
+		results = rankResultsLocation(results)
 	}
 
-	results = rankResultsLocation(results)
 	// TODO maybe need to add something here to reward phrases
 	sortResults(results)
 	return results
@@ -47,7 +49,7 @@ const (
 // heavy. This is fairly similar to how the snippet extraction works but with less work because it does
 // not need to deal with cutting between unicode endpoints
 // NB this is one of the more expensive parts of the ranking
-func rankResultsPhrase(results []*fileJob, documentFrequencies map[string]int) []*fileJob {
+func rankResultsPhrase(results []*FileJob, documentFrequencies map[string]int) []*FileJob {
 	for i := 0; i < len(results); i++ {
 		rv3 := convertToRelevant(results[i])
 
@@ -72,7 +74,7 @@ func rankResultsPhrase(results []*fileJob, documentFrequencies map[string]int) [
 // file location field.
 // This is not using TF-IDF or any fancy algorithm just basic checks
 // and boosts
-func rankResultsLocation(results []*fileJob) []*fileJob {
+func rankResultsLocation(results []*FileJob) []*FileJob {
 	for i := 0; i < len(results); i++ {
 		foundTerms := 0
 		for key := range results[i].MatchLocations {
@@ -134,7 +136,7 @@ func rankResultsLocation(results []*fileJob) []*fileJob {
 // NB loops in here use increment to avoid duffcopy
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
 // due to how often it is called by things like the TUI mode
-func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies map[string]int, classic bool) []*fileJob {
+func rankResultsTFIDF(corpusCount int, results []*FileJob, documentFrequencies map[string]int, classic bool) []*FileJob {
 	var weight float64
 	for i := 0; i < len(results); i++ {
 		weight = 0
@@ -198,7 +200,7 @@ func rankResultsTFIDF(corpusCount int, results []*fileJob, documentFrequencies m
 //                 IDF * TF * (k1 + 1)
 // BM25 = sum ----------------------------
 //            TF + k1 * (1 - b + b * D / L)
-func rankResultsBM25(corpusCount int, results []*fileJob, documentFrequencies map[string]int) []*fileJob {
+func rankResultsBM25(corpusCount int, results []*FileJob, documentFrequencies map[string]int) []*FileJob {
 	var weight float64
 
 	// Get the average number of words across all documents because we need that in BM25 to calculate correctly
@@ -247,7 +249,7 @@ func rankResultsBM25(corpusCount int, results []*fileJob, documentFrequencies ma
 // Calculate the document term frequency for all words across all documents
 // letting us know how many times a term appears across the corpus
 // This is mostly used for snippet extraction
-func calculateDocumentTermFrequency(results []*fileJob) map[string]int {
+func calculateDocumentTermFrequency(results []*FileJob) map[string]int {
 	documentFrequencies := map[string]int{}
 	for i := 0; i < len(results); i++ {
 		for k := range results[i].MatchLocations {
@@ -261,7 +263,7 @@ func calculateDocumentTermFrequency(results []*fileJob) map[string]int {
 // Calculate the document frequency for all words across all documents
 // allowing us to know the number of documents for which a term appears
 // This is mostly used for TF-IDF calculation
-func calculateDocumentFrequency(results []*fileJob) map[string]int {
+func calculateDocumentFrequency(results []*FileJob) map[string]int {
 	documentFrequencies := map[string]int{}
 	for i := 0; i < len(results); i++ {
 		for k := range results[i].MatchLocations {
@@ -276,7 +278,7 @@ func calculateDocumentFrequency(results []*fileJob) map[string]int {
 // and then sort based on location to stop any undeterministic ordering happening
 // as since the location includes the filename we should never have two matches
 // that are 100% equal based on the two criteria we use.
-func sortResults(results []*fileJob) {
+func sortResults(results []*FileJob) {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Score == results[j].Score {
 			return strings.Compare(results[i].Location, results[j].Location) < 0

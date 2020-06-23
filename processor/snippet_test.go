@@ -41,7 +41,7 @@ func TestFindSpaceRight(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		pos, found := findSpaceRight(&fileJob{Content: []byte(c.s)}, c.startpos, c.distance)
+		pos, found := findSpaceRight(&FileJob{Content: []byte(c.s)}, c.startpos, c.distance)
 
 		if pos != c.want {
 			t.Error("  pos for", i, "wanted", c.want, "got", pos)
@@ -76,7 +76,7 @@ func TestFindSpaceLeft(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		pos, found := findSpaceLeft(&fileJob{Content: []byte(c.s)}, c.startpos, c.distance)
+		pos, found := findSpaceLeft(&FileJob{Content: []byte(c.s)}, c.startpos, c.distance)
 
 		if pos != c.want {
 			t.Error("  pos for", i, "wanted", c.want, "got", pos)
@@ -95,7 +95,7 @@ func TestExtractRelevantV3PaintedShip(t *testing.T) {
 		"ocean",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(rhymeOfTheAncient),
 		MatchLocations: map[string][][]int{},
 	}
@@ -104,7 +104,7 @@ func TestExtractRelevantV3PaintedShip(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `Day after day, day after day,
@@ -123,7 +123,7 @@ func TestExtractRelevantV3WaterWaterEverywhere(t *testing.T) {
 		"drink",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(rhymeOfTheAncient),
 		MatchLocations: map[string][][]int{},
 	}
@@ -132,7 +132,7 @@ func TestExtractRelevantV3WaterWaterEverywhere(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `Water, water, every where,
@@ -149,7 +149,7 @@ func TestExtractRelevantV3GroanedDead(t *testing.T) {
 		"dead",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(rhymeOfTheAncient),
 		MatchLocations: map[string][][]int{},
 	}
@@ -158,7 +158,7 @@ func TestExtractRelevantV3GroanedDead(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `They groaned, they stirred, they all uprose,
@@ -175,7 +175,7 @@ func TestExtractRelevantV3DeathFires(t *testing.T) {
 		"fires",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(rhymeOfTheAncient),
 		MatchLocations: map[string][][]int{},
 	}
@@ -184,7 +184,7 @@ func TestExtractRelevantV3DeathFires(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `About, about, in reel and rout
@@ -201,7 +201,7 @@ func TestExtractRelevantV3PoorNerves(t *testing.T) {
 		"nerves",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(prideAndPrejudice),
 		MatchLocations: map[string][][]int{},
 	}
@@ -210,7 +210,7 @@ func TestExtractRelevantV3PoorNerves(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `You take delight in vexing me. You have no compassion for my poor
@@ -227,7 +227,7 @@ func TestExtractRelevantV3TenThousandAYear(t *testing.T) {
 		"year",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(prideAndPrejudice),
 		MatchLocations: map[string][][]int{},
 	}
@@ -236,7 +236,7 @@ func TestExtractRelevantV3TenThousandAYear(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `of his having
@@ -251,7 +251,7 @@ func TestExtractRelevantV3StrangerParents(t *testing.T) {
 		"parents",
 	}
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        []byte(prideAndPrejudice),
 		MatchLocations: map[string][][]int{},
 	}
@@ -260,7 +260,7 @@ func TestExtractRelevantV3StrangerParents(t *testing.T) {
 		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
 	}
 
-	df := calculateDocumentTermFrequency([]*fileJob{res})
+	df := calculateDocumentTermFrequency([]*FileJob{res})
 	snippets := extractRelevantV3(res, df, 300, "")
 
 	if !strings.Contains(snippets[0].Content, `An unhappy alternative is before you, Elizabeth. From this day

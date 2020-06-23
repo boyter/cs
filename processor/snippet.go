@@ -74,7 +74,7 @@ type Snippet struct {
 // to differ between people. Heck a few times I have been disappointed with results that I was previously happy with.
 // As such this is not tested as much as other methods and you should not rely on the results being static over time
 // as the internals will be modified to produce better results where possible
-func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLength int, indicator string) []Snippet {
+func extractRelevantV3(res *FileJob, documentFrequencies map[string]int, relLength int, indicator string) []Snippet {
 	wrapLength := relLength / 2
 	var bestMatches []bestMatch
 
@@ -275,7 +275,7 @@ func extractRelevantV3(res *fileJob, documentFrequencies map[string]int, relLeng
 
 // Get all of the locations into a new data structure
 // which makes things easy to sort and deal with
-func convertToRelevant(res *fileJob) []relevantV3 {
+func convertToRelevant(res *FileJob) []relevantV3 {
 	var rv3 []relevantV3
 
 	for k, v := range res.MatchLocations {
@@ -299,7 +299,7 @@ func convertToRelevant(res *fileJob) []relevantV3 {
 // Looks for a nearby whitespace character near this position (`pos`)
 // up to `distance` away.  Returns index of space if a space was found and
 // true, otherwise returns the original index and false
-func findSpaceRight(res *fileJob, pos int, distance int) (int, bool) {
+func findSpaceRight(res *FileJob, pos int, distance int) (int, bool) {
 	if len(res.Content) == 0 {
 		return pos, false
 	}
@@ -322,7 +322,7 @@ func findSpaceRight(res *fileJob, pos int, distance int) (int, bool) {
 // Looks for nearby whitespace character near this position
 // up to distance away. Returns index of space if a space was found and tru
 // otherwise the original index is return and false
-func findSpaceLeft(res *fileJob, pos int, distance int) (int, bool) {
+func findSpaceLeft(res *FileJob, pos int, distance int) (int, bool) {
 	if len(res.Content) == 0 {
 		return pos, false
 	}

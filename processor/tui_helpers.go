@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func getLocated(res *fileJob, v3 Snippet) [][]int {
+func getLocated(res *FileJob, v3 Snippet) [][]int {
 	var l [][]int
 
 	// For all of the match locations we have only keep the ones that should be inside

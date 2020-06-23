@@ -13,7 +13,7 @@ import (
 )
 
 type ResultSummarizer struct {
-	input            chan *fileJob
+	input            chan *FileJob
 	ResultLimit      int64
 	FileReaderWorker *FileReaderWorker
 	SnippetCount     int64
@@ -22,7 +22,7 @@ type ResultSummarizer struct {
 	FileOutput       string
 }
 
-func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
+func NewResultSummarizer(input chan *FileJob) ResultSummarizer {
 	return ResultSummarizer{
 		input:        input,
 		ResultLimit:  -1,
@@ -35,7 +35,7 @@ func NewResultSummarizer(input chan *fileJob) ResultSummarizer {
 
 func (f *ResultSummarizer) Start() {
 	// First step is to collect results so we can rank them
-	results := []*fileJob{}
+	results := []*FileJob{}
 	for res := range f.input {
 		results = append(results, res)
 	}
@@ -58,7 +58,7 @@ func (f *ResultSummarizer) Start() {
 	}
 }
 
-func (f *ResultSummarizer) formatJson(results []*fileJob) {
+func (f *ResultSummarizer) formatJson(results []*FileJob) {
 	var jsonResults []jsonResult
 
 	documentFrequency := calculateDocumentTermFrequency(results)
@@ -99,7 +99,7 @@ func (f *ResultSummarizer) formatJson(results []*fileJob) {
 	}
 }
 
-func (f *ResultSummarizer) formatDefault(results []*fileJob) {
+func (f *ResultSummarizer) formatDefault(results []*FileJob) {
 	fmtBegin := "\033[1;31m"
 	fmtEnd := "\033[0m"
 	if f.NoColor {

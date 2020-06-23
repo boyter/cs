@@ -114,7 +114,7 @@ func StartHttpServer() {
 		page := tryParseInt(r.URL.Query().Get("p"), 0)
 		pageSize := 20
 
-		var results []*fileJob
+		var results []*FileJob
 		var fileCount int64
 
 		log.Info().
@@ -136,8 +136,8 @@ func StartHttpServer() {
 			}
 
 			fileQueue := make(chan *file.File, 1000)                // Files ready to be read from disk NB we buffer here because http runs till finished or the process is cancelled
-			toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
-			summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
+			toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
+			summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
 			fileWalker := file.NewFileWalker(directory, fileQueue)
 			fileWalker.PathExclude = PathDenylist
@@ -314,7 +314,7 @@ func calculateExtensionFacet(extensionFacets map[string]int, query string, snipp
 	return ef
 }
 
-func calculatePages(results []*fileJob, pageSize int, query string, snippetLength int) []pageResult {
+func calculatePages(results []*FileJob, pageSize int, query string, snippetLength int) []pageResult {
 	var pages []pageResult
 
 	if len(results) == 0 {

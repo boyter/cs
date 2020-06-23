@@ -16,14 +16,14 @@ import (
 
 type FileReaderWorker struct {
 	input            chan *file.File
-	output           chan *fileJob
+	output           chan *FileJob
 	fileCount        int64 // Count of the number of files that have been read
 	InstanceId       int
 	SearchPDF        bool
 	MaxReadSizeBytes int64
 }
 
-func NewFileReaderWorker(input chan *file.File, output chan *fileJob) *FileReaderWorker {
+func NewFileReaderWorker(input chan *file.File, output chan *FileJob) *FileReaderWorker {
 	return &FileReaderWorker{
 		input:            input,
 		output:           output,
@@ -70,7 +70,7 @@ func (f *FileReaderWorker) processPdf(res *file.File) {
 	c, ok := __pdfCache[res.Location]
 	if ok {
 		atomic.AddInt64(&f.fileCount, 1)
-		f.output <- &fileJob{
+		f.output <- &FileJob{
 			Filename:       res.Filename,
 			Extension:      "",
 			Location:       res.Location,
@@ -92,7 +92,7 @@ func (f *FileReaderWorker) processPdf(res *file.File) {
 	__pdfCache[res.Location] = content
 
 	atomic.AddInt64(&f.fileCount, 1)
-	f.output <- &fileJob{
+	f.output <- &FileJob{
 		Filename:       res.Filename,
 		Extension:      "",
 		Location:       res.Location,
@@ -132,7 +132,7 @@ func (f *FileReaderWorker) processUnknown(res *file.File) {
 
 	if err == nil {
 		atomic.AddInt64(&f.fileCount, 1)
-		f.output <- &fileJob{
+		f.output <- &FileJob{
 			Filename:       res.Filename,
 			Extension:      "",
 			Location:       res.Location,

@@ -4,9 +4,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/boyter/cs/file"
+	"github.com/boyter/cs/processor"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -24,49 +27,83 @@ type codeResult struct {
 	Score   float64
 }
 
-type drawResultsStruct struct {
-	Query string
-	Count   int
-	Sync    sync.Mutex
-	Changed bool
-	Running bool
+type tuiApplicationController struct {
+	Query               string
+	Count               int
+	Sync                sync.Mutex
+	Changed             bool
+	Running             bool
+	Offset              int
+	Results             []*processor.FileJob
+	TuiFileWalker       *file.FileWalker
+	TuiFileReaderWorker *processor.FileReaderWorker
+	TuiSearcherWorker   *processor.SearcherWorker
+
+	// View requirements
+	TviewApplication *tview.Application
 }
 
-func (drs *drawResultsStruct) SetChanged(b bool) {
-	drs.Sync.Lock()
-	defer drs.Sync.Unlock()
-	drs.Changed = b
+func (cont *tuiApplicationController) IncrementOffset() {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	cont.Offset++
 }
 
-func (drs *drawResultsStruct) GetChanged() bool {
-	drs.Sync.Lock()
-	defer drs.Sync.Unlock()
-	return drs.Changed
+func (cont *tuiApplicationController) DecrementOffset() {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	if cont.Offset != 0 {
+		cont.Offset--
+	}
 }
 
-func (drs *drawResultsStruct) SetRunning(b bool) {
-	drs.Sync.Lock()
-	defer drs.Sync.Unlock()
-	drs.Running = b
+func (cont *tuiApplicationController) GetOffset() int {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	return cont.Offset
 }
 
-func (drs *drawResultsStruct) GetRunning() bool {
-	drs.Sync.Lock()
-	defer drs.Sync.Unlock()
-	return drs.Running
+func (cont *tuiApplicationController) SetChanged(b bool) {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	cont.Changed = b
 }
 
-// This is responsible for drawing all changes on the screen
-func (drs *drawResultsStruct) drawResults(displayResults []displayResult, codeResults []codeResult, selected int, status string, resultsFlex *tview.Flex, statusView *tview.TextView, app *tview.Application) {
-	drs.Sync.Lock()
-	defer drs.Sync.Unlock()
+func (cont *tuiApplicationController) GetChanged() bool {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	return cont.Changed
+}
 
-	if !drs.Changed {
+func (cont *tuiApplicationController) SetRunning(b bool) {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	cont.Running = b
+}
+
+func (cont *tuiApplicationController) GetRunning() bool {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	return cont.Running
+}
+
+func (cont *tuiApplicationController) Search(s string) {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	cont.Query = s
+}
+
+// After any change is made that requires something drawn on the screen this is the method that does
+func (cont *tuiApplicationController) drawResults(displayResults []displayResult, codeResults []codeResult, status string, resultsFlex *tview.Flex, statusView *tview.TextView) {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+
+	if !cont.Changed {
 		return
 	}
 
 	// NB this is just here so we can see updates in this test
-	drs.Count++
+	cont.Count++
 
 	// reset the elements by clearing out every one
 	for _, t := range displayResults {
@@ -74,18 +111,25 @@ func (drs *drawResultsStruct) drawResults(displayResults []displayResult, codeRe
 		t.Body.SetText("")
 	}
 
+	// rank all results
+	// then go and get the relevant portion for display
+
 	// go and get the codeResults the user wants to see using selected as the offset to display from
 	var p []codeResult
-	for i, t := range codeResults {
-		if i >= selected {
-			p = append(p, t)
+	for i, t := range cont.Results {
+		if i >= cont.Offset {
+			p = append(p, codeResult{
+				Title:   t.Filename,
+				Content: string(t.Content)[:300],
+				Score:   t.Score,
+			})
 		}
 	}
 
 	// render out what the user wants to see based on the results that have been chosen
-	app.QueueUpdateDraw(func() {
+	cont.TviewApplication.QueueUpdateDraw(func() {
 		for i, t := range p {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", drs.Count, t.Title, t.Score))
+			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
 			displayResults[i].Body.SetText(t.Content)
 
 			// we need to update the item so that it displays everything we have put in
@@ -96,12 +140,145 @@ func (drs *drawResultsStruct) drawResults(displayResults []displayResult, codeRe
 	})
 
 	// we can only set that nothing
-	drs.Changed = false
+	cont.Changed = false
+}
+
+func (cont *tuiApplicationController) doSearch() {
+	cont.Sync.Lock()
+	// deal with the user clearing out the search
+	if cont.Query == "" {
+		cont.Results = []*processor.FileJob{}
+		cont.Changed = true
+		cont.Sync.Unlock()
+		return
+	}
+	cont.Sync.Unlock()
+
+	// keep the query we are working with
+	query := cont.Query
+	cont.Query = ""
+
+	//if cont.TuiFileWalker != nil && cont.TuiFileWalker.Walking() {
+	//	cont.TuiFileWalker.Terminate()
+	//}
+
+	fileQueue := make(chan *file.File)                                // NB unbuffered because we want the UI to respond and this is what causes affects
+	toProcessQueue := make(chan *processor.FileJob, runtime.NumCPU()) // Files to be read into memory for processing
+	summaryQueue := make(chan *processor.FileJob, runtime.NumCPU())   // Files that match and need to be displayed
+
+	cont.TuiFileWalker = file.NewFileWalker(".", fileQueue)
+	cont.TuiFileReaderWorker = processor.NewFileReaderWorker(fileQueue, toProcessQueue)
+	cont.TuiSearcherWorker = processor.NewSearcherWorker(toProcessQueue, summaryQueue)
+	cont.TuiSearcherWorker.SearchString = strings.Split(query, " ")
+
+	go cont.TuiFileWalker.Start()
+	go cont.TuiFileReaderWorker.Start()
+	go cont.TuiSearcherWorker.Start()
+
+	// Updated with results as we get them NB this is
+	// painted as we go
+	var results []*processor.FileJob
+	var resultsMutex sync.Mutex
+	update := true
+
+	go func() {
+		for update {
+			// Every 50 ms redraw the current set of results
+			resultsMutex.Lock()
+			cont.Sync.Lock()
+			cont.Results = results
+			cont.Sync.Unlock()
+			resultsMutex.Unlock()
+
+			cont.SetChanged(true)
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
+
+	for res := range summaryQueue {
+		resultsMutex.Lock()
+		results = append(results, res)
+		resultsMutex.Unlock()
+	}
+
+	update = false
+
+	cont.Sync.Lock()
+	cont.Results = results
+	cont.Sync.Unlock()
+	cont.SetChanged(true)
+}
+
+func (cont *tuiApplicationController) updateView() {
+	// render loop running background is the only thing responsible for updating the results based on the state
+	// in the applicationController
+	go func() {
+		// Used to show what is happening on the page
+		var spinString = `\|/-`
+		var spinLocation = 0
+		var spinRun = 0
+
+		for {
+			status := ""
+			if cont.TuiFileWalker != nil {
+				status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
+				if cont.GetRunning() {
+					status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(spinString[spinLocation]))
+
+					spinRun++
+					if spinRun == 4 {
+						spinLocation++
+						if spinLocation >= len(spinString) {
+							spinLocation = 0
+						}
+						spinRun = 0
+						cont.SetChanged(true)
+					}
+				}
+			}
+
+			fmt.Println(status)
+			//cont.drawResults(displayResults, codeResults, status, resultsFlex, statusView)
+			time.Sleep(30 * time.Millisecond)
+		}
+	}()
+}
+
+func (cont *tuiApplicationController) processSearch() {
+	// we only ever want to have one search trigger at a time which is what this does
+	// searches come in... we trigger them to run
+	go func() {
+		for {
+			cont.doSearch()
+			time.Sleep(5 * time.Millisecond)
+		}
+	}()
+}
+
+func NewTuiApplication() {
+	//tviewApplication := tview.NewApplication()
+	//applicationController := tuiApplicationController{}
+	//
+	//var overallFlex *tview.Flex
+	//var inputField *tview.InputField
+	//var queryFlex *tview.Flex
+	//var resultsFlex *tview.Flex
+	//var statusView *tview.TextView
+	//var displayResults []displayResult
+
+	//if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
+	//	panic(err)
+	//}
 }
 
 func main() {
-	app := tview.NewApplication()
-	drawResultsState := drawResultsStruct{}
+	tviewApplication := tview.NewApplication()
+	applicationController := tuiApplicationController{
+		TviewApplication: tviewApplication,
+		Sync:                sync.Mutex{},
+	}
+	applicationController.updateView()
+	applicationController.processSearch()
 
 	var overallFlex *tview.Flex
 	var inputField *tview.InputField
@@ -110,9 +287,9 @@ func main() {
 	var statusView *tview.TextView
 	var displayResults []displayResult
 
-	var codeResults []codeResult
-
 	// Sets up all of the UI components we need to actually display
+
+	// Create the elements we use to display the code results here
 	for i := 1; i < 50; i++ {
 		var textViewTitle *tview.TextView
 		var textViewBody *tview.TextView
@@ -134,8 +311,7 @@ func main() {
 		})
 	}
 
-	selected := 0
-
+	// input field which deals with the user input for the main search which ultimately triggers a search
 	inputField = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.Color16).
 		SetLabel("> ").
@@ -144,29 +320,28 @@ func main() {
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
 			case tcell.KeyEnter:
-				app.Stop()
+				tviewApplication.Stop()
 				// we want to work like fzf for piping into other things hence print out the selected version
-				fmt.Println(codeResults[selected].Title)
+				if len(applicationController.Results) != 0 {
+					fmt.Println(applicationController.Results[applicationController.GetOffset()].Location)
+				}
 				os.Exit(0)
 			case tcell.KeyTab:
-				//app.SetFocus(textView) need to change focus to the others but not the text itself
+				//tviewApplication.SetFocus(textView) need to change focus to the others but not the text itself
 			case tcell.KeyUp:
-				if selected != 0 {
-					selected--
-				}
-				drawResultsState.SetRunning(true)
-				drawResultsState.SetChanged(true)
+				applicationController.DecrementOffset()
+				applicationController.SetChanged(true)
 			case tcell.KeyDown:
-				if selected != len(codeResults)-1 {
-					selected++
-				}
-				drawResultsState.SetRunning(false)
-				drawResultsState.SetChanged(true)
+				applicationController.IncrementOffset()
+				applicationController.SetChanged(true)
+			case tcell.KeyESC:
+				tviewApplication.Stop()
+				os.Exit(0)
 			}
 		}).
 		SetChangedFunc(func(text string) {
 			text = strings.TrimSpace(text)
-			drawResultsState.Query = text
+			applicationController.Query = text
 		})
 
 	statusView = tview.NewTextView().
@@ -194,55 +369,10 @@ func main() {
 		resultsFlex.AddItem(t.Body, t.BodyHeight, 1, false)
 	}
 
-	// add in a few results just to get things going
-	for i := 1; i < 21; i++ {
-		codeResults = append(codeResults, codeResult{
-			Title: fmt.Sprintf(`main.go`),
-			Score: float64(i),
-			Content: fmt.Sprintf(`func NewFlex%d() *Flex {
-	f := &Flex{
-		Box:       NewBox().SetBackgroundColor(tcell.ColorDefault),
-		direction: [red]FlexColumn[white],
-	}
-	f.focus = f
-	return f
-}`, i),
-		})
-	}
-
 	// trigger the first render without user action
-	drawResultsState.SetChanged(true)
+	applicationController.SetChanged(true)
 
-	// render loop running background is the only thing responsible for updating the results
-	go func() {
-		// Used to show what is happening on the page
-		var spinString = `\|/-`
-		var spinLocation = 0
-		var spinRun = 0
-
-		for {
-			status := fmt.Sprintf("%d results(s) for '%s' from %d files", len(codeResults), drawResultsState.Query, 87)
-			if drawResultsState.GetRunning() {
-				status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(codeResults), drawResultsState.Query, 87, string(spinString[spinLocation]))
-
-				spinRun++
-				if spinRun == 4 {
-					spinLocation++
-					if spinLocation >= len(spinString) {
-						spinLocation = 0
-					}
-					spinRun = 0
-					drawResultsState.SetChanged(true)
-				}
-			}
-
-			drawResultsState.drawResults(displayResults, codeResults, selected, status, resultsFlex, statusView, app)
-			time.Sleep(30 * time.Millisecond)
-		}
-	}()
-
-	if err := app.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
+	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
 	}
 }
-

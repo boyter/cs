@@ -14,7 +14,7 @@ func TestRankResultsTFIDFTraditional(t *testing.T) {
 	ml2 := map[string][][]int{}
 	ml2["example"] = [][]int{{1}, {2}, {3}}
 
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			MatchLocations: ml1,
 			Location:       "/test/other.go",
@@ -42,7 +42,7 @@ func TestRankResultsTFIDFComparison(t *testing.T) {
 	ml1 := map[string][][]int{}
 	ml1["example"] = [][]int{{1}, {2}, {3}}
 
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			MatchLocations: ml1,
 			Location:       "/test/other.go",
@@ -65,7 +65,7 @@ func TestRankResultsRankerComparison(t *testing.T) {
 	ml1 := map[string][][]int{}
 	ml1["example"] = [][]int{{1}, {2}, {3}}
 
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			MatchLocations: ml1,
 			Location:       "/test/other.go",
@@ -91,7 +91,7 @@ func TestRankResultsLocation(t *testing.T) {
 	ml := map[string][][]int{}
 	ml["test"] = [][]int{{1}, {2}, {3}}
 
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			MatchLocations: ml,
 			Location:       "/test/other.go",
@@ -113,7 +113,7 @@ func TestCalculateDocumentFrequency(t *testing.T) {
 	ml := map[string][][]int{}
 	ml["test"] = [][]int{{1}, {2}, {3}}
 
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			MatchLocations: ml,
 		},
@@ -130,7 +130,7 @@ func TestCalculateDocumentFrequency(t *testing.T) {
 }
 
 func TestSortResults(t *testing.T) {
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			Filename: "1",
 			Location: "",
@@ -150,7 +150,7 @@ func TestSortResults(t *testing.T) {
 }
 
 func TestSortResultsEqualScore(t *testing.T) {
-	s := []*fileJob{
+	s := []*FileJob{
 		{
 			Filename: "1",
 			Location: "2",

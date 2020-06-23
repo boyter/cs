@@ -24,15 +24,15 @@ func Fuzz(data []byte) int {
 	freq := map[string]int{}
 	freq[find[:2]] = 5
 
-	res := &fileJob{
+	res := &FileJob{
 		Content:        data,
 		MatchLocations: loc,
 	}
 
 	extractRelevantV3(res, freq, 300, "...")
 
-	findSpaceRight(&fileJob{Content: data}, 0, 10000)
-	findSpaceLeft(&fileJob{Content: data}, len(data)-1, 10000)
+	findSpaceRight(&FileJob{Content: data}, 0, 10000)
+	findSpaceLeft(&FileJob{Content: data}, len(data)-1, 10000)
 
 	return 1
 }

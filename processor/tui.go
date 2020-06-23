@@ -98,8 +98,8 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 	}
 
 	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
-	toProcessQueue := make(chan *fileJob, runtime.NumCPU()) // Files to be read into memory for processing
-	summaryQueue := make(chan *fileJob, runtime.NumCPU())   // Files that match and need to be displayed
+	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
+	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
 	tuiFileWalker = file.NewFileWalker(startDirectory, fileQueue)
 	tuiFileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
@@ -133,7 +133,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 
 	// Updated with results as we get them NB this is
 	// painted as we go
-	var results []*fileJob
+	var results []*FileJob
 
 	// Used to display a spinner indicating a search is happening
 	var spinLocation int
@@ -168,7 +168,7 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 	debugCount++
 }
 
-func drawResults(app *tview.Application, results []*fileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
+func drawResults(app *tview.Application, results []*FileJob, textView *tview.TextView, searchTerm string, fileCount int64, inProgress string) {
 	rankResults(int(fileCount), results)
 
 	// TODO this should not be hardcoded
@@ -182,10 +182,9 @@ func drawResults(app *tview.Application, results []*fileJob, textView *tview.Tex
 
 	documentTermFrequency := calculateDocumentTermFrequency(results)
 	for i, res := range pResults {
-		// NB this just gets the first snippet which should in theory be the most relevant
 		snippets := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")
 
-		resultText += fmt.Sprintf("[purple]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
+		resultText += fmt.Sprintf("[fuchsia]%d. %s (%.3f)", i+1, res.Location, res.Score) + "[white]\n\n"
 
 		if int64(len(snippets)) > SnippetCount {
 			snippets = snippets[:SnippetCount]

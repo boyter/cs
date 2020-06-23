@@ -2,8 +2,8 @@
 
 package processor
 
-// fileJob is a struct used to hold all of the results of processing internally before sent to the formatter
-type fileJob struct {
+// FileJob is a struct used to hold all of the results of processing internally before sent to the formatter
+type FileJob struct {
 	Filename       string
 	Extension      string
 	Location       string

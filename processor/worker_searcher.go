@@ -13,8 +13,8 @@ import (
 )
 
 type SearcherWorker struct {
-	input                  chan *fileJob
-	output                 chan *fileJob
+	input                  chan *FileJob
+	output                 chan *FileJob
 	searchParams           []searchParams
 	FileCount              int64 // Count of the number of files that have been processed
 	BinaryCount            int64 // Count the number of binary files
@@ -28,7 +28,7 @@ type SearcherWorker struct {
 	MinifiedLineByteLength int
 }
 
-func NewSearcherWorker(input chan *fileJob, output chan *fileJob) *SearcherWorker {
+func NewSearcherWorker(input chan *FileJob, output chan *FileJob) *SearcherWorker {
 	return &SearcherWorker{
 		input:                  input,
 		output:                 output,
