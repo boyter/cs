@@ -41,6 +41,8 @@ type tuiApplicationController struct {
 
 	// View requirements
 	TviewApplication *tview.Application
+	StatusView       *tview.TextView
+	DisplayResults   []displayResult
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -278,22 +280,22 @@ func NewTuiApplication() {
 }
 
 func main() {
-	tviewApplication := tview.NewApplication()
-	applicationController := tuiApplicationController{
-		TviewApplication: tviewApplication,
-		Sync:                sync.Mutex{},
-	}
-	applicationController.updateView()
-	applicationController.processSearch()
 
+	// Sets up all of the UI components we need to actually display
 	var overallFlex *tview.Flex
 	var inputField *tview.InputField
 	var queryFlex *tview.Flex
 	var resultsFlex *tview.Flex
 	var statusView *tview.TextView
-	var displayResults []displayResult
 
-	// Sets up all of the UI components we need to actually display
+	tviewApplication := tview.NewApplication()
+	applicationController := tuiApplicationController{
+		TviewApplication: tviewApplication,
+		Sync:             sync.Mutex{},
+		StatusView:       statusView,
+	}
+	applicationController.updateView()
+	applicationController.processSearch()
 
 	// Create the elements we use to display the code results here
 	for i := 1; i < 50; i++ {
@@ -310,7 +312,7 @@ func main() {
 			SetRegions(true).
 			ScrollToBeginning()
 
-		displayResults = append(displayResults, displayResult{
+		applicationController.DisplayResults = append(applicationController.DisplayResults, displayResult{
 			Title:      textViewTitle,
 			Body:       textViewBody,
 			BodyHeight: -1,
@@ -370,7 +372,7 @@ func main() {
 		AddItem(resultsFlex, 0, 1, false)
 
 	// Add all of the display codeResults into the container ready to be populated
-	for _, t := range displayResults {
+	for _, t := range applicationController.DisplayResults {
 		resultsFlex.AddItem(nil, 1, 0, false)
 		resultsFlex.AddItem(t.Title, 1, 0, false)
 		resultsFlex.AddItem(nil, 1, 0, false)
