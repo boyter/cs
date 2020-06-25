@@ -102,7 +102,7 @@ func (cont *tuiApplicationController) Search(s string) {
 }
 
 // After any change is made that requires something drawn on the screen this is the method that does
-func (cont *tuiApplicationController) drawResults(displayResults []displayResult, codeResults []codeResult, status string, resultsFlex *tview.Flex, statusView *tview.TextView) {
+func (cont *tuiApplicationController) drawResults(codeResults []codeResult, status string, resultsFlex *tview.Flex, statusView *tview.TextView) {
 	cont.Sync.Lock()
 	defer cont.Sync.Unlock()
 
@@ -114,7 +114,7 @@ func (cont *tuiApplicationController) drawResults(displayResults []displayResult
 	cont.Count++
 
 	// reset the elements by clearing out every one
-	for _, t := range displayResults {
+	for _, t := range cont.DisplayResults {
 		t.Title.SetText("")
 		t.Body.SetText("")
 	}
@@ -137,11 +137,11 @@ func (cont *tuiApplicationController) drawResults(displayResults []displayResult
 	// render out what the user wants to see based on the results that have been chosen
 	cont.TviewApplication.QueueUpdateDraw(func() {
 		for i, t := range p {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
-			displayResults[i].Body.SetText(t.Content)
+			cont.DisplayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
+			cont.DisplayResults[i].Body.SetText(t.Content)
 
 			// we need to update the item so that it displays everything we have put in
-			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
+			resultsFlex.ResizeItem(cont.DisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
 		}
 
 		statusView.SetText(status)
@@ -246,7 +246,7 @@ func (cont *tuiApplicationController) updateView() {
 			}
 
 			fmt.Sprintf("%s", status)
-			//cont.drawResults(displayResults, codeResults, status, resultsFlex, statusView)
+			//cont.drawResults(codeResults, status, resultsFlex, statusView)
 			time.Sleep(30 * time.Millisecond)
 		}
 	}()
