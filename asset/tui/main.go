@@ -43,6 +43,7 @@ type tuiApplicationController struct {
 	TviewApplication *tview.Application
 	StatusView       *tview.TextView
 	DisplayResults   []displayResult
+	ResultsFlex *tview.Flex
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -102,7 +103,7 @@ func (cont *tuiApplicationController) Search(s string) {
 }
 
 // After any change is made that requires something drawn on the screen this is the method that does
-func (cont *tuiApplicationController) drawResults(codeResults []codeResult, status string, resultsFlex *tview.Flex, statusView *tview.TextView) {
+func (cont *tuiApplicationController) drawView(codeResults []codeResult, status string) {
 	cont.Sync.Lock()
 	defer cont.Sync.Unlock()
 
@@ -141,10 +142,10 @@ func (cont *tuiApplicationController) drawResults(codeResults []codeResult, stat
 			cont.DisplayResults[i].Body.SetText(t.Content)
 
 			// we need to update the item so that it displays everything we have put in
-			resultsFlex.ResizeItem(cont.DisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
+			cont.ResultsFlex.ResizeItem(cont.DisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
 		}
 
-		statusView.SetText(status)
+		cont.StatusView.SetText(status)
 	})
 
 	// we can only set that nothing
@@ -246,7 +247,7 @@ func (cont *tuiApplicationController) updateView() {
 			}
 
 			fmt.Sprintf("%s", status)
-			//cont.drawResults(codeResults, status, resultsFlex, statusView)
+			//cont.drawView(codeResults, statusView)
 			time.Sleep(30 * time.Millisecond)
 		}
 	}()
@@ -293,6 +294,7 @@ func main() {
 		TviewApplication: tviewApplication,
 		Sync:             sync.Mutex{},
 		StatusView:       statusView,
+		ResultsFlex: resultsFlex,
 	}
 	applicationController.updateView()
 	applicationController.processSearch()
