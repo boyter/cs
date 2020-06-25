@@ -43,9 +43,9 @@ type tuiApplicationController struct {
 	TviewApplication *tview.Application
 	StatusView       *tview.TextView
 	DisplayResults   []displayResult
-	ResultsFlex *tview.Flex
-	SpinString string
-	SpinLocation int
+	ResultsFlex      *tview.Flex
+	SpinString       string
+	SpinLocation     int
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -293,8 +293,8 @@ func main() {
 		TviewApplication: tviewApplication,
 		Sync:             sync.Mutex{},
 		StatusView:       statusView,
-		ResultsFlex: resultsFlex,
-		SpinString: `\|/-`,
+		ResultsFlex:      resultsFlex,
+		SpinString:       `\|/-`,
 	}
 	applicationController.updateView()
 	applicationController.processSearch()
