@@ -44,6 +44,8 @@ type tuiApplicationController struct {
 	StatusView       *tview.TextView
 	DisplayResults   []displayResult
 	ResultsFlex *tview.Flex
+	SpinString string
+	SpinLocation int
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -222,9 +224,6 @@ func (cont *tuiApplicationController) updateView() {
 	// render loop running background is the only thing responsible for updating the results based on the state
 	// in the applicationController
 	go func() {
-		// Used to show what is happening on the page
-		var spinString = `\|/-`
-		var spinLocation = 0
 		var spinRun = 0
 
 		for {
@@ -232,13 +231,13 @@ func (cont *tuiApplicationController) updateView() {
 			if cont.TuiFileWalker != nil {
 				status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
 				if cont.GetRunning() {
-					status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(spinString[spinLocation]))
+					status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
 
 					spinRun++
 					if spinRun == 4 {
-						spinLocation++
-						if spinLocation >= len(spinString) {
-							spinLocation = 0
+						cont.SpinLocation++
+						if cont.SpinLocation >= len(cont.SpinString) {
+							cont.SpinLocation = 0
 						}
 						spinRun = 0
 						cont.SetChanged(true)
@@ -295,6 +294,7 @@ func main() {
 		Sync:             sync.Mutex{},
 		StatusView:       statusView,
 		ResultsFlex: resultsFlex,
+		SpinString: `\|/-`,
 	}
 	applicationController.updateView()
 	applicationController.processSearch()
