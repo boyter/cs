@@ -43,6 +43,12 @@ type tuiApplicationController struct {
 	TviewApplication *tview.Application
 }
 
+func (cont *tuiApplicationController) SetQuery(q string) {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	cont.Query = q
+}
+
 func (cont *tuiApplicationController) IncrementOffset() {
 	cont.Sync.Lock()
 	defer cont.Sync.Unlock()
@@ -237,7 +243,7 @@ func (cont *tuiApplicationController) updateView() {
 				}
 			}
 
-			fmt.Println(status)
+			fmt.Sprintf("%s", status)
 			//cont.drawResults(displayResults, codeResults, status, resultsFlex, statusView)
 			time.Sleep(30 * time.Millisecond)
 		}
@@ -318,6 +324,7 @@ func main() {
 		SetLabelColor(tcell.ColorWhite).
 		SetFieldWidth(0).
 		SetDoneFunc(func(key tcell.Key) {
+			// this deals with the keys that trigger "done" functions such as up/down/enter
 			switch key {
 			case tcell.KeyEnter:
 				tviewApplication.Stop()
@@ -340,8 +347,9 @@ func main() {
 			}
 		}).
 		SetChangedFunc(func(text string) {
+			// after the text has changed set the qury so we can trigger a search
 			text = strings.TrimSpace(text)
-			applicationController.Query = text
+			applicationController.SetQuery(text)
 		})
 
 	statusView = tview.NewTextView().
