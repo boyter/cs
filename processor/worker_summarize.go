@@ -110,13 +110,17 @@ func (f *ResultSummarizer) formatDefault(results []*FileJob) {
 	documentFrequency := calculateDocumentTermFrequency(results)
 
 	for _, res := range results {
-		color.Magenta(fmt.Sprintf("%s (%.3f)", res.Location, res.Score))
-
 		snippets := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
-
 		if int64(len(snippets)) > f.SnippetCount {
 			snippets = snippets[:f.SnippetCount]
 		}
+
+		lines := ""
+		for i := 0; i < len(snippets); i++ {
+			lines += fmt.Sprintf("%d-%d ", snippets[i].LineStart, snippets[i].LineEnd)
+		}
+
+		color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)", res.Location, lines, res.Score))
 
 		for i := 0; i < len(snippets); i++ {
 			// We have the snippet so now we need to highlight it

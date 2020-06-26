@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: MIT
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: MIT OR Unlicense
 
 package processor
 
 import (
+	"bytes"
 	"sort"
 	"unicode"
 
@@ -37,6 +37,8 @@ type Snippet struct {
 	StartPos int
 	EndPos   int
 	Score    float64
+	LineStart int
+	LineEnd int
 }
 
 // Looks though the locations using a sliding window style algorithm
@@ -262,11 +264,30 @@ func extractRelevantV3(res *FileJob, documentFrequencies map[string]int, relLeng
 
 	var snippets []Snippet
 	for _, b := range bestMatchesClean {
+
+		index := bytes.Index(res.Content, res.Content[b.StartPos:b.EndPos])
+		startLineOffset := 1
+		for i:=0;i<index;i++ {
+			if res.Content[i] == '\n' {
+				startLineOffset++
+			}
+		}
+
+		contentLineOffset := startLineOffset
+		for _, i := range res.Content[b.StartPos:b.EndPos] {
+			if i == '\n' {
+				contentLineOffset++
+			}
+		}
+
+
 		snippets = append(snippets, Snippet{
-			Content:  string(res.Content[b.StartPos:b.EndPos]),
-			StartPos: b.StartPos,
-			EndPos:   b.EndPos,
-			Score:    b.Score,
+			Content:   string(res.Content[b.StartPos:b.EndPos]),
+			StartPos:  b.StartPos,
+			EndPos:    b.EndPos,
+			Score:     b.Score,
+			LineStart: startLineOffset,
+			LineEnd:   contentLineOffset,
 		})
 	}
 

@@ -46,6 +46,7 @@ type tuiApplicationController struct {
 	ResultsFlex      *tview.Flex
 	SpinString       string
 	SpinLocation     int
+	SpinRun int
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -105,7 +106,7 @@ func (cont *tuiApplicationController) Search(s string) {
 }
 
 // After any change is made that requires something drawn on the screen this is the method that does
-func (cont *tuiApplicationController) drawView(codeResults []codeResult, status string) {
+func (cont *tuiApplicationController) drawView(codeResults []codeResult) {
 	cont.Sync.Lock()
 	defer cont.Sync.Unlock()
 
@@ -136,6 +137,7 @@ func (cont *tuiApplicationController) drawView(codeResults []codeResult, status 
 			})
 		}
 	}
+
 
 	// render out what the user wants to see based on the results that have been chosen
 	cont.TviewApplication.QueueUpdateDraw(func() {
@@ -224,32 +226,38 @@ func (cont *tuiApplicationController) updateView() {
 	// render loop running background is the only thing responsible for updating the results based on the state
 	// in the applicationController
 	go func() {
-		var spinRun = 0
-
 		for {
-			status := ""
-			if cont.TuiFileWalker != nil {
-				status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
-				if cont.GetRunning() {
-					status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
 
-					spinRun++
-					if spinRun == 4 {
-						cont.SpinLocation++
-						if cont.SpinLocation >= len(cont.SpinString) {
-							cont.SpinLocation = 0
-						}
-						spinRun = 0
-						cont.SetChanged(true)
-					}
-				}
-			}
+			// this needs to go outside the draw because if we need to do the spin update
+			status := cont.calculateStatus()
 
 			fmt.Sprintf("%s", status)
+
 			//cont.drawView(codeResults, statusView)
 			time.Sleep(30 * time.Millisecond)
 		}
 	}()
+}
+
+func (cont *tuiApplicationController) calculateStatus() string {
+	status := ""
+	if cont.TuiFileWalker != nil {
+		status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
+		if cont.GetRunning() {
+			status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
+
+			cont.SpinRun++
+			if cont.SpinRun == 4 {
+				cont.SpinLocation++
+				if cont.SpinLocation >= len(cont.SpinString) {
+					cont.SpinLocation = 0
+				}
+				cont.SpinRun = 0
+				cont.SetChanged(true)
+			}
+		}
+	}
+	return status
 }
 
 func (cont *tuiApplicationController) processSearch() {
@@ -351,7 +359,7 @@ func main() {
 			}
 		}).
 		SetChangedFunc(func(text string) {
-			// after the text has changed set the qury so we can trigger a search
+			// after the text has changed set the query so we can trigger a search
 			text = strings.TrimSpace(text)
 			applicationController.SetQuery(text)
 		})
