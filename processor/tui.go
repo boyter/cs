@@ -357,6 +357,8 @@ func ProcessTui(run bool) {
 		}).
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
+			case tcell.KeyESC:
+				app.Stop()
 			case tcell.KeyTab:
 				app.SetFocus(excludeInputField)
 				statusView.SetText(LocationExcludeMode)

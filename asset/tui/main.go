@@ -149,7 +149,7 @@ func (cont *tuiApplicationController) drawView(codeResults []codeResult) {
 			cont.ResultsFlex.ResizeItem(cont.DisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
 		}
 
-		cont.StatusView.SetText(status)
+		//cont.StatusView.SetText(status)
 	})
 
 	// we can only set that nothing
@@ -272,22 +272,6 @@ func (cont *tuiApplicationController) processSearch() {
 }
 
 func NewTuiApplication() {
-	//tviewApplication := tview.NewApplication()
-	//applicationController := tuiApplicationController{}
-	//
-	//var overallFlex *tview.Flex
-	//var inputField *tview.InputField
-	//var queryFlex *tview.Flex
-	//var resultsFlex *tview.Flex
-	//var statusView *tview.TextView
-	//var displayResults []displayResult
-
-	//if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
-	//	panic(err)
-	//}
-}
-
-func main() {
 
 	// Sets up all of the UI components we need to actually display
 	var overallFlex *tview.Flex
@@ -395,4 +379,8 @@ func main() {
 	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
 	}
+}
+
+func main() {
+	NewTuiApplication()
 }
