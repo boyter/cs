@@ -21,6 +21,8 @@ type displayResult struct {
 	Title      *tview.TextView
 	Body       *tview.TextView
 	BodyHeight int
+	SpacerOne *tview.TextView
+	SpacerTwo *tview.TextView
 }
 
 type codeResult struct {
@@ -106,20 +108,25 @@ func (cont *tuiApplicationController) Search(s string) {
 // After any change is made that requires something drawn on the screen this is the method that does
 func (cont *tuiApplicationController) drawView() {
 	cont.Sync.Lock()
-	defer cont.Sync.Unlock()
-
 	if !cont.Changed || cont.TuiFileReaderWorker == nil {
+		cont.Sync.Unlock()
 		return
 	}
+	cont.Sync.Unlock()
 
 	// NB this is just here so we can see updates in this test
 	cont.Count++
 
 	// reset the elements by clearing out every one
-	//for _, t := range displayResults {
-	//	t.Title.SetText("")
-	//	t.Body.SetText("")
-	//}
+	tviewApplication.QueueUpdateDraw(func() {
+		for _, t := range displayResults {
+			t.Title.SetText("")
+			t.Body.SetText("")
+			t.SpacerOne.SetText("")
+			t.SpacerTwo.SetText("")
+			resultsFlex.ResizeItem(t.Body, 0, 0)
+		}
+	})
 
 
 	cont.Sync.Lock()
@@ -157,12 +164,12 @@ func (cont *tuiApplicationController) drawView() {
 
 	// render out what the user wants to see based on the results that have been chosen
 	tviewApplication.QueueUpdateDraw(func() {
-		for i, t := range resultsCopy {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Location, t.Score))
-			displayResults[i].Body.SetText(string(t.Content))
+		for i, t := range codeResults {
+			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
+			displayResults[i].Body.SetText(t.Content)
 
 			//we need to update the item so that it displays everything we have put in
-			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(string(t.Content), "\n")), 0)
+			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
 		}
 
 		statusView.SetText("something")
@@ -187,9 +194,13 @@ func (cont *tuiApplicationController) doSearch() {
 	//query := cont.Query
 	//cont.Query = ""
 
-	//if cont.TuiFileWalker != nil && cont.TuiFileWalker.Walking() {
-	//	cont.TuiFileWalker.Terminate()
-	//}
+	if cont.TuiFileWalker != nil && cont.TuiFileWalker.Walking() {
+		cont.TuiFileWalker.Terminate()
+
+		for cont.TuiFileWalker.Walking() {
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
 
 	fileQueue := make(chan *file.File)                                // NB unbuffered because we want the UI to respond and this is what causes affects
 	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
@@ -216,6 +227,7 @@ func (cont *tuiApplicationController) doSearch() {
 			resultsMutex.Lock()
 			cont.Sync.Lock()
 			cont.Results = results
+			cont.Changed = true
 			cont.Sync.Unlock()
 			resultsMutex.Unlock()
 
@@ -233,8 +245,8 @@ func (cont *tuiApplicationController) doSearch() {
 
 	cont.Sync.Lock()
 	cont.Results = results
+	cont.Changed = true
 	cont.Sync.Unlock()
-	cont.SetChanged(true)
 }
 
 func (cont *tuiApplicationController) updateView() {
@@ -279,7 +291,7 @@ func (cont *tuiApplicationController) processSearch() {
 	go func() {
 		for {
 			cont.doSearch()
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(15 * time.Millisecond)
 		}
 	}()
 }
@@ -319,6 +331,8 @@ func NewTuiApplication() {
 			Title:      textViewTitle,
 			Body:       textViewBody,
 			BodyHeight: -1,
+			SpacerOne:  tview.NewTextView(),
+			SpacerTwo:  tview.NewTextView(),
 		})
 	}
 
@@ -355,6 +369,9 @@ func NewTuiApplication() {
 			// after the text has changed set the query so we can trigger a search
 			text = strings.TrimSpace(text)
 			applicationController.SetQuery(text)
+			//cont.doSearch()
+			// todo just checking how this goes
+			applicationController.doSearch()
 		})
 
 	statusView = tview.NewTextView().
@@ -376,9 +393,9 @@ func NewTuiApplication() {
 
 	// Add all of the display codeResults into the container ready to be populated
 	for _, t := range displayResults {
-		resultsFlex.AddItem(nil, 1, 0, false)
+		resultsFlex.AddItem(t.SpacerOne, 1, 0, false)
 		resultsFlex.AddItem(t.Title, 1, 0, false)
-		resultsFlex.AddItem(nil, 1, 0, false)
+		resultsFlex.AddItem(t.SpacerTwo, 1, 0, false)
 		resultsFlex.AddItem(t.Body, t.BodyHeight, 1, false)
 	}
 
@@ -386,8 +403,8 @@ func NewTuiApplication() {
 	applicationController.SetChanged(true)
 
 	// trigger the jobs to start running things
-	//applicationController.updateView()
-	applicationController.processSearch()
+	applicationController.updateView()
+	//applicationController.processSearch()
 
 	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
