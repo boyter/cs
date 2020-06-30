@@ -46,7 +46,7 @@ type tuiApplicationController struct {
 	ResultsFlex      *tview.Flex
 	SpinString       string
 	SpinLocation     int
-	SpinRun int
+	SpinRun          int
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -137,7 +137,6 @@ func (cont *tuiApplicationController) drawView(codeResults []codeResult) {
 			})
 		}
 	}
-
 
 	// render out what the user wants to see based on the results that have been chosen
 	cont.TviewApplication.QueueUpdateDraw(func() {

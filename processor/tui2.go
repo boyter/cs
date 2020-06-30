@@ -21,8 +21,8 @@ type displayResult struct {
 	Title      *tview.TextView
 	Body       *tview.TextView
 	BodyHeight int
-	SpacerOne *tview.TextView
-	SpacerTwo *tview.TextView
+	SpacerOne  *tview.TextView
+	SpacerTwo  *tview.TextView
 }
 
 type codeResult struct {
@@ -44,9 +44,9 @@ type tuiApplicationController struct {
 	TuiSearcherWorker   *SearcherWorker
 
 	// View requirements
-	SpinString       string
-	SpinLocation     int
-	SpinRun int
+	SpinString   string
+	SpinLocation int
+	SpinRun      int
 }
 
 func (cont *tuiApplicationController) SetQuery(q string) {
@@ -128,7 +128,6 @@ func (cont *tuiApplicationController) drawView() {
 		}
 	})
 
-
 	cont.Sync.Lock()
 	resultsCopy := make([]*FileJob, len(cont.Results))
 	copy(resultsCopy, cont.Results)
@@ -202,7 +201,7 @@ func (cont *tuiApplicationController) doSearch() {
 		}
 	}
 
-	fileQueue := make(chan *file.File)                                // NB unbuffered because we want the UI to respond and this is what causes affects
+	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
 	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
@@ -308,8 +307,8 @@ var tviewApplication *tview.Application
 func NewTuiApplication() {
 	tviewApplication = tview.NewApplication()
 	applicationController := tuiApplicationController{
-		Sync:             sync.Mutex{},
-		SpinString:       `\|/-`,
+		Sync:       sync.Mutex{},
+		SpinString: `\|/-`,
 	}
 
 	// Create the elements we use to display the code results here
