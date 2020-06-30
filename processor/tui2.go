@@ -121,14 +121,20 @@ func (cont *tuiApplicationController) drawView() {
 	//	t.Body.SetText("")
 	//}
 
+
+	cont.Sync.Lock()
+	resultsCopy := make([]*FileJob, len(cont.Results))
+	copy(resultsCopy, cont.Results)
+	cont.Sync.Unlock()
+
 	// rank all results
 	// then go and get the relevant portion for display
-	rankResults(int(cont.TuiFileReaderWorker.GetFileCount()), cont.Results)
-	documentTermFrequency := calculateDocumentTermFrequency(cont.Results)
+	rankResults(int(cont.TuiFileReaderWorker.GetFileCount()), resultsCopy)
+	documentTermFrequency := calculateDocumentTermFrequency(resultsCopy)
 
 	// go and get the codeResults the user wants to see using selected as the offset to display from
-	var p []codeResult
-	for i, res := range cont.Results {
+	var codeResults []codeResult
+	for i, res := range resultsCopy {
 		if i >= cont.Offset {
 			snippets := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")[0]
 
@@ -137,7 +143,7 @@ func (cont *tuiApplicationController) drawView() {
 			l := getLocated(res, snippets)
 			coloredContent := str.HighlightString(snippets.Content, l, "[red]", "[white]")
 
-			p = append(p, codeResult{
+			codeResults = append(codeResults, codeResult{
 				Title:   res.Filename,
 				Content: coloredContent,
 				Score:   res.Score,
@@ -145,26 +151,20 @@ func (cont *tuiApplicationController) drawView() {
 		}
 	}
 
-	if len(p) > 20 {
-		p = p[:20]
+	if len(codeResults) > 20 {
+		codeResults = codeResults[:20]
 	}
-
-	tmp := make([]codeResult, len(p))
-	copy(tmp, p)
 
 	// render out what the user wants to see based on the results that have been chosen
 	tviewApplication.QueueUpdateDraw(func() {
-		//cont.Sync.Lock()
-		for i, t := range tmp {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
-			displayResults[i].Body.SetText(t.Content)
+		for i, t := range resultsCopy {
+			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Location, t.Score))
+			displayResults[i].Body.SetText(string(t.Content))
 
 			//we need to update the item so that it displays everything we have put in
-			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
+			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(string(t.Content), "\n")), 0)
 		}
-		//cont.Sync.Unlock()
 
-		//debugLogger(fmt.Sprintf("%v", cont.))
 		statusView.SetText("something")
 	})
 
@@ -173,19 +173,19 @@ func (cont *tuiApplicationController) drawView() {
 }
 
 func (cont *tuiApplicationController) doSearch() {
-	cont.Sync.Lock()
-	// deal with the user clearing out the search
-	if cont.Query == "" {
-		cont.Results = []*FileJob{}
-		cont.Changed = true
-		cont.Sync.Unlock()
-		return
-	}
-	cont.Sync.Unlock()
+	//cont.Sync.Lock()
+	//// deal with the user clearing out the search
+	//if cont.Query == "" {
+	//	cont.Results = []*FileJob{}
+	//	cont.Changed = true
+	//	cont.Sync.Unlock()
+	//	return
+	//}
+	//cont.Sync.Unlock()
 
 	// keep the query we are working with
-	query := cont.Query
-	cont.Query = ""
+	//query := cont.Query
+	//cont.Query = ""
 
 	//if cont.TuiFileWalker != nil && cont.TuiFileWalker.Walking() {
 	//	cont.TuiFileWalker.Terminate()
@@ -198,7 +198,7 @@ func (cont *tuiApplicationController) doSearch() {
 	cont.TuiFileWalker = file.NewFileWalker(".", fileQueue)
 	cont.TuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	cont.TuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
-	cont.TuiSearcherWorker.SearchString = strings.Split(query, " ")
+	cont.TuiSearcherWorker.SearchString = strings.Split(cont.Query, " ")
 
 	go cont.TuiFileWalker.Start()
 	go cont.TuiFileReaderWorker.Start()
@@ -386,7 +386,7 @@ func NewTuiApplication() {
 	applicationController.SetChanged(true)
 
 	// trigger the jobs to start running things
-	applicationController.updateView()
+	//applicationController.updateView()
 	applicationController.processSearch()
 
 	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
