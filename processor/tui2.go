@@ -167,8 +167,6 @@ func (cont *tuiApplicationController) drawView() {
 			//we need to update the item so that it displays everything we have put in
 			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
 		}
-
-		statusView.SetText("something")
 	})
 
 	// we can only set that nothing
@@ -183,6 +181,7 @@ func (cont *tuiApplicationController) doSearch() {
 		return
 	}
 
+	// only process the last search
 	cont.Query = cont.Queries[len(cont.Queries)-1]
 	query := cont.Query
 	cont.Queries = []string{}
@@ -196,10 +195,12 @@ func (cont *tuiApplicationController) doSearch() {
 		return
 	}
 
-	if cont.TuiFileWalker != nil && cont.TuiFileWalker.Walking() {
+	// if we have a walker that's currently walking terminate it
+	if cont.TuiFileWalker != nil && (cont.TuiFileWalker.Walking() || cont.GetRunning()) {
 		cont.TuiFileWalker.Terminate()
 
-		for cont.TuiFileWalker.Walking() {
+		// wait for the current walker to stop
+		for cont.TuiFileWalker.Walking() || cont.GetRunning() {
 			time.Sleep(1 * time.Millisecond)
 		}
 	}
@@ -221,10 +222,10 @@ func (cont *tuiApplicationController) doSearch() {
 	// painted as we go
 	var results []*FileJob
 	var resultsMutex sync.Mutex
-	update := true
+	cont.SetRunning(true)
 
 	go func() {
-		for update {
+		for cont.GetRunning() {
 			// Every 50 ms redraw the current set of results
 			resultsMutex.Lock()
 			cont.Sync.Lock()
@@ -237,17 +238,18 @@ func (cont *tuiApplicationController) doSearch() {
 		}
 	}()
 
+	// todo probably need to have the walker terminate wait for this to end as well
 	for res := range summaryQueue {
 		resultsMutex.Lock()
 		results = append(results, res)
 		resultsMutex.Unlock()
 	}
-
-	update = false
+	// once we get out of the collection we can indicate we are not running anymore
+	cont.SetRunning(false)
 
 	cont.Sync.Lock()
-	cont.Results = results
 	cont.Changed = true
+	cont.Results = results
 	cont.Sync.Unlock()
 }
 
@@ -256,35 +258,43 @@ func (cont *tuiApplicationController) updateView() {
 	// in the applicationController
 	go func() {
 		for {
-
-			// this needs to go outside the draw because if we need to do the spin update
-			//status := cont.calculateStatus()
-
 			cont.drawView()
 			time.Sleep(30 * time.Millisecond)
 		}
 	}()
 }
 
-func (cont *tuiApplicationController) calculateStatus() string {
-	status := ""
-	if cont.TuiFileWalker != nil {
-		status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
-		if cont.GetRunning() {
-			status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
+func (cont *tuiApplicationController) updateStatus() {
+	// render loop running background is the only thing responsible for updating the results based on the state
+	// in the applicationController
+	go func() {
+		for {
+			cont.Sync.Lock()
+			if cont.TuiFileWalker != nil {
+				status := fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
+				if cont.Running {
+					status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
 
-			cont.SpinRun++
-			if cont.SpinRun == 4 {
-				cont.SpinLocation++
-				if cont.SpinLocation >= len(cont.SpinString) {
-					cont.SpinLocation = 0
+					cont.SpinRun++
+					if cont.SpinRun == 4 {
+						cont.SpinLocation++
+						if cont.SpinLocation >= len(cont.SpinString) {
+							cont.SpinLocation = 0
+						}
+						cont.SpinRun = 0
+						cont.Changed = true
+					}
 				}
-				cont.SpinRun = 0
-				cont.SetChanged(true)
+
+				tviewApplication.QueueUpdateDraw(func() {
+					statusView.SetText(status)
+				})
 			}
+			cont.Sync.Unlock()
+
+			time.Sleep(30 * time.Millisecond)
 		}
-	}
-	return status
+	}()
 }
 
 func (cont *tuiApplicationController) processSearch() {
@@ -404,6 +414,7 @@ func NewTuiApplication() {
 	// trigger the jobs to start running things
 	applicationController.updateView()
 	applicationController.processSearch()
+	applicationController.updateStatus()
 
 	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)

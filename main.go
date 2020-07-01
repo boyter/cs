@@ -10,14 +10,14 @@ import (
 
 func main() {
 	//f, _ := os.Create("cs.pprof")
-	//f2, _ := os.Create("mem.pprof")
+	////f2, _ := os.Create("mem.pprof")
 	//pprof.StartCPUProfile(f)
-
+	//
 	//go func() {
 	//	time.Sleep(time.Second * 10)
-	//	pprof.WriteHeapProfile(f2)
-	//	f2.Close()
-	//	defer pprof.StopCPUProfile()
+	////	pprof.WriteHeapProfile(f2)
+	////	f2.Close()
+	//	pprof.StopCPUProfile()
 	//}()
 
 	rootCmd := &cobra.Command{
