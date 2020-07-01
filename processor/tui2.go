@@ -33,7 +33,6 @@ type codeResult struct {
 
 type tuiApplicationController struct {
 	Query               string
-	Count               int
 	Sync                sync.Mutex
 	Changed             bool
 	Running             bool
@@ -114,8 +113,6 @@ func (cont *tuiApplicationController) drawView() {
 	}
 	cont.Sync.Unlock()
 
-	// NB this is just here so we can see updates in this test
-	cont.Count++
 
 	// reset the elements by clearing out every one
 	tviewApplication.QueueUpdateDraw(func() {
@@ -164,7 +161,7 @@ func (cont *tuiApplicationController) drawView() {
 	// render out what the user wants to see based on the results that have been chosen
 	tviewApplication.QueueUpdateDraw(func() {
 		for i, t := range codeResults {
-			displayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
+			displayResults[i].Title.SetText(fmt.Sprintf("[fuchsia]%s (%f)[-:-:-]", t.Title, t.Score))
 			displayResults[i].Body.SetText(t.Content)
 
 			//we need to update the item so that it displays everything we have put in
