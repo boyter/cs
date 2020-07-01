@@ -3,6 +3,8 @@
 package processor
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/str"
@@ -137,6 +139,11 @@ func (cont *tuiApplicationController) drawView() {
 
 	// go and get the codeResults the user wants to see using selected as the offset to display from
 	var codeResults []codeResult
+
+	md5Digest := md5.New()
+	fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
+	fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
+
 	for i, res := range resultsCopy {
 		if i >= cont.Offset {
 			snippets := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")[0]
@@ -144,7 +151,11 @@ func (cont *tuiApplicationController) drawView() {
 			// now that we have the relevant portion we need to get just the bits related to highlight it correctly
 			// which this method does. It takes in the snippet, we extract and all of the locations and then returns just
 			l := getLocated(res, snippets)
-			coloredContent := str.HighlightString(snippets.Content, l, "[red]", "[white]")
+			coloredContent := str.HighlightString(snippets.Content, l, fmtBegin, fmtEnd)
+			coloredContent = tview.Escape(coloredContent)
+
+			coloredContent = strings.Replace(coloredContent, fmtBegin, "[red]", -1)
+			coloredContent = strings.Replace(coloredContent, fmtEnd, "[white]", -1)
 
 			codeResults = append(codeResults, codeResult{
 				Title:   res.Filename,
@@ -154,8 +165,8 @@ func (cont *tuiApplicationController) drawView() {
 		}
 	}
 
-	if len(codeResults) > 20 {
-		codeResults = codeResults[:20]
+	if len(codeResults) > len(displayResults) {
+		codeResults = codeResults[:len(displayResults)]
 	}
 
 	// render out what the user wants to see based on the results that have been chosen
