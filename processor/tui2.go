@@ -70,6 +70,12 @@ func (cont *tuiApplicationController) DecrementOffset() {
 	}
 }
 
+func (cont *tuiApplicationController) ResetOffset() {
+	cont.Sync.Lock()
+	defer cont.Sync.Unlock()
+	cont.Offset = 0
+}
+
 func (cont *tuiApplicationController) GetOffset() int {
 	cont.Sync.Lock()
 	defer cont.Sync.Unlock()
@@ -137,13 +143,18 @@ func (cont *tuiApplicationController) drawView() {
 	rankResults(int(cont.TuiFileReaderWorker.GetFileCount()), resultsCopy)
 	documentTermFrequency := calculateDocumentTermFrequency(resultsCopy)
 
-	// go and get the codeResults the user wants to see using selected as the offset to display from
-	var codeResults []codeResult
+	// after ranking only get the details for as many as we actually need to
+	// cut down on processing
+	if len(resultsCopy) > len(displayResults) {
+		resultsCopy = resultsCopy[:len(displayResults)]
+	}
 
 	md5Digest := md5.New()
 	fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
 	fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
+	// go and get the codeResults the user wants to see using selected as the offset to display from
+	var codeResults []codeResult
 	for i, res := range resultsCopy {
 		if i >= cont.Offset {
 			snippets := extractRelevantV3(res, documentTermFrequency, int(SnippetLength), "…")[0]
@@ -163,10 +174,6 @@ func (cont *tuiApplicationController) drawView() {
 				Score:   res.Score,
 			})
 		}
-	}
-
-	if len(codeResults) > len(displayResults) {
-		codeResults = codeResults[:len(displayResults)]
 	}
 
 	// render out what the user wants to see based on the results that have been chosen
@@ -249,7 +256,6 @@ func (cont *tuiApplicationController) doSearch() {
 		}
 	}()
 
-	// todo probably need to have the walker terminate wait for this to end as well
 	for res := range summaryQueue {
 		resultsMutex.Lock()
 		results = append(results, res)
@@ -270,7 +276,7 @@ func (cont *tuiApplicationController) updateView() {
 	go func() {
 		for {
 			cont.drawView()
-			time.Sleep(30 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}()
 }
@@ -282,9 +288,15 @@ func (cont *tuiApplicationController) updateStatus() {
 		for {
 			cont.Sync.Lock()
 			if cont.TuiFileWalker != nil {
-				status := fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
+
+				plural := "s"
+				if len(cont.Results) == 1 {
+					plural = ""
+				}
+
+				status := fmt.Sprintf("%d result%s for '%s' from %d files", len(cont.Results), plural, cont.Query, cont.TuiFileReaderWorker.GetFileCount())
 				if cont.Running {
-					status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
+					status = fmt.Sprintf("%d result%s for '%s' from %d files %s", len(cont.Results), plural, cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
 
 					cont.SpinRun++
 					if cont.SpinRun == 4 {
@@ -372,7 +384,7 @@ func NewTuiApplication() {
 				tviewApplication.Stop()
 				// we want to work like fzf for piping into other things hence print out the selected version
 				if len(applicationController.Results) != 0 {
-					fmt.Println(applicationController.Results[applicationController.GetOffset()].Location)
+					fmt.Println(displayResults[applicationController.GetOffset()].Title.GetText(true))
 				}
 				os.Exit(0)
 			case tcell.KeyTab:
@@ -391,6 +403,7 @@ func NewTuiApplication() {
 		SetChangedFunc(func(text string) {
 			// after the text has changed set the query so we can trigger a search
 			text = strings.TrimSpace(text)
+			applicationController.ResetOffset()
 			applicationController.SetQuery(text)
 		})
 
