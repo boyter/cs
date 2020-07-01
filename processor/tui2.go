@@ -7,7 +7,6 @@ import (
 	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/str"
 
-	//"github.com/boyter/cs/str"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"os"
@@ -33,6 +32,7 @@ type codeResult struct {
 
 type tuiApplicationController struct {
 	Query               string
+	Queries []string
 	Sync                sync.Mutex
 	Changed             bool
 	Running             bool
@@ -51,7 +51,7 @@ type tuiApplicationController struct {
 func (cont *tuiApplicationController) SetQuery(q string) {
 	cont.Sync.Lock()
 	defer cont.Sync.Unlock()
-	cont.Query = q
+	cont.Queries = append(cont.Queries, q)
 }
 
 func (cont *tuiApplicationController) IncrementOffset() {
@@ -176,25 +176,31 @@ func (cont *tuiApplicationController) drawView() {
 }
 
 func (cont *tuiApplicationController) doSearch() {
-	//cont.Sync.Lock()
+	cont.Sync.Lock()
 	//// deal with the user clearing out the search
-	//if cont.Query == "" {
-	//	cont.Results = []*FileJob{}
-	//	cont.Changed = true
-	//	cont.Sync.Unlock()
-	//	return
-	//}
-	//cont.Sync.Unlock()
+	if len(cont.Queries) == 0 {
+		cont.Sync.Unlock()
+		return
+	}
 
-	// keep the query we are working with
-	//query := cont.Query
-	//cont.Query = ""
+	cont.Query = cont.Queries[len(cont.Queries)-1]
+	query := cont.Query
+	cont.Queries = []string{}
+	cont.Sync.Unlock()
+
+	if query == "" {
+		cont.Sync.Lock()
+		cont.Results = []*FileJob{}
+		cont.Changed = true
+		cont.Sync.Unlock()
+		return
+	}
 
 	if cont.TuiFileWalker != nil && cont.TuiFileWalker.Walking() {
 		cont.TuiFileWalker.Terminate()
 
 		for cont.TuiFileWalker.Walking() {
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
 		}
 	}
 
@@ -205,7 +211,7 @@ func (cont *tuiApplicationController) doSearch() {
 	cont.TuiFileWalker = file.NewFileWalker(".", fileQueue)
 	cont.TuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	cont.TuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
-	cont.TuiSearcherWorker.SearchString = strings.Split(cont.Query, " ")
+	cont.TuiSearcherWorker.SearchString = strings.Split(query, " ")
 
 	go cont.TuiFileWalker.Start()
 	go cont.TuiFileReaderWorker.Start()
@@ -365,9 +371,6 @@ func NewTuiApplication() {
 			// after the text has changed set the query so we can trigger a search
 			text = strings.TrimSpace(text)
 			applicationController.SetQuery(text)
-			//cont.doSearch()
-			// todo just checking how this goes
-			applicationController.doSearch()
 		})
 
 	statusView = tview.NewTextView().
@@ -400,7 +403,7 @@ func NewTuiApplication() {
 
 	// trigger the jobs to start running things
 	applicationController.updateView()
-	//applicationController.processSearch()
+	applicationController.processSearch()
 
 	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
