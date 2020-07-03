@@ -223,7 +223,7 @@ func (cont *tuiApplicationController) doSearch() {
 		}
 	}
 
-	fileQueue := make(chan *file.File)                      // NB unbuffered because we want the UI to respond and this is what causes affects
+	fileQueue := make(chan *file.File)                      // NB unbuffered because we want to be able to cancel walking and have the UI update
 	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
