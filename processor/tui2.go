@@ -24,17 +24,19 @@ type displayResult struct {
 	BodyHeight int
 	SpacerOne  *tview.TextView
 	SpacerTwo  *tview.TextView
+	Location   string
 }
 
 type codeResult struct {
-	Title   string
-	Content string
-	Score   float64
+	Title    string
+	Content  string
+	Score    float64
+	Location string
 }
 
 type tuiApplicationController struct {
 	Query               string
-	Queries []string
+	Queries             []string
 	Sync                sync.Mutex
 	Changed             bool
 	Running             bool
@@ -121,7 +123,6 @@ func (cont *tuiApplicationController) drawView() {
 	}
 	cont.Sync.Unlock()
 
-
 	// reset the elements by clearing out every one
 	tviewApplication.QueueUpdateDraw(func() {
 		for _, t := range displayResults {
@@ -169,9 +170,10 @@ func (cont *tuiApplicationController) drawView() {
 			coloredContent = strings.Replace(coloredContent, fmtEnd, "[white]", -1)
 
 			codeResults = append(codeResults, codeResult{
-				Title:   res.Filename,
-				Content: coloredContent,
-				Score:   res.Score,
+				Title:    res.Location,
+				Content:  coloredContent,
+				Score:    res.Score,
+				Location: res.Location,
 			})
 		}
 	}
@@ -181,6 +183,7 @@ func (cont *tuiApplicationController) drawView() {
 		for i, t := range codeResults {
 			displayResults[i].Title.SetText(fmt.Sprintf("[fuchsia]%s (%f)[-:-:-]", t.Title, t.Score))
 			displayResults[i].Body.SetText(t.Content)
+			displayResults[i].Location = t.Location
 
 			//we need to update the item so that it displays everything we have put in
 			resultsFlex.ResizeItem(displayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
@@ -384,7 +387,7 @@ func NewTuiApplication() {
 				tviewApplication.Stop()
 				// we want to work like fzf for piping into other things hence print out the selected version
 				if len(applicationController.Results) != 0 {
-					fmt.Println(displayResults[applicationController.GetOffset()].Title.GetText(true))
+					fmt.Println(displayResults[applicationController.GetOffset()].Location)
 				}
 				os.Exit(0)
 			case tcell.KeyTab:

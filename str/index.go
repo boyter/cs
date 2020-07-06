@@ -36,7 +36,7 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 
 	// Return contains a slice of slices where index 0 is the location of the match in bytes
 	// and index 1 contains the end location in bytes of the match
-	locs := [][]int{}
+	var locs [][]int
 
 	// Perform the first search outside the main loop to make the method
 	// easier to understand
