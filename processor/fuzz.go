@@ -19,7 +19,7 @@ func Fuzz(data []byte) int {
 	find := hex.EncodeToString(md5_d.Sum(data))
 
 	loc := map[string][][]int{}
-	loc[find[:2]] = str.IndexAllIgnoreCaseUnicode(string(data), find[:2], -1)
+	loc[find[:2]] = str.IndexAllIgnoreCase(string(data), find[:2], -1)
 
 	freq := map[string]int{}
 	freq[find[:2]] = 5

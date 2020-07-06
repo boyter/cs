@@ -9,7 +9,7 @@ import (
 // HighlightString takes in some content and locations and then inserts in/out
 // strings which can be used for highlighting around matching terms. For example
 // you could pass in "test" and have it return "<strong>te</strong>st"
-// locations accepts output from regex.FindAllIndex IndexAllIgnoreCaseUnicode or IndexAll
+// locations accepts output from regex.FindAllIndex IndexAllIgnoreCase or IndexAll
 func HighlightString(content string, locations [][]int, in string, out string) string {
 	var str strings.Builder
 

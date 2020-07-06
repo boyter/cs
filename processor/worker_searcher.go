@@ -82,7 +82,7 @@ func (f *SearcherWorker) Start() {
 						if f.CaseSensitive {
 							res.MatchLocations[needle.Term] = str.IndexAll(string(res.Content), needle.Term, f.MatchLimit)
 						} else {
-							res.MatchLocations[needle.Term] = str.IndexAllIgnoreCaseUnicode(string(res.Content), needle.Term, f.MatchLimit)
+							res.MatchLocations[needle.Term] = str.IndexAllIgnoreCase(string(res.Content), needle.Term, f.MatchLimit)
 						}
 					case Regex:
 						x, err := f.regexSearch(needle, &res.Content)
@@ -98,7 +98,7 @@ func (f *SearcherWorker) Start() {
 							if f.CaseSensitive {
 								matchLocations = append(matchLocations, str.IndexAll(string(res.Content), t, f.MatchLimit)...)
 							} else {
-								matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
+								matchLocations = append(matchLocations, str.IndexAllIgnoreCase(string(res.Content), t, f.MatchLimit)...)
 							}
 						}
 						res.MatchLocations[needle.Term] = matchLocations
@@ -110,7 +110,7 @@ func (f *SearcherWorker) Start() {
 							if f.CaseSensitive {
 								matchLocations = append(matchLocations, str.IndexAll(string(res.Content), t, f.MatchLimit)...)
 							} else {
-								matchLocations = append(matchLocations, str.IndexAllIgnoreCaseUnicode(string(res.Content), t, f.MatchLimit)...)
+								matchLocations = append(matchLocations, str.IndexAllIgnoreCase(string(res.Content), t, f.MatchLimit)...)
 							}
 						}
 						res.MatchLocations[needle.Term] = matchLocations

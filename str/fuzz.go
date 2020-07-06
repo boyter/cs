@@ -17,7 +17,7 @@ func Fuzz(data []byte) int {
 	find := hex.EncodeToString(md5_d.Sum(data))
 
 	IndexAll(string(data), find[:2], -1)
-	l := IndexAllIgnoreCaseUnicode(string(data), find[:2], -1)
+	l := IndexAllIgnoreCase(string(data), find[:2], -1)
 	HighlightString(string(data), l, "__IN__", "__OUT__")
 	return 1
 }

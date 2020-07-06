@@ -101,7 +101,7 @@ func TestExtractRelevantV3PaintedShip(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(rhymeOfTheAncient, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})
@@ -129,7 +129,7 @@ func TestExtractRelevantV3WaterWaterEverywhere(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(rhymeOfTheAncient, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})
@@ -155,7 +155,7 @@ func TestExtractRelevantV3GroanedDead(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(rhymeOfTheAncient, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})
@@ -181,7 +181,7 @@ func TestExtractRelevantV3DeathFires(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(rhymeOfTheAncient, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(rhymeOfTheAncient, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})
@@ -207,7 +207,7 @@ func TestExtractRelevantV3PoorNerves(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(prideAndPrejudice, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})
@@ -233,7 +233,7 @@ func TestExtractRelevantV3TenThousandAYear(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(prideAndPrejudice, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})
@@ -257,7 +257,7 @@ func TestExtractRelevantV3StrangerParents(t *testing.T) {
 	}
 
 	for _, t := range terms {
-		res.MatchLocations[t] = str.IndexAllIgnoreCaseUnicode(prideAndPrejudice, t, -1)
+		res.MatchLocations[t] = str.IndexAllIgnoreCase(prideAndPrejudice, t, -1)
 	}
 
 	df := calculateDocumentTermFrequency([]*FileJob{res})

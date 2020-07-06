@@ -78,7 +78,7 @@ func rankResultsLocation(results []*FileJob) []*FileJob {
 	for i := 0; i < len(results); i++ {
 		foundTerms := 0
 		for key := range results[i].MatchLocations {
-			l := str.IndexAllIgnoreCaseUnicode(results[i].Location, key, -1)
+			l := str.IndexAllIgnoreCase(results[i].Location, key, -1)
 
 			// Boost the rank slightly based on number of matches and on
 			// how long a match it is as we should reward longer matches

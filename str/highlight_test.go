@@ -160,7 +160,7 @@ func TestIntegrationIndexAll(t *testing.T) {
 func TestIntegrationIndexAllIgnoreCaseUnicode(t *testing.T) {
 	haystack := "111"
 
-	loc := IndexAllIgnoreCaseUnicode(haystack, "1", -1)
+	loc := IndexAllIgnoreCase(haystack, "1", -1)
 	got := HighlightString(haystack, loc, "__", "__")
 
 	if got != "__1____1____1__" {
