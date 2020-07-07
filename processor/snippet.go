@@ -82,6 +82,12 @@ func extractRelevantV3(res *FileJob, documentFrequencies map[string]int, relLeng
 
 	rv3 := convertToRelevant(res)
 
+	// if we have a huge amount of matches we want to reduce it because otherwise it takes forever
+	// to return something if the search has many matches
+	if len(rv3) > 20000 {
+		rv3 = rv3[:20000]
+	}
+
 	// Slide around looking for matches that fit in the length
 	for i := 0; i < len(rv3); i++ {
 		m := bestMatch{
