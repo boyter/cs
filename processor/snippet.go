@@ -16,6 +16,7 @@ const (
 	PhraseHeavyBoost = 20
 	SpaceBoundBoost  = 5
 	ExactMatchBoost  = 5
+	RelevanceCutoff  = 10000
 )
 
 type bestMatch struct {
@@ -40,8 +41,6 @@ type Snippet struct {
 	LineStart int
 	LineEnd   int
 }
-
-var relevanceCutOff = 10000
 
 // Looks though the locations using a sliding window style algorithm
 // where it "brute forces" the solution by iterating over every location we have
@@ -86,8 +85,8 @@ func extractRelevantV3(res *FileJob, documentFrequencies map[string]int, relLeng
 
 	// if we have a huge amount of matches we want to reduce it because otherwise it takes forever
 	// to return something if the search has many matches.
-	if len(rv3) > relevanceCutOff {
-		rv3 = rv3[:relevanceCutOff]
+	if len(rv3) > RelevanceCutoff {
+		rv3 = rv3[:RelevanceCutoff]
 	}
 
 	// Slide around looking for matches that fit in the length
