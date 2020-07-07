@@ -41,6 +41,8 @@ type Snippet struct {
 	LineEnd   int
 }
 
+var relevanceCutOff = 10000
+
 // Looks though the locations using a sliding window style algorithm
 // where it "brute forces" the solution by iterating over every location we have
 // and look for all matches that fall into the supplied length and ranking
@@ -83,9 +85,9 @@ func extractRelevantV3(res *FileJob, documentFrequencies map[string]int, relLeng
 	rv3 := convertToRelevant(res)
 
 	// if we have a huge amount of matches we want to reduce it because otherwise it takes forever
-	// to return something if the search has many matches
-	if len(rv3) > 20000 {
-		rv3 = rv3[:20000]
+	// to return something if the search has many matches.
+	if len(rv3) > relevanceCutOff {
+		rv3 = rv3[:relevanceCutOff]
 	}
 
 	// Slide around looking for matches that fit in the length
