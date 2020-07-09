@@ -231,9 +231,27 @@ func (cont *tuiApplicationController) doSearch() {
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
 	cont.TuiFileWalker = file.NewFileWalker(".", fileQueue)
+	cont.TuiFileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
+	cont.TuiFileWalker.IgnoreGitIgnore = IgnoreGitIgnore
+	cont.TuiFileWalker.IncludeHidden = IncludeHidden
+	cont.TuiFileWalker.PathExclude = PathDenylist
+	cont.TuiFileWalker.AllowListExtensions = AllowListExtensions
+	cont.TuiFileWalker.InstanceId = instanceCount
+	cont.TuiFileWalker.LocationExcludePattern = LocationExcludePattern
+
 	cont.TuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
+	cont.TuiFileReaderWorker.InstanceId = instanceCount
+	cont.TuiFileReaderWorker.SearchPDF = SearchPDF
+	cont.TuiFileReaderWorker.MaxReadSizeBytes = MaxReadSizeBytes
+
 	cont.TuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
 	cont.TuiSearcherWorker.SearchString = strings.Split(query, " ")
+	cont.TuiSearcherWorker.MatchLimit = -1 // NB this can make things slow because we keep going
+	cont.TuiSearcherWorker.InstanceId = instanceCount
+	cont.TuiSearcherWorker.IncludeBinary = IncludeBinaryFiles
+	cont.TuiSearcherWorker.CaseSensitive = CaseSensitive
+	cont.TuiSearcherWorker.IncludeMinified = IncludeMinified
+	cont.TuiSearcherWorker.MinifiedLineByteLength = MinifiedLineByteLength
 
 	go cont.TuiFileWalker.Start()
 	go cont.TuiFileReaderWorker.Start()
