@@ -448,6 +448,10 @@ func NewTuiApplication() {
 				}
 			}
 			LocationExcludePattern = t
+
+			snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+			applicationController.ResetOffset()
+			applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
 		}).
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
@@ -486,15 +490,26 @@ func NewTuiApplication() {
 			case tcell.KeyUp:
 				SnippetLength = min(SnippetLength+50, 8000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				applicationController.ResetOffset()
+				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
 			case tcell.KeyPgUp:
 				SnippetLength = min(SnippetLength+200, 8000)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				applicationController.ResetOffset()
+				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
 			case tcell.KeyDown:
 				SnippetLength = max(50, SnippetLength-50)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				applicationController.ResetOffset()
+				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
 			case tcell.KeyPgDn:
 				SnippetLength = max(50, SnippetLength-200)
 				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+				applicationController.ResetOffset()
+				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
 			}
 		})
 
