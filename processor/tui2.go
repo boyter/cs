@@ -448,10 +448,7 @@ func NewTuiApplication() {
 				}
 			}
 			LocationExcludePattern = t
-
-			snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-			applicationController.ResetOffset()
-			applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
+			triggerSearch(applicationController)
 		}).
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
@@ -489,30 +486,18 @@ func NewTuiApplication() {
 			case tcell.KeyEnter:
 			case tcell.KeyUp:
 				SnippetLength = min(SnippetLength+50, 8000)
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				applicationController.ResetOffset()
-				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
+				triggerSearch(applicationController)
 			case tcell.KeyPgUp:
 				SnippetLength = min(SnippetLength+200, 8000)
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				applicationController.ResetOffset()
-				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
+				triggerSearch(applicationController)
 			case tcell.KeyDown:
 				SnippetLength = max(50, SnippetLength-50)
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				applicationController.ResetOffset()
-				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
+				triggerSearch(applicationController)
 			case tcell.KeyPgDn:
 				SnippetLength = max(50, SnippetLength-200)
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
-				applicationController.ResetOffset()
-				applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
+				triggerSearch(applicationController)
 			}
-		})
-
+	})
 
 	statusView = tview.NewTextView().
 		SetDynamicColors(true).
@@ -552,4 +537,10 @@ func NewTuiApplication() {
 	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
 		panic(err)
 	}
+}
+
+func triggerSearch(applicationController tuiApplicationController) {
+	snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+	applicationController.ResetOffset()
+	applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
 }
