@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/boyter/cs/file"
 	"github.com/boyter/cs/str"
+	"strconv"
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
@@ -360,6 +361,8 @@ var resultsFlex *tview.Flex
 var statusView *tview.TextView
 var displayResults []displayResult
 var tviewApplication *tview.Application
+var snippetInputField *tview.InputField
+var excludeInputField *tview.InputField
 
 func NewTuiApplication() {
 	tviewApplication = tview.NewApplication()
@@ -409,7 +412,9 @@ func NewTuiApplication() {
 				}
 				os.Exit(0)
 			case tcell.KeyTab:
-				//tviewApplication.SetFocus(textView) need to change focus to the others but not the text itself
+				tviewApplication.SetFocus(excludeInputField)
+			case tcell.KeyBacktab:
+				tviewApplication.SetFocus(snippetInputField)
 			case tcell.KeyUp:
 				applicationController.DecrementOffset()
 				applicationController.SetChanged(true)
@@ -428,6 +433,72 @@ func NewTuiApplication() {
 			applicationController.SetQuery(text)
 		})
 
+	// This is used to allow filtering out of paths and the like
+	excludeInputField = tview.NewInputField().
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetText(strings.Join(LocationExcludePattern, ",")).
+		SetFieldWidth(30).
+		SetChangedFunc(func(text string) {
+			text = strings.TrimSpace(text)
+
+			var t []string
+			for _, s := range strings.Split(text, ",") {
+				if strings.TrimSpace(s) != "" {
+					t = append(t, strings.TrimSpace(s))
+				}
+			}
+			LocationExcludePattern = t
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				tviewApplication.SetFocus(snippetInputField)
+			case tcell.KeyBacktab:
+				tviewApplication.SetFocus(inputField)
+			}
+		})
+
+	// Decide how large a snippet we should be displaying
+	snippetInputField = tview.NewInputField().
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetAcceptanceFunc(tview.InputFieldInteger).
+		SetText(strconv.Itoa(int(SnippetLength))).
+		SetFieldWidth(4).
+		SetChangedFunc(func(text string) {
+			if strings.TrimSpace(text) == "" {
+				SnippetLength = 300 // default
+			} else {
+				t, _ := strconv.Atoi(text)
+				if t == 0 {
+					SnippetLength = 300
+				} else {
+					SnippetLength = int64(t)
+				}
+			}
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			switch key {
+			case tcell.KeyTab:
+				tviewApplication.SetFocus(inputField)
+			case tcell.KeyBacktab:
+				tviewApplication.SetFocus(excludeInputField)
+			case tcell.KeyEnter:
+			case tcell.KeyUp:
+				SnippetLength = min(SnippetLength+50, 8000)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+			case tcell.KeyPgUp:
+				SnippetLength = min(SnippetLength+200, 8000)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+			case tcell.KeyDown:
+				SnippetLength = max(50, SnippetLength-50)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+			case tcell.KeyPgDn:
+				SnippetLength = max(50, SnippetLength-200)
+				snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
+			}
+		})
+
+
 	statusView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
@@ -435,7 +506,9 @@ func NewTuiApplication() {
 
 	// setup the flex containers to have everything rendered neatly
 	queryFlex = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputField, 0, 8, false)
+		AddItem(inputField, 0, 8, false).
+		AddItem(excludeInputField, 30, 0, false).
+		AddItem(snippetInputField, 5, 1, false)
 
 	resultsFlex = tview.NewFlex().SetDirection(tview.FlexRow)
 
