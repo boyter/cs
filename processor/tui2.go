@@ -448,7 +448,7 @@ func NewTuiApplication() {
 				}
 			}
 			LocationExcludePattern = t
-			triggerSearch(applicationController)
+			triggerSearch(&applicationController)
 		}).
 		SetDoneFunc(func(key tcell.Key) {
 			switch key {
@@ -486,16 +486,16 @@ func NewTuiApplication() {
 			case tcell.KeyEnter:
 			case tcell.KeyUp:
 				SnippetLength = min(SnippetLength+50, 8000)
-				triggerSearch(applicationController)
+				triggerSearch(&applicationController)
 			case tcell.KeyPgUp:
 				SnippetLength = min(SnippetLength+200, 8000)
-				triggerSearch(applicationController)
+				triggerSearch(&applicationController)
 			case tcell.KeyDown:
 				SnippetLength = max(50, SnippetLength-50)
-				triggerSearch(applicationController)
+				triggerSearch(&applicationController)
 			case tcell.KeyPgDn:
 				SnippetLength = max(50, SnippetLength-200)
-				triggerSearch(applicationController)
+				triggerSearch(&applicationController)
 			}
 	})
 
@@ -539,7 +539,7 @@ func NewTuiApplication() {
 	}
 }
 
-func triggerSearch(applicationController tuiApplicationController) {
+func triggerSearch(applicationController *tuiApplicationController) {
 	snippetInputField.SetText(strconv.Itoa(int(SnippetLength)))
 	applicationController.ResetOffset()
 	applicationController.SetQuery(strings.TrimSpace(inputField.GetText()))
