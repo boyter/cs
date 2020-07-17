@@ -151,6 +151,8 @@ func (cont *tuiApplicationController) drawView() {
 		resultsCopy = resultsCopy[:len(displayResults)]
 	}
 
+	// We use this to swap out the highlights after we escape to ensure that we don't escape
+	// out own colours
 	md5Digest := md5.New()
 	fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
 	fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
