@@ -38,7 +38,7 @@ var IncludeBinaryFiles = false
 var Format = ""
 
 // Ranker sets which ranking algorithm to use
-var Ranker = "bm25"
+var Ranker = "bm25" // seems to be the best default
 
 // FileOutput sets the file that output should be written to
 var FileOutput = ""
