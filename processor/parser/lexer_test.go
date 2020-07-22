@@ -94,11 +94,25 @@ func TestNextTokenMultipleEmptyQuote(t *testing.T) {
 }
 
 func TestNextTokenIgnoresSpace(t *testing.T) {
-	lex := NewLexer(` (`)
+	lex := NewLexer(`                         (`)
 
 	token := lex.NextToken()
 	if token.Type != "PAREN_OPEN" {
 		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+}
+
+func TestNextTokenIgnoresSpaceMultiple(t *testing.T) {
+	lex := NewLexer(`                         (                         )                         `)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
 	}
 }
 
@@ -202,3 +216,5 @@ func TestNextTokenMultipleEverythingQuote(t *testing.T) {
 		t.Error(`expected PAREN_CLOSE got`, token.Type)
 	}
 }
+
+
