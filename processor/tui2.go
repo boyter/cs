@@ -499,7 +499,7 @@ func NewTuiApplication() {
 				SnippetLength = max(50, SnippetLength-200)
 				triggerSearch(&applicationController)
 			}
-	})
+		})
 
 	statusView = tview.NewTextView().
 		SetDynamicColors(true).

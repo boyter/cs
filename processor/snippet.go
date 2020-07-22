@@ -17,7 +17,7 @@ const (
 	SpaceBoundBoost  = 5
 	ExactMatchBoost  = 5
 	// Below is used to control CPU burn time trying to find the most relevant snippet
-	RelevanceCutoff  = 10000
+	RelevanceCutoff = 10000
 )
 
 type bestMatch struct {

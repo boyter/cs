@@ -10,7 +10,7 @@ func TestNext(t *testing.T) {
 	lex := NewLexer(`test`)
 
 	for lex.Next() != 0 {
-		if 0 > 1 {
+		if 0 > 1 { // we just want to ensure this does not crash hence the oddness
 			t.Error("wot the")
 		}
 	}
@@ -217,4 +217,38 @@ func TestNextTokenMultipleEverythingQuote(t *testing.T) {
 	}
 }
 
+func TestNextTokenTerm(t *testing.T) {
+	lex := NewLexer(`something`)
+	token := lex.NextToken()
 
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	if token.Value != "something" {
+		t.Error(`expected something got`, token.Value)
+	}
+}
+
+func TestNextTokenMultipleTerm(t *testing.T) {
+	lex := NewLexer(`something else`)
+	token := lex.NextToken()
+
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	if token.Value != "something" {
+		t.Error(`expected something got`, token.Value)
+	}
+
+	token = lex.NextToken()
+
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	if token.Value != "else" {
+		t.Error(`expected else got`, token.Value)
+	}
+}

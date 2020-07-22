@@ -121,9 +121,23 @@ func (l *Lexer) NextToken() Token {
 			StartPos: l.pos,
 			Value:    sb.String(),
 		}
-	}
+	default:
+		// at this point nothing special, so get everything till we hit a space or the end then
+		// check if its a special AND or OR and otherwise return TERM
 
-	return Token{}
+		// loop till we hit another space or the end
+		var sb strings.Builder
+		sb.WriteByte(c)
+		for l.Peek() != ' ' && l.Peek() != 0 {
+			sb.WriteByte(l.Next())
+		}
+
+		return Token{
+			Type:     "TERM",
+			StartPos: l.pos,
+			Value:    sb.String(),
+		}
+	}
 }
 
 func (l *Lexer) Tokens() []Token {
