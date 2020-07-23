@@ -132,10 +132,25 @@ func (l *Lexer) NextToken() Token {
 			sb.WriteByte(l.Next())
 		}
 
+		t := sb.String()
+		typ := "TERM"
+
+		if t == "AND" {
+			typ = "AND"
+		}
+
+		if t == "OR" {
+			typ = "OR"
+		}
+
+		if t == "NOT" {
+			typ = "NOT"
+		}
+
 		return Token{
-			Type:     "TERM",
+			Type:     typ,
 			StartPos: l.pos,
-			Value:    sb.String(),
+			Value:    t,
 		}
 	}
 }

@@ -252,3 +252,118 @@ func TestNextTokenMultipleTerm(t *testing.T) {
 		t.Error(`expected else got`, token.Value)
 	}
 }
+
+func TestNextTokenAnd(t *testing.T) {
+	lex := NewLexer(`AND`)
+	token := lex.NextToken()
+
+	if token.Type != "AND" {
+		t.Error(`expected AND got`, token.Type)
+	}
+}
+
+func TestNextTokenOr(t *testing.T) {
+	lex := NewLexer(`OR`)
+	token := lex.NextToken()
+
+	if token.Type != "OR" {
+		t.Error(`expected OR got`, token.Type)
+	}
+}
+
+func TestNextTokenNot(t *testing.T) {
+	lex := NewLexer(`NOT`)
+	token := lex.NextToken()
+
+	if token.Type != "NOT" {
+		t.Error(`expected NOT got`, token.Type)
+	}
+}
+
+func TestNextTokenMultipleTermOperators(t *testing.T) {
+	lex := NewLexer(`something AND else`)
+	token := lex.NextToken()
+
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	if token.Value != "something" {
+		t.Error(`expected something got`, token.Value)
+	}
+
+	token = lex.NextToken()
+
+	if token.Type != "AND" {
+		t.Error(`expected AND got`, token.Type)
+	}
+
+	token = lex.NextToken()
+
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	if token.Value != "else" {
+		t.Error(`expected else got`, token.Value)
+	}
+}
+
+func TestNextTokenMultiple(t *testing.T) {
+	lex := NewLexer(`(something AND else) OR (other NOT this)`)
+
+	token := lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "AND" {
+		t.Error(`expected AND got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "OR" {
+		t.Error(`expected OR got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_OPEN" {
+		t.Error(`expected PAREN_OPEN got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "NOT" {
+		t.Error(`expected NOT got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "TERM" {
+		t.Error(`expected TERM got`, token.Type)
+	}
+
+	token = lex.NextToken()
+	if token.Type != "PAREN_CLOSE" {
+		t.Error(`expected PAREN_CLOSE got`, token.Type)
+	}
+}
