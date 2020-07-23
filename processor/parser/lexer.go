@@ -128,7 +128,7 @@ func (l *Lexer) NextToken() Token {
 		// loop till we hit another space or the end
 		var sb strings.Builder
 		sb.WriteByte(c)
-		for l.Peek() != ' ' && l.Peek() != 0 {
+		for l.Peek() != ' ' && l.Peek() != ')' && l.Peek() != 0 {
 			sb.WriteByte(l.Next())
 		}
 
