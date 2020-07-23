@@ -23,6 +23,7 @@ fi
 
 echo "Running fuzz checks..."
 pushd str || exit
+  echo "fuzzing str"
   go-fuzz-build
   go-fuzz &
   sleep 60
@@ -30,6 +31,15 @@ pushd str || exit
 popd || exit
 
 pushd processor || exit
+  echo "fuzzing processor"
+  go-fuzz-build
+  go-fuzz &
+  sleep 60
+  pkill -9 go-fuzz
+popd || exit
+
+pushd processor/parser || exit
+  echo "fuzzing processor/parser"
   go-fuzz-build
   go-fuzz &
   sleep 60
