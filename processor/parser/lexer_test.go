@@ -129,6 +129,19 @@ func TestNextTokenQuotedTerm(t *testing.T) {
 	}
 }
 
+func TestNextTokenQuotedTermSpace(t *testing.T) {
+	lex := NewLexer(`"test things"`)
+
+	token := lex.NextToken()
+	if token.Type != "QUOTED_TERM" {
+		t.Error(`expected QUOTED_TERM got`, token.Type)
+	}
+
+	if token.Value != `test things` {
+		t.Error("expected test things got", token.Value)
+	}
+}
+
 func TestNextTokenQuotedTermNoEnd(t *testing.T) {
 	lex := NewLexer(`"test`)
 
