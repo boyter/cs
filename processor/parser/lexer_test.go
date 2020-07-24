@@ -380,3 +380,13 @@ func TestNextTokenMultiple(t *testing.T) {
 		t.Error(`expected PAREN_CLOSE got`, token.Type)
 	}
 }
+
+func TestTokens(t *testing.T) {
+	lex := NewLexer(`(something AND else) OR (other NOT this)`)
+
+	tokens := lex.Tokens()
+
+	if len(tokens) != 11 {
+		t.Error("expected 11 tokens got", len(tokens))
+	}
+}

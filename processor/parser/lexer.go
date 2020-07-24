@@ -76,6 +76,7 @@ func (l *Lexer) Next() byte {
 	return 0
 }
 
+// Return the next token for the input
 func (l *Lexer) NextToken() Token {
 
 	// at the end so return end token
@@ -156,5 +157,14 @@ func (l *Lexer) NextToken() Token {
 }
 
 func (l *Lexer) Tokens() []Token {
-	return nil
+	var tokens []Token
+
+	t := l.NextToken()
+
+	for t.Type != "END" {
+		tokens = append(tokens, t)
+		t = l.NextToken()
+	}
+
+	return tokens
 }
