@@ -23,6 +23,14 @@ func (p *Parser) Parse() {
 	tokens := p.lexer.Tokens()
 
 	for _, t := range tokens {
+		p := Expr{
+			Op:    t.Type,
+			Left:  nil,
+			Right: nil,
+			Val:   t.Value,
+		}
+
 		fmt.Println(t)
+		fmt.Println(p)
 	}
 }
