@@ -1,7 +1,5 @@
 package parser
 
-import "fmt"
-
 type Expr struct {
 	Op    string
 	Left  *Expr
@@ -19,7 +17,7 @@ func NewParser(lexer Lexer) Parser {
 	}
 }
 
-func (p *Parser) Parse() {
+func (p *Parser) Parse() *Expr {
 	tokens := p.lexer.Tokens()
 
 	for _, t := range tokens {
@@ -30,7 +28,8 @@ func (p *Parser) Parse() {
 			Val:   t.Value,
 		}
 
-		fmt.Println(t)
-		fmt.Println(p)
+		return &p
 	}
+
+	return nil
 }
