@@ -177,7 +177,7 @@ func main() {
 		"format",
 		"f",
 		"text",
-		"set output format [text, json]",
+		"set output format [text, json, vimgrep]",
 	)
 	flags.StringVar(
 		&processor.Ranker,
