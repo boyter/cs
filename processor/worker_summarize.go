@@ -10,6 +10,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 type ResultSummarizer struct {
@@ -53,9 +54,34 @@ func (f *ResultSummarizer) Start() {
 	switch f.Format {
 	case "json":
 		f.formatJson(results)
+	case "vimgrep":
+		f.formatVimGrep(results)
 	default:
 		f.formatDefault(results)
 	}
+}
+
+func (f *ResultSummarizer) formatVimGrep(results []*FileJob) {
+	var vimGrepOutput []string
+	SnippetLength = 50 // vim quickfix puts each hit on its own line.
+	documentFrequency := calculateDocumentTermFrequency(results)
+
+	// Cycle through files with matches and process each snippets inside it.
+	for _, res := range results {
+		snippets := extractRelevantV3(res, documentFrequency, int(SnippetLength), "…")
+		if int64(len(snippets)) > f.SnippetCount {
+			snippets = snippets[:f.SnippetCount]
+		}
+
+		for _, snip := range snippets {
+			hint := strings.ReplaceAll(snip.Content, "\n", "\\n")
+			line := fmt.Sprintf("%v:%v:%v:%v", res.Location, snip.LineStart, snip.StartPos, hint)
+			vimGrepOutput = append(vimGrepOutput, line)
+		}
+	}
+
+	printable := strings.Join(vimGrepOutput, "\n")
+	fmt.Println(printable)
 }
 
 func (f *ResultSummarizer) formatJson(results []*FileJob) {
