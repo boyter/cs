@@ -230,6 +230,45 @@ func TestNextTokenMultipleEverythingQuote(t *testing.T) {
 	}
 }
 
+func TestNextTokenRegex(t *testing.T) {
+	lex := NewLexer(`/test/`)
+
+	token := lex.NextToken()
+	if token.Type != "REGEX_TERM" {
+		t.Error(`expected REGEX_TERM got`, token.Type)
+	}
+
+	if token.Value != `test` {
+		t.Error("expected test got", token.Value)
+	}
+}
+
+func TestNextTokenRegexNoEnd(t *testing.T) {
+	lex := NewLexer(`/test`)
+
+	token := lex.NextToken()
+	if token.Type != "REGEX_TERM" {
+		t.Error(`expected REGEX_TERM got`, token.Type)
+	}
+
+	if token.Value != `test` {
+		t.Error("expected test got", token.Value)
+	}
+}
+
+func TestNextTokenRegexValue(t *testing.T) {
+	lex := NewLexer(`/[cb]at/`)
+
+	token := lex.NextToken()
+	if token.Type != "REGEX_TERM" {
+		t.Error(`expected REGEX_TERM got`, token.Type)
+	}
+
+	if token.Value != `[cb]at` {
+		t.Error("expected [cb]at got", token.Value)
+	}
+}
+
 func TestNextTokenTerm(t *testing.T) {
 	lex := NewLexer(`something`)
 	token := lex.NextToken()
@@ -382,11 +421,11 @@ func TestNextTokenMultiple(t *testing.T) {
 }
 
 func TestTokens(t *testing.T) {
-	lex := NewLexer(`(something AND else) OR (other NOT this)`)
+	lex := NewLexer(`(something AND else) OR (other NOT this) AND /[cb]at/`)
 
 	tokens := lex.Tokens()
 
-	if len(tokens) != 11 {
-		t.Error("expected 11 tokens got", len(tokens))
+	if len(tokens) != 13 {
+		t.Error("expected 13 tokens got", len(tokens))
 	}
 }

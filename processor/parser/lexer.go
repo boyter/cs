@@ -113,6 +113,22 @@ func (l *Lexer) NextToken() Token {
 			StartPos: l.pos,
 			Value:    sb.String(),
 		}
+	case '/':
+		// loop till we hit another / or the end
+		var sb strings.Builder
+		for l.Peek() != '/' && l.Peek() != 0 {
+			sb.WriteByte(l.Next())
+		}
+
+		if l.Peek() == '/' {
+			l.Next()
+		}
+
+		return Token{
+			Type:     "REGEX_TERM",
+			StartPos: l.pos,
+			Value:    sb.String(),
+		}
 	default:
 		// at this point nothing special, so get everything till we hit a space or the end then
 		// check if its a special AND or OR and otherwise return TERM
