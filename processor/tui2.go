@@ -487,16 +487,16 @@ func NewTuiApplication() {
 				tviewApplication.SetFocus(excludeInputField)
 			case tcell.KeyEnter:
 			case tcell.KeyUp:
-				SnippetLength = min(SnippetLength+50, 8000)
+				SnippetLength = min(SnippetLength+100, 8000)
 				triggerSearch(&applicationController)
 			case tcell.KeyPgUp:
 				SnippetLength = min(SnippetLength+200, 8000)
 				triggerSearch(&applicationController)
 			case tcell.KeyDown:
-				SnippetLength = max(50, SnippetLength-50)
+				SnippetLength = max(100, SnippetLength-100)
 				triggerSearch(&applicationController)
 			case tcell.KeyPgDn:
-				SnippetLength = max(50, SnippetLength-200)
+				SnippetLength = max(100, SnippetLength-200)
 				triggerSearch(&applicationController)
 			}
 		})
