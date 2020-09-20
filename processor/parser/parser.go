@@ -1,5 +1,7 @@
 package parser
 
+import "fmt"
+
 // https://www.meziantou.net/creating-a-parser-for-boolean-expressions.htm
 // https://stackoverflow.com/questions/17568067/how-to-parse-a-boolean-expression-and-load-it-into-a-class
 // https://gist.github.com/leehsueh/1290686/36b0baa053072c377ac7fc801d53200d17039674
@@ -24,6 +26,18 @@ func NewParser(lexer Lexer) Parser {
 
 func (p *Parser) Parse() *Expr {
 	tokens := p.lexer.Tokens()
+
+	valid := false
+	for _, t := range tokens {
+		switch t.Type {
+		case "TERM":
+			fmt.Println(t.Value)
+			// do the search
+		case "OR":
+		}
+	}
+
+	fmt.Println(valid)
 
 	for _, t := range tokens {
 		p := Expr{
