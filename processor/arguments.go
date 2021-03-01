@@ -76,9 +76,6 @@ var Address string = ":8080"
 // HttpServer indicates if we should fork into HTTP mode or not
 var HttpServer bool = false
 
-// SearchPDF is the flag to indicate if search should attempt to process PDF files
-var SearchPDF = false
-
 // SearchTemplate is the location to the search page template
 var SearchTemplate = ""
 

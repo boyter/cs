@@ -102,12 +102,6 @@ func main() {
 		false,
 		"include hidden files",
 	)
-	flags.BoolVar(
-		&processor.SearchPDF,
-		"pdf",
-		false,
-		"attempt to extract text from pdf and search the result requires pdf2txt/pdftotext to be installed",
-	)
 	flags.StringSliceVarP(
 		&processor.AllowListExtensions,
 		"include-ext",

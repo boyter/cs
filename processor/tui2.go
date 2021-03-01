@@ -244,7 +244,6 @@ func (cont *tuiApplicationController) doSearch() {
 
 	cont.TuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	cont.TuiFileReaderWorker.InstanceId = instanceCount
-	cont.TuiFileReaderWorker.SearchPDF = SearchPDF
 	cont.TuiFileReaderWorker.MaxReadSizeBytes = MaxReadSizeBytes
 
 	cont.TuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)

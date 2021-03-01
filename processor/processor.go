@@ -63,7 +63,6 @@ func (process *Process) StartProcess() {
 	fileWalker.LocationExcludePattern = LocationExcludePattern
 
 	fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
-	fileReader.SearchPDF = SearchPDF
 	fileReader.MaxReadSizeBytes = MaxReadSizeBytes
 
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)

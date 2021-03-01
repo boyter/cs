@@ -113,7 +113,6 @@ func tuiSearch(app *tview.Application, textView *tview.TextView, searchTerm sear
 
 	tuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
 	tuiFileReaderWorker.InstanceId = instanceCount
-	tuiFileReaderWorker.SearchPDF = SearchPDF
 	tuiFileReaderWorker.MaxReadSizeBytes = MaxReadSizeBytes
 
 	tuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)

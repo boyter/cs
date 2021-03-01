@@ -5,7 +5,6 @@ package processor
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"github.com/boyter/cs/file"
 	str "github.com/boyter/cs/str"
@@ -51,18 +50,7 @@ func StartHttpServer() {
 		var content []byte
 		var err error
 
-		// if its a PDF we should go to the cache to fetch it
-		extension := file.GetExtension(path)
-		if strings.ToLower(extension) == "pdf" {
-			c, ok := __pdfCache[path]
-			if ok {
-				content = []byte(c)
-			} else {
-				err = errors.New("")
-			}
-		} else {
-			content, err = ioutil.ReadFile(path)
-		}
+		content, err = ioutil.ReadFile(path)
 
 		if err != nil {
 			log.Error().
@@ -164,7 +152,6 @@ func StartHttpServer() {
 			}
 
 			fileReader := NewFileReaderWorker(fileQueue, toProcessQueue)
-			fileReader.SearchPDF = SearchPDF
 			fileReader.MaxReadSizeBytes = MaxReadSizeBytes
 
 			fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)

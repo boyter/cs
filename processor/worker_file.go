@@ -5,7 +5,6 @@ package processor
 import (
 	"github.com/boyter/cs/file"
 	"runtime"
-	"strings"
 	"sync"
 
 	"io/ioutil"
@@ -19,7 +18,6 @@ type FileReaderWorker struct {
 	output           chan *FileJob
 	fileCount        int64 // Count of the number of files that have been read
 	InstanceId       int
-	SearchPDF        bool
 	MaxReadSizeBytes int64
 }
 
@@ -45,13 +43,7 @@ func (f *FileReaderWorker) Start() {
 		wg.Add(1)
 		go func() {
 			for res := range f.input {
-				extension := file.GetExtension(res.Filename)
-
-				if SearchPDF && strings.ToLower(extension) == "pdf" {
-					f.processPdf(res)
-				} else {
-					f.processUnknown(res)
-				}
+				f.process(res)
 			}
 			wg.Done()
 		}()
@@ -61,49 +53,7 @@ func (f *FileReaderWorker) Start() {
 	close(f.output)
 }
 
-// For PDF if we are running in HTTP or TUI mode we really want to have
-// a cache because the conversion can be expensive
-var __pdfCache = map[string]string{}
-
-func (f *FileReaderWorker) processPdf(res *file.File) {
-
-	c, ok := __pdfCache[res.Location]
-	if ok {
-		atomic.AddInt64(&f.fileCount, 1)
-		f.output <- &FileJob{
-			Filename:       res.Filename,
-			Extension:      "",
-			Location:       res.Location,
-			Content:        []byte(c),
-			Bytes:          0,
-			Score:          0,
-			MatchLocations: map[string][][]int{},
-		}
-		return
-	}
-
-	content, err := convertPDFTextPdf2Txt(res.Location)
-
-	if err != nil {
-		return
-	}
-
-	// Cache the result for PDF
-	__pdfCache[res.Location] = content
-
-	atomic.AddInt64(&f.fileCount, 1)
-	f.output <- &FileJob{
-		Filename:       res.Filename,
-		Extension:      "",
-		Location:       res.Location,
-		Content:        []byte(content),
-		Bytes:          len(content),
-		Score:          0,
-		MatchLocations: map[string][][]int{},
-	}
-}
-
-func (f *FileReaderWorker) processUnknown(res *file.File) {
+func (f *FileReaderWorker) process(res *file.File) {
 	fi, err := os.Stat(res.Location)
 	if err != nil {
 		return
