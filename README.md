@@ -34,10 +34,6 @@ query plan optimisation for boolean queries when implemented
 
 ```
 
-```
-brew install xpdf
-```
-
 
 template example (from root)
 
