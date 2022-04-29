@@ -35,7 +35,7 @@ type tuiApplicationController struct {
 	Running             bool
 	Offset              int
 	Results             []*processor.FileJob
-	TuiFileWalker       *file.FileWalker
+	TuiFileWalker       *file.Walker
 	TuiFileReaderWorker *processor.FileReaderWorker
 	TuiSearcherWorker   *processor.SearcherWorker
 

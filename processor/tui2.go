@@ -43,7 +43,7 @@ type tuiApplicationController struct {
 	Running             bool
 	Offset              int
 	Results             []*FileJob
-	TuiFileWalker       *file.FileWalker
+	TuiFileWalker       *file.Walker
 	TuiFileReaderWorker *FileReaderWorker
 	TuiSearcherWorker   *SearcherWorker
 
@@ -219,16 +219,6 @@ func (cont *tuiApplicationController) doSearch() {
 		return
 	}
 
-	// if we have a walker that's currently walking terminate it
-	if cont.TuiFileWalker != nil && (cont.TuiFileWalker.Walking() || cont.GetRunning()) {
-		cont.TuiFileWalker.Terminate()
-
-		// wait for the current walker to stop
-		for cont.TuiFileWalker.Walking() || cont.GetRunning() {
-			time.Sleep(1 * time.Millisecond)
-		}
-	}
-
 	fileQueue := make(chan *file.File)                      // NB unbuffered because we want to be able to cancel walking and have the UI update
 	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
@@ -239,17 +229,14 @@ func (cont *tuiApplicationController) doSearch() {
 	cont.TuiFileWalker.IncludeHidden = IncludeHidden
 	cont.TuiFileWalker.PathExclude = PathDenylist
 	cont.TuiFileWalker.AllowListExtensions = AllowListExtensions
-	cont.TuiFileWalker.InstanceId = instanceCount
 	cont.TuiFileWalker.LocationExcludePattern = LocationExcludePattern
 
 	cont.TuiFileReaderWorker = NewFileReaderWorker(fileQueue, toProcessQueue)
-	cont.TuiFileReaderWorker.InstanceId = instanceCount
 	cont.TuiFileReaderWorker.MaxReadSizeBytes = MaxReadSizeBytes
 
 	cont.TuiSearcherWorker = NewSearcherWorker(toProcessQueue, summaryQueue)
 	cont.TuiSearcherWorker.SearchString = strings.Split(query, " ")
 	cont.TuiSearcherWorker.MatchLimit = -1 // NB this can make things slow because we keep going
-	cont.TuiSearcherWorker.InstanceId = instanceCount
 	cont.TuiSearcherWorker.IncludeBinary = IncludeBinaryFiles
 	cont.TuiSearcherWorker.CaseSensitive = CaseSensitive
 	cont.TuiSearcherWorker.IncludeMinified = IncludeMinified

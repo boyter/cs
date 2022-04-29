@@ -7,6 +7,7 @@ import (
 	"errors"
 	str "github.com/boyter/cs/str"
 	"gopkg.in/src-d/enry.v1/regex"
+
 	"runtime"
 	"strings"
 	"sync"

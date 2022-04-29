@@ -43,7 +43,6 @@ func main() {
 				p.StartProcess()
 			} else {
 				processor.Error = false // suppress writing errors in TUI mode
-				//processor.ProcessTui(true)
 				processor.NewTuiApplication()
 			}
 		},

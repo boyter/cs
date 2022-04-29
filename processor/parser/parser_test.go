@@ -26,7 +26,6 @@ func TestParser_Parse(t *testing.T) {
 	}
 }
 
-
 func TestParser_SimpleTest(t *testing.T) {
 	lex := NewLexer(`simple test`)
 	parser := NewParser(lex)

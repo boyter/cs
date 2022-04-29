@@ -7,9 +7,7 @@
 package file
 
 import (
-	"errors"
 	"github.com/boyter/cs/processor/go-gitignore"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,14 +15,12 @@ import (
 	"sync"
 )
 
-var TerminateWalkError = errors.New("walker terminated")
-
 type File struct {
 	Location string
 	Filename string
 }
 
-type FileWalker struct {
+type Walker struct {
 	walkMutex              sync.Mutex
 	terminateWalking       bool
 	isWalking              bool
@@ -40,8 +36,8 @@ type FileWalker struct {
 	UniqueId               string
 }
 
-func NewFileWalker(directory string, fileListQueue chan *File) *FileWalker {
-	return &FileWalker{
+func NewFileWalker(directory string, fileListQueue chan *File) *Walker {
+	return &Walker{
 		walkMutex:              sync.Mutex{},
 		fileListQueue:          fileListQueue,
 		directory:              directory,
@@ -55,34 +51,16 @@ func NewFileWalker(directory string, fileListQueue chan *File) *FileWalker {
 	}
 }
 
-// Call to get the state of the file walker and determine
-// if we are walking or not
-func (f *FileWalker) Walking() bool {
-	f.walkMutex.Lock()
-	defer f.walkMutex.Unlock()
-	return f.isWalking
-}
-
-// Call to have the walker break out of walking and return as
-// soon as it possibly can. This is needed because
-// this walker needs to work in a TUI interactive mode and
-// as such we need to be able to end old processes
-func (f *FileWalker) Terminate() {
-	f.walkMutex.Lock()
-	defer f.walkMutex.Unlock()
-	f.terminateWalking = true
-}
-
-// Starts walking the supplied directory with the supplied settings
+// Start starts walking the supplied directory with the supplied settings
 // and putting files that mach into the supplied slice
 // Returns usual ioutil errors if there is a file issue
 // and a TerminateWalkError if terminate is called while walking
-func (f *FileWalker) Start() error {
+func (f *Walker) Start() error {
 	f.walkMutex.Lock()
 	f.isWalking = true
 	f.walkMutex.Unlock()
 
-	err := f.walkDirectoryRecursive(f.directory, []gitignore.IgnoreMatcher{})
+	err := f.walkDirectoryRecursive2(f.directory, []gitignore.IgnoreMatcher{})
 	close(f.fileListQueue)
 
 	f.walkMutex.Lock()
@@ -92,24 +70,20 @@ func (f *FileWalker) Start() error {
 	return err
 }
 
-func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
-	// NB have to call unlock not using defer because method is recursive
-	// and will deadlock if not done manually
-	f.walkMutex.Lock()
-	if f.terminateWalking == true {
-		f.walkMutex.Unlock()
-		return TerminateWalkError
+func (f *Walker) walkDirectoryRecursive2(directory string, ignores []gitignore.IgnoreMatcher) error {
+	d, err := os.Open(directory)
+	if err != nil {
+		return err
 	}
-	f.walkMutex.Unlock()
+	defer d.Close()
 
-	fileInfos, err := ioutil.ReadDir(directory)
-
+	fileInfos, err := d.ReadDir(-1)
 	if err != nil {
 		return err
 	}
 
-	files := []os.FileInfo{}
-	dirs := []os.FileInfo{}
+	files := []os.DirEntry{}
+	dirs := []os.DirEntry{}
 
 	// We want to break apart the files and directories from the
 	// return as we loop over them differently and this avoids some
@@ -252,7 +226,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 				}
 			}
 
-			err = f.walkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores)
+			err = f.walkDirectoryRecursive2(filepath.Join(directory, dir.Name()), ignores)
 			if err != nil {
 				return err
 			}
@@ -262,7 +236,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, ignores []gitignor
 	return nil
 }
 
-// Walk the supplied directory backwards looking for .git or .hg
+// FindRepositoryRoot walks the supplied directory backwards looking for .git or .hg
 // directories indicating we should start our search from that
 // location as its the root.
 // Returns the first directory below supplied with .git or .hg in it
@@ -313,11 +287,10 @@ func checkForGitOrMercurial(curdir string) bool {
 	return false
 }
 
-// A custom version of extracting extensions for a file
+// GetExtension is a custom version of extracting extensions for a file
 // which deals with extensions specific to code such as
 // .travis.yml and the like
 func GetExtension(name string) string {
-
 	name = strings.ToLower(name)
 	if !strings.Contains(name, ".") {
 		return name

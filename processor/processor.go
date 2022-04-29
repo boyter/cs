@@ -10,7 +10,7 @@ import (
 
 var Version = "0.12.0 beta"
 
-// Clean up the input to avoid searching for spaces etc...
+// CleanSearchString cleans up the input to avoid searching for spaces etc...
 // Take the str cut it up, lower case everything except
 // boolean operators and join it all back into the same slice
 func CleanSearchString() {
@@ -42,7 +42,7 @@ func NewProcess(directory string) Process {
 	}
 }
 
-// Process is the main entry point of the command line output it sets everything up and starts running
+// StartProcess is the main entry point of the command line output it sets everything up and starts running
 func (process *Process) StartProcess() {
 	// If the user asks we should look back till we find the .git or .hg directory and start the search
 	// or in case of SVN go back till we don't find it

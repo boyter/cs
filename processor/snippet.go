@@ -7,7 +7,7 @@ import (
 	"sort"
 	"unicode"
 
-	str "github.com/boyter/cs/str"
+	"github.com/boyter/cs/str"
 )
 
 const (

@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 // Copyright 2019 The TCell Authors
