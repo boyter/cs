@@ -88,7 +88,7 @@ github.com/spf13/pflag
 # github.com/src-d/go-oniguruma v1.1.0
 ## explicit
 github.com/src-d/go-oniguruma
-# golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
+# golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix

@@ -31,6 +31,8 @@ type Timeval struct {
 	Usec int64
 }
 
+type Time_t int64
+
 type Rusage struct {
 	Utime    Timeval
 	Stime    Timeval
@@ -247,6 +249,14 @@ type RawSockaddrAny struct {
 
 type _Socklen uint32
 
+type Xucred struct {
+	Version uint32
+	Uid     uint32
+	Ngroups int16
+	Groups  [16]uint32
+	_       *byte
+}
+
 type Linger struct {
 	Onoff  int32
 	Linger int32
@@ -309,7 +319,9 @@ const (
 	SizeofSockaddrAny      = 0x6c
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x36
+	SizeofXucred           = 0x58
 	SizeofLinger           = 0x8
+	SizeofIovec            = 0x10
 	SizeofIPMreq           = 0x8
 	SizeofIPMreqn          = 0xc
 	SizeofIPv6Mreq         = 0x14
@@ -665,9 +677,10 @@ type Winsize struct {
 
 const (
 	AT_FDCWD            = -0x64
-	AT_REMOVEDIR        = 0x800
-	AT_SYMLINK_FOLLOW   = 0x400
+	AT_EACCESS          = 0x100
 	AT_SYMLINK_NOFOLLOW = 0x200
+	AT_SYMLINK_FOLLOW   = 0x400
+	AT_REMOVEDIR        = 0x800
 )
 
 type PollFd struct {

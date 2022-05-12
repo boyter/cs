@@ -1,4 +1,3 @@
-//go:build linux
 // +build linux
 
 // Copyright 2019 The TCell Authors

@@ -1,4 +1,3 @@
-//go:build !oniguruma
 // +build !oniguruma
 
 package regex
