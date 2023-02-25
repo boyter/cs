@@ -1,4 +1,3 @@
-//go:build freebsd || netbsd || openbsd || dragonfly
 // +build freebsd netbsd openbsd dragonfly
 
 // Copyright 2019 The TCell Authors

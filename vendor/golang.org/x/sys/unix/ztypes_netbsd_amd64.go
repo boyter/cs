@@ -256,6 +256,7 @@ const (
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x14
 	SizeofLinger           = 0x8
+	SizeofIovec            = 0x10
 	SizeofIPMreq           = 0x8
 	SizeofIPv6Mreq         = 0x14
 	SizeofMsghdr           = 0x30
@@ -452,8 +453,10 @@ type Ptmget struct {
 
 const (
 	AT_FDCWD            = -0x64
-	AT_SYMLINK_FOLLOW   = 0x400
+	AT_EACCESS          = 0x100
 	AT_SYMLINK_NOFOLLOW = 0x200
+	AT_SYMLINK_FOLLOW   = 0x400
+	AT_REMOVEDIR        = 0x800
 )
 
 type PollFd struct {
