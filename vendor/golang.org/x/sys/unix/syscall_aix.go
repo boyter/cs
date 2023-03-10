@@ -20,7 +20,7 @@ import "unsafe"
  * Wrapped
  */
 
-//sys	utimes(path string, times *[2]Timeval) (err error)
+// sys	utimes(path string, times *[2]Timeval) (err error)
 func Utimes(path string, tv []Timeval) error {
 	if len(tv) != 2 {
 		return EINVAL
@@ -28,7 +28,7 @@ func Utimes(path string, tv []Timeval) error {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
-//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+// sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 func UtimesNano(path string, ts []Timespec) error {
 	if len(ts) != 2 {
 		return EINVAL
@@ -297,12 +297,12 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }
 
-//sys	getdirent(fd int, buf []byte) (n int, err error)
+// sys	getdirent(fd int, buf []byte) (n int, err error)
 func Getdents(fd int, buf []byte) (n int, err error) {
 	return getdirent(fd, buf)
 }
 
-//sys	wait4(pid Pid_t, status *_C_int, options int, rusage *Rusage) (wpid Pid_t, err error)
+// sys	wait4(pid Pid_t, status *_C_int, options int, rusage *Rusage) (wpid Pid_t, err error)
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
 	var status _C_int
 	var r Pid_t
@@ -527,7 +527,7 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 
 //sys	Getsystemcfg(label int) (n uint64)
 
-//sys	umount(target string) (err error)
+// sys	umount(target string) (err error)
 func Unmount(target string, flags int) (err error) {
 	if flags != 0 {
 		// AIX doesn't have any flags for umount.

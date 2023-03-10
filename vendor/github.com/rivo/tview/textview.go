@@ -51,7 +51,7 @@ type textViewRegion struct {
 // but if a handler is installed via SetChangedFunc(), you can cause it to be
 // redrawn. (See SetChangedFunc() for more details.)
 //
-// Navigation
+// # Navigation
 //
 // If the text view is scrollable (the default), text is kept in a buffer which
 // may be larger than the screen and can be navigated similarly to Vim:
@@ -70,27 +70,27 @@ type textViewRegion struct {
 //
 // Use SetInputCapture() to override or modify keyboard input.
 //
-// Colors
+// # Colors
 //
 // If dynamic colors are enabled via SetDynamicColors(), text color can be
 // changed dynamically by embedding color strings in square brackets. This works
 // the same way as anywhere else. Please see the package documentation for more
 // information.
 //
-// Regions and Highlights
+// # Regions and Highlights
 //
 // If regions are enabled via SetRegions(), you can define text regions within
 // the text and assign region IDs to them. Text regions start with region tags.
 // Region tags are square brackets that contain a region ID in double quotes,
 // for example:
 //
-//   We define a ["rg"]region[""] here.
+//	We define a ["rg"]region[""] here.
 //
 // A text region ends with the next region tag. Tags with no region ID ([""])
 // don't start new regions. They can therefore be used to mark the end of a
 // region. Region IDs must satisfy the following regular expression:
 //
-//   [a-zA-Z0-9_,;: \-\.]+
+//	[a-zA-Z0-9_,;: \-\.]+
 //
 // Regions can be highlighted by calling the Highlight() function with one or
 // more region IDs. This can be used to display search results, for example.

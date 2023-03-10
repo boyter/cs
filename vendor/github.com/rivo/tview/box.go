@@ -124,7 +124,7 @@ func (b *Box) GetInnerRect() (int, int, int, int) {
 // if this primitive is part of a layout (e.g. Flex, Grid) or if it was added
 // like this:
 //
-//   application.SetRoot(b, true)
+//	application.SetRoot(b, true)
 func (b *Box) SetRect(x, y, width, height int) {
 	b.x = x
 	b.y = y
@@ -274,7 +274,7 @@ func (b *Box) SetBorderColor(color tcell.Color) *Box {
 // SetBorderAttributes sets the border's style attributes. You can combine
 // different attributes using bitmask operations:
 //
-//   box.SetBorderAttributes(tcell.AttrUnderline | tcell.AttrBold)
+//	box.SetBorderAttributes(tcell.AttrUnderline | tcell.AttrBold)
 func (b *Box) SetBorderAttributes(attr tcell.AttrMask) *Box {
 	b.borderAttributes = attr
 	return b

@@ -5,31 +5,9 @@ package processor
 import (
 	"github.com/boyter/cs/file"
 	"runtime"
-	"strings"
 )
 
 var Version = "0.12.0 beta"
-
-// CleanSearchString cleans up the input to avoid searching for spaces etc...
-// Take the str cut it up, lower case everything except
-// boolean operators and join it all back into the same slice
-func CleanSearchString() {
-	tmp := [][]byte{}
-
-	for _, s := range SearchString {
-		s = strings.TrimSpace(s)
-
-		if s != "AND" && s != "OR" && s != "NOT" {
-			if !CaseSensitive {
-				s = strings.ToLower(s)
-			}
-		}
-
-		if s != "" {
-			tmp = append(tmp, []byte(s))
-		}
-	}
-}
 
 type Process struct {
 	Directory string // What directory are we searching

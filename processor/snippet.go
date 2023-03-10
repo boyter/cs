@@ -56,6 +56,7 @@ type Snippet struct {
 // corpus: Jane Austens Pride and Prejudice
 // searchtext: ten thousand a year
 // result:  before. I hope he will overlook
+//
 //	it. Dear, dear Lizzy. A house in town! Every thing that is
 //	charming! Three daughters married! Ten thousand a year! Oh, Lord!
 //	What will become of me. I shall go distracted.”
@@ -64,6 +65,7 @@ type Snippet struct {
 //
 // searchtext: poor nerves
 // result:  your own children in such a way?
+//
 //	You take delight in vexing me. You have no compassion for my poor
 //	nerves.”
 //

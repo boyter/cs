@@ -24,7 +24,7 @@ func (h *initialPatternHolder) add(pattern string) {
 		return
 	}
 
-	if strings.IndexAny(trimedPattern[0:1], initials) != -1 {
+	if strings.ContainsAny(trimedPattern[0:1], initials) {
 		h.patterns.set(trimedPattern[0], newPatternForEqualizedPath(pattern))
 	} else {
 		h.otherPatterns.add(newPatternForEqualizedPath(pattern))

@@ -197,9 +197,11 @@ func rankResultsTFIDF(corpusCount int, results []*FileJob, documentFrequencies m
 // https://stackoverflow.com/questions/45786687/runtime-duffcopy-is-called-a-lot
 // due to how often it is called by things like the TUI mode
 //
-//                 IDF * TF * (k1 + 1)
+//	IDF * TF * (k1 + 1)
+//
 // BM25 = sum ----------------------------
-//            TF + k1 * (1 - b + b * D / L)
+//
+//	TF + k1 * (1 - b + b * D / L)
 func rankResultsBM25(corpusCount int, results []*FileJob, documentFrequencies map[string]int) []*FileJob {
 	var weight float64
 

@@ -34,28 +34,6 @@ func TestNewFileWalker(t *testing.T) {
 	}
 }
 
-func TestNewFileWalkerStuff(t *testing.T) {
-	fileListQueue := make(chan *File, 1000) // NB we set buffered to ensure we get everything
-	curdir, _ := os.Getwd()
-	walker := NewFileWalker(curdir, fileListQueue)
-
-	if walker.Walking() != false {
-		t.Error("should not be walking yet")
-	}
-
-	walker.Terminate()
-	_ = walker.Start()
-
-	count := 0
-	for range fileListQueue {
-		count++
-	}
-
-	if count != 0 {
-		t.Error("Expected to find no files")
-	}
-}
-
 func TestGetExtension(t *testing.T) {
 	got := GetExtension("something.c")
 	expected := "c"

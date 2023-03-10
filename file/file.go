@@ -31,9 +31,7 @@ type Walker struct {
 	IgnoreIgnoreFile       bool     // Should .ignore files be respected?
 	IgnoreGitIgnore        bool     // Should .gitignore files be respected?
 	IncludeHidden          bool     // Should hidden files and directories be included/walked
-	InstanceId             int
 	AllowListExtensions    []string // Which extensions should be allowed
-	UniqueId               string
 }
 
 func NewFileWalker(directory string, fileListQueue chan *File) *Walker {
@@ -60,7 +58,7 @@ func (f *Walker) Start() error {
 	f.isWalking = true
 	f.walkMutex.Unlock()
 
-	err := f.walkDirectoryRecursive2(f.directory, []gitignore.IgnoreMatcher{})
+	err := f.walkDirectoryRecursive(f.directory, []gitignore.IgnoreMatcher{})
 	close(f.fileListQueue)
 
 	f.walkMutex.Lock()
@@ -70,7 +68,7 @@ func (f *Walker) Start() error {
 	return err
 }
 
-func (f *Walker) walkDirectoryRecursive2(directory string, ignores []gitignore.IgnoreMatcher) error {
+func (f *Walker) walkDirectoryRecursive(directory string, ignores []gitignore.IgnoreMatcher) error {
 	d, err := os.Open(directory)
 	if err != nil {
 		return err
@@ -226,7 +224,7 @@ func (f *Walker) walkDirectoryRecursive2(directory string, ignores []gitignore.I
 				}
 			}
 
-			err = f.walkDirectoryRecursive2(filepath.Join(directory, dir.Name()), ignores)
+			err = f.walkDirectoryRecursive(filepath.Join(directory, dir.Name()), ignores)
 			if err != nil {
 				return err
 			}

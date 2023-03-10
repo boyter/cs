@@ -228,9 +228,7 @@ func (cont *tuiApplicationController) updateView() {
 		for {
 
 			// this needs to go outside the draw because if we need to do the spin update
-			status := cont.calculateStatus()
-
-			fmt.Sprintf("%s", status)
+			//status := cont.calculateStatus()
 
 			//cont.drawView(codeResults, statusView)
 			time.Sleep(30 * time.Millisecond)

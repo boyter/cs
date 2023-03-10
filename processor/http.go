@@ -30,7 +30,6 @@ func StartHttpServer() {
 
 		w.Header().Set("Content-Type", "text/plain")
 		http.ServeFile(w, r, path)
-		return
 	})
 
 	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
@@ -90,8 +89,6 @@ func StartHttpServer() {
 		if err != nil {
 			panic(err)
 		}
-
-		return
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -267,7 +264,6 @@ func StartHttpServer() {
 		if err != nil {
 			panic(err)
 		}
-		return
 	})
 
 	log.Info().

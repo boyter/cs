@@ -41,5 +41,5 @@ func cutLastN(path string, n int) (string, bool) {
 }
 
 func hasMeta(path string) bool {
-	return strings.IndexAny(path, "*?[") >= 0
+	return strings.ContainsAny(path, "*?[")
 }
