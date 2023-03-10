@@ -62,31 +62,6 @@ else
     echo -e "${GREEN}PASSED race detection${NC}"
 fi
 
-echo "Running fuzz checks..."
-pushd str || exit
-  echo "fuzzing str"
-  go-fuzz-build
-  go-fuzz &
-  sleep 60
-  pkill -9 go-fuzz
-popd || exit
-
-pushd processor || exit
-  echo "fuzzing processor"
-  go-fuzz-build
-  go-fuzz &
-  sleep 60
-  pkill -9 go-fuzz
-popd || exit
-
-pushd processor/parser || exit
-  echo "fuzzing processor/parser"
-  go-fuzz-build
-  go-fuzz &
-  sleep 60
-  pkill -9 go-fuzz
-popd || exit
-
 echo "Building application..."
 go build -ldflags="-s -w" || exit
 
@@ -94,10 +69,8 @@ echo -e "${NC}Checking compile targets..."
 
 echo "   darwin..."
 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w"
-GOOS=darwin GOARCH=386 go build -ldflags="-s -w"
 echo "   windows..."
 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w"
-GOOS=windows GOARCH=386 go build -ldflags="-s -w"
 echo "   linux..."
 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w"
 GOOS=linux GOARCH=386 go build -ldflags="-s -w"

@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: MIT OR Unlicense
-//go:build !windows
-// +build !windows
 
 package file
 
