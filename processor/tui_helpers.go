@@ -2,11 +2,6 @@
 
 package processor
 
-import (
-	"os"
-	"strconv"
-)
-
 func getLocated(res *FileJob, v3 Snippet) [][]int {
 	var l [][]int
 
@@ -28,14 +23,14 @@ func getLocated(res *FileJob, v3 Snippet) [][]int {
 
 // Because in TUI mode there is no way to just dump logs out to screen this
 // method exists which logs out to disk. Very cheap and nasty but works well enough.
-func debugLogger(text string) {
-	f, err := os.OpenFile("cs.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	if _, err = f.WriteString(strconv.Itoa(int(makeTimestampMilli())) + " " + text + "\n"); err != nil {
-		panic(err)
-	}
-}
+//func debugLogger(text string) {
+//	f, err := os.OpenFile("cs.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+//	if err != nil {
+//		panic(err)
+//	}
+//	defer f.Close()
+//
+//	if _, err = f.WriteString(strconv.Itoa(int(makeTimestampMilli())) + " " + text + "\n"); err != nil {
+//		panic(err)
+//	}
+//}

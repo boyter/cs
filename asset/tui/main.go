@@ -21,11 +21,11 @@ type displayResult struct {
 	BodyHeight int
 }
 
-type codeResult struct {
-	Title   string
-	Content string
-	Score   float64
-}
+//type codeResult struct {
+//	Title   string
+//	Content string
+//	Score   float64
+//}
 
 type tuiApplicationController struct {
 	Query               string
@@ -106,54 +106,54 @@ func (cont *tuiApplicationController) Search(s string) {
 }
 
 // After any change is made that requires something drawn on the screen this is the method that does
-func (cont *tuiApplicationController) drawView(codeResults []codeResult) {
-	cont.Sync.Lock()
-	defer cont.Sync.Unlock()
-
-	if !cont.Changed {
-		return
-	}
-
-	// NB this is just here so we can see updates in this test
-	cont.Count++
-
-	// reset the elements by clearing out every one
-	for _, t := range cont.DisplayResults {
-		t.Title.SetText("")
-		t.Body.SetText("")
-	}
-
-	// rank all results
-	// then go and get the relevant portion for display
-
-	// go and get the codeResults the user wants to see using selected as the offset to display from
-	var p []codeResult
-	for i, t := range cont.Results {
-		if i >= cont.Offset {
-			p = append(p, codeResult{
-				Title:   t.Filename,
-				Content: string(t.Content)[:300],
-				Score:   t.Score,
-			})
-		}
-	}
-
-	// render out what the user wants to see based on the results that have been chosen
-	cont.TviewApplication.QueueUpdateDraw(func() {
-		for i, t := range p {
-			cont.DisplayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
-			cont.DisplayResults[i].Body.SetText(t.Content)
-
-			// we need to update the item so that it displays everything we have put in
-			cont.ResultsFlex.ResizeItem(cont.DisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
-		}
-
-		//cont.StatusView.SetText(status)
-	})
-
-	// we can only set that nothing
-	cont.Changed = false
-}
+//func (cont *tuiApplicationController) drawView(codeResults []codeResult) {
+//	cont.Sync.Lock()
+//	defer cont.Sync.Unlock()
+//
+//	if !cont.Changed {
+//		return
+//	}
+//
+//	// NB this is just here so we can see updates in this test
+//	cont.Count++
+//
+//	// reset the elements by clearing out every one
+//	for _, t := range cont.DisplayResults {
+//		t.Title.SetText("")
+//		t.Body.SetText("")
+//	}
+//
+//	// rank all results
+//	// then go and get the relevant portion for display
+//
+//	// go and get the codeResults the user wants to see using selected as the offset to display from
+//	var p []codeResult
+//	for i, t := range cont.Results {
+//		if i >= cont.Offset {
+//			p = append(p, codeResult{
+//				Title:   t.Filename,
+//				Content: string(t.Content)[:300],
+//				Score:   t.Score,
+//			})
+//		}
+//	}
+//
+//	// render out what the user wants to see based on the results that have been chosen
+//	cont.TviewApplication.QueueUpdateDraw(func() {
+//		for i, t := range p {
+//			cont.DisplayResults[i].Title.SetText(fmt.Sprintf("%d [fuchsia]%s (%f)[-:-:-]", cont.Count, t.Title, t.Score))
+//			cont.DisplayResults[i].Body.SetText(t.Content)
+//
+//			// we need to update the item so that it displays everything we have put in
+//			cont.ResultsFlex.ResizeItem(cont.DisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
+//		}
+//
+//		//cont.StatusView.SetText(status)
+//	})
+//
+//	// we can only set that nothing
+//	cont.Changed = false
+//}
 
 func (cont *tuiApplicationController) doSearch() {
 	cont.Sync.Lock()
@@ -183,7 +183,7 @@ func (cont *tuiApplicationController) doSearch() {
 	cont.TuiSearcherWorker = processor.NewSearcherWorker(toProcessQueue, summaryQueue)
 	cont.TuiSearcherWorker.SearchString = strings.Split(query, " ")
 
-	go cont.TuiFileWalker.Start()
+	go func() { _ = cont.TuiFileWalker.Start() }()
 	go cont.TuiFileReaderWorker.Start()
 	go cont.TuiSearcherWorker.Start()
 
@@ -236,26 +236,26 @@ func (cont *tuiApplicationController) updateView() {
 	}()
 }
 
-func (cont *tuiApplicationController) calculateStatus() string {
-	status := ""
-	if cont.TuiFileWalker != nil {
-		status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
-		if cont.GetRunning() {
-			status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
-
-			cont.SpinRun++
-			if cont.SpinRun == 4 {
-				cont.SpinLocation++
-				if cont.SpinLocation >= len(cont.SpinString) {
-					cont.SpinLocation = 0
-				}
-				cont.SpinRun = 0
-				cont.SetChanged(true)
-			}
-		}
-	}
-	return status
-}
+//func (cont *tuiApplicationController) calculateStatus() string {
+//	status := ""
+//	if cont.TuiFileWalker != nil {
+//		status = fmt.Sprintf("%d results(s) for '%s' from %d files", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount())
+//		if cont.GetRunning() {
+//			status = fmt.Sprintf("%d results(s) for '%s' from %d files %s", len(cont.Results), cont.Query, cont.TuiFileReaderWorker.GetFileCount(), string(cont.SpinString[cont.SpinLocation]))
+//
+//			cont.SpinRun++
+//			if cont.SpinRun == 4 {
+//				cont.SpinLocation++
+//				if cont.SpinLocation >= len(cont.SpinString) {
+//					cont.SpinLocation = 0
+//				}
+//				cont.SpinRun = 0
+//				cont.SetChanged(true)
+//			}
+//		}
+//	}
+//	return status
+//}
 
 func (cont *tuiApplicationController) processSearch() {
 	// we only ever want to have one search trigger at a time which is what this does

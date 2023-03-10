@@ -172,10 +172,10 @@ func extractRelevantV3(res *FileJob, documentFrequencies map[string]int, relLeng
 		// Check if we are cutting in the middle of a multibyte char and if so
 		// go looking till we find the start. We only do so if we didn't find a space,
 		// and if we aren't at the start or very end of the content
-		for sf == false && m.StartPos != 0 && m.StartPos != len(res.Content) && !str.StartOfRune(res.Content[m.StartPos]) {
+		for !sf && m.StartPos != 0 && m.StartPos != len(res.Content) && !str.StartOfRune(res.Content[m.StartPos]) {
 			m.StartPos--
 		}
-		for ef == false && m.EndPos != 0 && m.EndPos != len(res.Content) && !str.StartOfRune(res.Content[m.EndPos]) {
+		for !ef && m.EndPos != 0 && m.EndPos != len(res.Content) && !str.StartOfRune(res.Content[m.EndPos]) {
 			m.EndPos--
 		}
 
