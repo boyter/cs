@@ -45,31 +45,6 @@ const (
 	BytesWordDivisor   = 2
 )
 
-// Given the results boost based on how close the phrases are to each other IE make it slightly phrase
-// heavy. This is fairly similar to how the snippet extraction works but with less work because it does
-// not need to deal with cutting between unicode endpoints
-// NB this is one of the more expensive parts of the ranking
-func rankResultsPhrase(results []*FileJob, documentFrequencies map[string]int) []*FileJob {
-	for i := 0; i < len(results); i++ {
-		rv3 := convertToRelevant(results[i])
-
-		for j := 0; j < len(rv3); j++ {
-			if j == 0 {
-				continue
-			}
-
-			// If the word is within a reasonable distance of this word boost the score
-			// weighted by how common that word is so that matches like 'a' impact the rank
-			// less than something like 'cromulent' which in theory should not occur as much
-			if rv3[j].Start-rv3[j-1].End < 5 {
-				results[i].Score += PhraseBoostValue / float64(documentFrequencies[rv3[j].Word])
-			}
-		}
-	}
-
-	return results
-}
-
 // Given the results will boost the rank of them based on matches in the
 // file location field.
 // This is not using TF-IDF or any fancy algorithm just basic checks

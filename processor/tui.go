@@ -243,7 +243,7 @@ func (cont *tuiApplicationController) doSearch() {
 	cont.TuiSearcherWorker.IncludeMinified = IncludeMinified
 	cont.TuiSearcherWorker.MinifiedLineByteLength = MinifiedLineByteLength
 
-	go cont.TuiFileWalker.Start()
+	go func() { _ = cont.TuiFileWalker.Start() }()
 	go cont.TuiFileReaderWorker.Start()
 	go cont.TuiSearcherWorker.Start()
 

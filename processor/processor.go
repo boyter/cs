@@ -54,7 +54,7 @@ func (process *Process) StartProcess() {
 	resultSummarizer.FileReaderWorker = fileReader
 	resultSummarizer.SnippetCount = SnippetCount
 
-	go fileWalker.Start()
+	go func() { _ = fileWalker.Start() }()
 	go fileReader.Start()
 	go fileSearcher.Start()
 	resultSummarizer.Start()

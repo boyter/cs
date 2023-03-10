@@ -14,7 +14,7 @@ func removeIntDuplicates(elements []int) []int {
 	var result []int
 
 	for v := range elements {
-		if !encountered[elements[v]] == true {
+		if !encountered[elements[v]] {
 			encountered[elements[v]] = true
 			result = append(result, elements[v])
 		}

@@ -159,7 +159,7 @@ func StartHttpServer() {
 			fileSearcher.IncludeBinary = IncludeBinaryFiles
 			fileSearcher.MinifiedLineByteLength = MinifiedLineByteLength
 
-			go fileWalker.Start()
+			go func() { _ = fileWalker.Start() }()
 			go fileReader.Start()
 			go fileSearcher.Start()
 
