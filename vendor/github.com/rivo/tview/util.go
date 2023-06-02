@@ -546,8 +546,8 @@ func WordWrap(text string, width int) (lines []string) {
 // recognized and substituted by the print functions of this package. For
 // example, to include a tag-like string in a box title or in a TextView:
 //
-//	box.SetTitle(tview.Escape("[squarebrackets]"))
-//	fmt.Fprint(textView, tview.Escape(`["quoted"]`))
+//   box.SetTitle(tview.Escape("[squarebrackets]"))
+//   fmt.Fprint(textView, tview.Escape(`["quoted"]`))
 func Escape(text string) string {
 	return nonEscapePattern.ReplaceAllString(text, "$1[]")
 }

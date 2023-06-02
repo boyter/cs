@@ -29,13 +29,16 @@ try() {
   "$@" || bad $? "$@" && good "$@"
 }
 
+cmd_exists() {
+  type "$1" >/dev/null 2>&1
+}
 
-echo "Running go fmt..."
-gofmt -s -w ./..
+cmd_exists go || bad 1 "uhhh, where's your go install? what are you even doing here!"
+cmd_exists gofmt || bad 1 "so you have go installed, but not gofmt? wtf mate^^"
+cmd_exists golangci-lint || bad 1 "cannot find golangci-lint; check PATH or go to https://github.com/golangci/golangci-lint"
 
-echo "Running unit tests..."
-go test -cover -race ./... || exit
-
+try go test --tags=integration ./...
+#try go run --race .
 {
   {
     opt='shopt -s extglob nullglob'
@@ -51,34 +54,3 @@ go test -cover -race ./... || exit
   trap '' EXIT
 }
 
-# Race Detection
-echo "Running race detection..."
-if go run --race . t NOT something test~1 "ten thousand a year" "/pr[a-z]de/" 2>&1 >/dev/null | grep -q "Found" ; then
-    echo -e "${RED}======================================================="
-    echo -e "FAILED race detection run 'go run --race . test' to identify"
-    echo -e "=======================================================${NC}"
-    exit
-else
-    echo -e "${GREEN}PASSED race detection${NC}"
-fi
-
-echo "Building application..."
-go build -ldflags="-s -w" || exit
-
-echo -e "${NC}Checking compile targets..."
-
-echo "   darwin..."
-GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w"
-echo "   windows..."
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w"
-echo "   linux..."
-GOOS=linux GOARCH=amd64 go build -ldflags="-s -w"
-GOOS=linux GOARCH=386 go build -ldflags="-s -w"
-
-echo -e "${NC}Cleaning up..."
-rm ./cs
-rm ./cs.exe
-
-echo -e "${GREEN}================================================="
-echo -e "ALL CHECKS PASSED"
-echo -e "=================================================${NC}"

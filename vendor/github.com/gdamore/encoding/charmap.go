@@ -52,6 +52,7 @@ const (
 // direction takes about 100 nsec/op.  (The larger cost for conversion
 // from UTF-8 is most likely due to the need to convert the UTF-8 byte stream
 // to a rune before conversion.
+//
 type Charmap struct {
 	transform.NopResetter
 	bytes map[rune]byte

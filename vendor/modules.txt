@@ -1,10 +1,21 @@
-# github.com/fatih/color v1.9.0
+# github.com/boyter/go-string v1.0.5
+## explicit; go 1.20
+github.com/boyter/go-string
+# github.com/boyter/gocodewalker v1.1.0
+## explicit; go 1.20
+github.com/boyter/gocodewalker
+github.com/boyter/gocodewalker/go-gitignore
+# github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964
 ## explicit
+github.com/danwakefield/fnmatch
+# github.com/fatih/color v1.15.0
+## explicit; go 1.17
 github.com/fatih/color
 # github.com/gdamore/encoding v1.0.0
+## explicit; go 1.9
 github.com/gdamore/encoding
 # github.com/gdamore/tcell v1.3.0
-## explicit
+## explicit; go 1.12
 github.com/gdamore/tcell
 github.com/gdamore/tcell/terminfo
 github.com/gdamore/tcell/terminfo/a/adm3a
@@ -55,48 +66,46 @@ github.com/gdamore/tcell/terminfo/x/xfce
 github.com/gdamore/tcell/terminfo/x/xnuppc
 github.com/gdamore/tcell/terminfo/x/xterm
 github.com/gdamore/tcell/terminfo/x/xterm_kitty
-# github.com/inconshreveable/mousetrap v1.0.0
+# github.com/inconshreveable/mousetrap v1.1.0
+## explicit; go 1.18
 github.com/inconshreveable/mousetrap
 # github.com/lucasb-eyer/go-colorful v1.0.3
+## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
-# github.com/mattn/go-colorable v0.1.6
-## explicit
+# github.com/mattn/go-colorable v0.1.13
+## explicit; go 1.15
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.12
-## explicit
+# github.com/mattn/go-isatty v0.0.17
+## explicit; go 1.15
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.9
-## explicit
+## explicit; go 1.9
 github.com/mattn/go-runewidth
 # github.com/rivo/tview v0.0.0-20200528200248-fe953220389f
-## explicit
+## explicit; go 1.12
 github.com/rivo/tview
 # github.com/rivo/uniseg v0.1.0
+## explicit; go 1.12
 github.com/rivo/uniseg
-# github.com/rs/zerolog v1.19.0
-## explicit
+# github.com/rs/zerolog v1.29.1
+## explicit; go 1.15
 github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
-# github.com/spf13/cobra v0.0.7
-## explicit
+# github.com/spf13/cobra v1.7.0
+## explicit; go 1.15
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
-## explicit
+## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/src-d/go-oniguruma v1.1.0
-## explicit
-github.com/src-d/go-oniguruma
-# golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
-## explicit
+# golang.org/x/sys v0.6.0
+## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
+golang.org/x/sys/windows
 # golang.org/x/text v0.3.3
-## explicit
+## explicit; go 1.11
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal/identifier
 golang.org/x/text/transform
-# gopkg.in/src-d/enry.v1 v1.7.3
-## explicit
-gopkg.in/src-d/enry.v1/regex

@@ -47,7 +47,7 @@ type Flex struct {
 // To clear a Flex's background before any items are drawn, set it to the
 // desired color:
 //
-//	flex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+//   flex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 func NewFlex() *Flex {
 	f := &Flex{
 		Box:       NewBox().SetBackgroundColor(tcell.ColorDefault),

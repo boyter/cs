@@ -20,7 +20,7 @@ Use simple and default helper functions with predefined foreground colors:
 	color.HiBlack("Bright black means gray..")
 	color.HiWhite("Shiny white color!")
 
-However there are times where custom color mixes are required. Below are some
+However, there are times when custom color mixes are required. Below are some
 examples to create custom color objects and use the print functions of each
 separate color object.
 
@@ -79,7 +79,7 @@ Or create SprintXxx functions to mix strings with other non-colorized strings:
 	fmt.Printf("this %s rocks!\n", info("package"))
 
 Windows support is enabled by default. All Print functions work as intended.
-However only for color.SprintXXX functions, user should use fmt.FprintXXX and
+However, only for color.SprintXXX functions, user should use fmt.FprintXXX and
 set the output to color.Output:
 
 	fmt.Fprintf(color.Output, "Windows support: %s", color.GreenString("PASS"))
@@ -116,6 +116,8 @@ the color output with:
 	if *flagNoColor {
 		color.NoColor = true // disables colorized output
 	}
+
+You can also disable the color by setting the NO_COLOR environment variable to any value.
 
 It also has support for single color definitions (local). You can
 disable/enable color output on the fly:

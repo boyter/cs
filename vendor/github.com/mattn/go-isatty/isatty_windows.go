@@ -42,8 +42,7 @@ func IsTerminal(fd uintptr) bool {
 
 // Check pipe name is used for cygwin/msys2 pty.
 // Cygwin/MSYS2 PTY has a name like:
-//
-//	\{cygwin,msys}-XXXXXXXXXXXXXXXX-ptyN-{from,to}-master
+//   \{cygwin,msys}-XXXXXXXXXXXXXXXX-ptyN-{from,to}-master
 func isCygwinPipeName(name string) bool {
 	token := strings.Split(name, "-")
 	if len(token) < 5 {
@@ -77,7 +76,7 @@ func isCygwinPipeName(name string) bool {
 }
 
 // getFileNameByHandle use the undocomented ntdll NtQueryObject to get file full name from file handler
-// since GetFileInformationByHandleEx is not avilable under windows Vista and still some old fashion
+// since GetFileInformationByHandleEx is not available under windows Vista and still some old fashion
 // guys are using Windows XP, this is a workaround for those guys, it will also work on system from
 // Windows vista to 10
 // see https://stackoverflow.com/a/18792477 for details

@@ -5,7 +5,7 @@ package main
 
 import (
 	"fmt"
-	str "github.com/boyter/cs/str"
+	str "github.com/boyter/go-string"
 	"io/ioutil"
 	"os"
 	"regexp"

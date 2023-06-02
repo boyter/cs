@@ -1,4 +1,3 @@
-//go:build solaris
 // +build solaris
 
 // Copyright 2019 The TCell Authors
