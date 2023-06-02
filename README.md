@@ -65,4 +65,5 @@ Release 1.0.0 list
  - Write README with details about what its for and examples
  - Write blog post about it
  - Ensure all command line params are supported and working
- - 
+ - resolve issue in tui view where /[cb]at/ displays incorrectly
+ - ensure paging preserves extension in http mode
