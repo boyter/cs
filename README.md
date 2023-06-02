@@ -5,8 +5,6 @@ codespelunker (cs)
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)
 [![Cs Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
 
-<img alt="cs" src=https://github.com/boyter/cs/raw/master/sc.gif>
-
 ```
 Example search that uses all current functionality
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
