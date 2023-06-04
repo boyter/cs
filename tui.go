@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	str "github.com/boyter/go-string"
-	"github.com/boyter/gocodewalker"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"os"
@@ -181,26 +180,7 @@ func (cont *tuiApplicationController) DoSearch() {
 	var status string
 
 	if strings.TrimSpace(query) != "" {
-		// TODO must run in goroutine and deal with extensions... and expire
-		files := make(chan *gocodewalker.File, 100000)
-		foundMatch := false
-		for i := len(query); i > 0; i-- {
-			r, ok := searchToFileMatchesCache[query[:i]]
-			if ok {
-				// WE HAVE A MATCH so use those files
-				for _, f := range r {
-					files <- &gocodewalker.File{Location: f}
-				}
-				close(files)
-				foundMatch = true
-				break
-			}
-		}
-
-		if !foundMatch {
-			files = FindFiles(query)
-		}
-
+		files := FindFiles(query)
 		toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 		summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 

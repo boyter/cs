@@ -15,8 +15,12 @@ import (
 
 var dirFilePaths = []string{}
 var searchToFileMatchesCache = map[string][]string{}
+var searchToFileMatchesCacheMutex = sync.Mutex{}
 
 func FindFiles(query string) chan *gocodewalker.File {
+	searchToFileMatchesCacheMutex.Lock()
+	defer searchToFileMatchesCacheMutex.Unlock()
+
 	// get the keys for the cache
 	var keys []string
 	for k, _ := range searchToFileMatchesCache {
