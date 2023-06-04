@@ -14,6 +14,58 @@ import (
 )
 
 var dirFilePaths = []string{}
+var searchToFileMatchesCache = map[string][]string{}
+
+func FindFiles(query string) chan *gocodewalker.File {
+	// get the keys for the cache
+	var keys []string
+	for k, _ := range searchToFileMatchesCache {
+		keys = append(keys, k)
+	}
+
+	// clear from the cache anything longer than the search since its will not help us
+	for _, k := range keys {
+		if len(k) > len(query) || query[0] != k[0] { // if cached is longer OR the first char does not match...
+			delete(searchToFileMatchesCache, k)
+		}
+	}
+
+	// check if the files we expect are in the cache...
+	files := make(chan *gocodewalker.File, 100000)
+	for i := len(query); i > 0; i-- {
+		r, ok := searchToFileMatchesCache[query[:i]]
+		if ok {
+			go func() {
+				for _, f := range r {
+					files <- &gocodewalker.File{Location: f}
+				}
+				close(files)
+			}()
+			return files
+		}
+	}
+
+	return walkFiles()
+}
+
+func walkFiles() chan *gocodewalker.File {
+	// Now we need to run through every file closed by the filewalker when done
+	fileListQueue := make(chan *gocodewalker.File, 1000)
+
+	if FindRoot {
+		dirFilePaths[0] = gocodewalker.FindRepositoryRoot(dirFilePaths[0])
+	}
+
+	fileWalker := gocodewalker.NewFileWalker(dirFilePaths[0], fileListQueue)
+	fileWalker.AllowListExtensions = AllowListExtensions
+	fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
+	fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
+	fileWalker.LocationExcludePattern = LocationExcludePattern
+
+	go func() { _ = fileWalker.Start() }()
+
+	return fileListQueue
+}
 
 // Reads the supplied file into memory, but only up to a certain size
 func readFileContent(f *gocodewalker.File) []byte {
@@ -48,25 +100,6 @@ func readFileContent(f *gocodewalker.File) []byte {
 	}
 
 	return content
-}
-
-func WalkFiles() chan *gocodewalker.File {
-	// Now we need to run through every file closed by the filewalker when done
-	fileListQueue := make(chan *gocodewalker.File, 1000)
-
-	if FindRoot {
-		dirFilePaths[0] = gocodewalker.FindRepositoryRoot(dirFilePaths[0])
-	}
-
-	fileWalker := gocodewalker.NewFileWalker(dirFilePaths[0], fileListQueue)
-	fileWalker.AllowListExtensions = AllowListExtensions
-	fileWalker.IgnoreIgnoreFile = IgnoreIgnoreFile
-	fileWalker.IgnoreGitIgnore = IgnoreGitIgnore
-	fileWalker.LocationExcludePattern = LocationExcludePattern
-
-	go func() { _ = fileWalker.Start() }()
-
-	return fileListQueue
 }
 
 // Given a file to read will read the contents into memory and determine if we should process it

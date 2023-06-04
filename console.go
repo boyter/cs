@@ -13,7 +13,7 @@ import (
 )
 
 func NewConsoleSearch() {
-	files := WalkFiles()
+	files := FindFiles(strings.Join(SearchString, " "))
 	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 

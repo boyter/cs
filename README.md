@@ -67,3 +67,4 @@ Release 1.0.0 list
  - Ensure all command line params are supported and working
  - resolve issue in tui view where /[cb]at/ displays incorrectly
  - ensure paging preserves extension in http mode
+ - give ability to set directory via params for http mode

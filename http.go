@@ -19,8 +19,6 @@ import (
 	"strings"
 )
 
-var searchToFileMatches = map[string][]string{}
-
 func StartHttpServer() {
 	http.HandleFunc("/file/raw/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.Replace(r.URL.Path, "/file/raw/", "", 1)
@@ -129,7 +127,7 @@ func StartHttpServer() {
 			}
 
 			// walk back through the query to see if we have a shorter one that matches
-			files := WalkFiles()
+			files := FindFiles(query)
 
 			toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 			summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed

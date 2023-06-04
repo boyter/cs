@@ -185,7 +185,7 @@ func (cont *tuiApplicationController) DoSearch() {
 		files := make(chan *gocodewalker.File, 100000)
 		foundMatch := false
 		for i := len(query); i > 0; i-- {
-			r, ok := searchToFileMatches[query[:i]]
+			r, ok := searchToFileMatchesCache[query[:i]]
 			if ok {
 				// WE HAVE A MATCH so use those files
 				for _, f := range r {
@@ -198,7 +198,7 @@ func (cont *tuiApplicationController) DoSearch() {
 		}
 
 		if !foundMatch {
-			files = WalkFiles()
+			files = FindFiles(query)
 		}
 
 		toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
@@ -221,7 +221,7 @@ func (cont *tuiApplicationController) DoSearch() {
 			results = append(results, f)
 			fileMatches = append(fileMatches, f.Location)
 		}
-		searchToFileMatches[query] = fileMatches
+		searchToFileMatchesCache[query] = fileMatches
 
 		plural := "s"
 		if len(results) == 1 {
@@ -260,7 +260,6 @@ var statusView *tview.TextView
 var tuiDisplayResults []displayResult
 var tviewApplication *tview.Application
 var snippetInputField *tview.InputField
-var includeInputField *tview.InputField
 
 // setup debounce to improve ui feel
 var debounced = NewDebouncer(200 * time.Millisecond)
@@ -315,7 +314,7 @@ func NewTuiSearch() {
 				}
 				os.Exit(0)
 			case tcell.KeyTab:
-				tviewApplication.SetFocus(includeInputField)
+				tviewApplication.SetFocus(snippetInputField)
 			case tcell.KeyBacktab:
 				tviewApplication.SetFocus(snippetInputField)
 			case tcell.KeyUp:
@@ -335,36 +334,6 @@ func NewTuiSearch() {
 			applicationController.ResetOffset() // reset so we are at the first element again
 			applicationController.SetQuery(text)
 			debounced(applicationController.DoSearch)
-		})
-
-	// This is used to allow filtering out of paths and the like
-	// TODO this should be include pattern
-	includeInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.ColorDefault).
-		SetText(strings.Join(LocationExcludePattern, ",")).
-		SetFieldWidth(30).
-		SetChangedFunc(func(text string) {
-			text = strings.TrimSpace(text)
-
-			var t []string
-			for _, s := range strings.Split(text, ",") {
-				if strings.TrimSpace(s) != "" {
-					t = append(t, strings.TrimSpace(s))
-				}
-			}
-			LocationExcludePattern = t
-			debounced(applicationController.DoSearch)
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				tviewApplication.SetFocus(snippetInputField)
-			case tcell.KeyBacktab:
-				tviewApplication.SetFocus(inputField)
-			case tcell.KeyESC:
-				tviewApplication.Stop()
-				os.Exit(0)
-			}
 		})
 
 	// Decide how large a snippet we should be displaying
@@ -390,7 +359,7 @@ func NewTuiSearch() {
 			case tcell.KeyTab:
 				tviewApplication.SetFocus(inputField)
 			case tcell.KeyBacktab:
-				tviewApplication.SetFocus(includeInputField)
+				tviewApplication.SetFocus(inputField)
 			case tcell.KeyEnter:
 				fallthrough
 			case tcell.KeyUp:
@@ -423,7 +392,6 @@ func NewTuiSearch() {
 	// setup the flex containers to have everything rendered neatly
 	queryFlex = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputField, 0, 8, false).
-		AddItem(includeInputField, 30, 0, false).
 		AddItem(snippetInputField, 5, 1, false)
 
 	resultsFlex = tview.NewFlex().SetDirection(tview.FlexRow)
