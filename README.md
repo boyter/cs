@@ -1,9 +1,48 @@
 codespelunker (cs)
 ----------------------
 
+A command line search tool. Allows you to search over code or text files in the current directory either on
+the console, via a TUI or HTTP server, using some boolean queries or regular expressions.
+
+Consider it a similar approach to using ripgrep, silver searcher or grep coupled with fzf but in a single tool.
+
+Dual-licensed under MIT or the UNLICENSE.
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/boyter/cs)](https://goreportcard.com/report/github.com/boyter/cs)
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)
 [![Cs Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
+
+
+### Pitch
+
+Why use cs?
+
+ - Reasonably fast
+ - Rank results on the fly helping you find things
+ - Searches across multiple lines
+ - Has a nice TUI interface.
+
+### FAQ
+
+#### Is this as fast as...
+
+No.
+
+#### You didn't let me finish, I was going to ask if it's as fast as...
+
+The answer is probably no. It's not directly comparable. No other tool I know of works like this outside of full
+indexing tools such as hound, searchcode, sourcegraph etc... None work on the fly like this does.
+
+While `cs` does have some overlap with tools like ripgrep, grep, ack or the silver searcher the reality is it does not
+work the same way, so any comparison is pointless. It is slower than most of them, but its also doing something different.
+
+You can replicate some of what it does by piping their output into fzf though.
+
+### Usage
+
+Command line usage of `cs` is designed to be as simple as possible.
+Full details can be found in `cs --help` or `cs -h`. Note that the below reflects the state of master not a release, as such
+features listed below may be missing from your installation.
 
 ```shell
 $ cs -h
