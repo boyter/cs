@@ -45,6 +45,14 @@ On my local machine which at time of writing is a Macbook Air M1 it can search a
 code in ~2.5 seconds. While absolute performance is not a design goal, I also don't want this to be a slow tool. As such
 if any obvious performance gains are on the table I will take them.
 
+#### Does it work on normal documents?
+
+So long as they are text. I wrote it to search code, but it works just as well on full text documents. The snippet
+extraction for example was tested on Pride and Prejudice. If you had a heap of PDF's you could shell script some
+use of pdftotext and get something searchable.
+
+Note it was designed for code and as such has full .ignore and .gitignore support.
+
 #### Where is the index?
 
 There is none. Everything is brute force calculated on the fly. For TUI mode there are some shortcuts taken with
@@ -124,6 +132,12 @@ Example search that uses all current functionality
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 ```
 
+You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
+if you hit the enter key/
+
+```shell
+cat `cs`
+```
 
 
 template example (from root)
