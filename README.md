@@ -22,6 +22,9 @@ Why use cs?
  - Searches across multiple lines
  - Has a nice TUI interface.
 
+The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my own
+problem. 
+
 ### FAQ
 
 #### Is this as fast as...
@@ -36,7 +39,37 @@ indexing tools such as hound, searchcode, sourcegraph etc... None work on the fl
 While `cs` does have some overlap with tools like ripgrep, grep, ack or the silver searcher the reality is it does not
 work the same way, so any comparison is pointless. It is slower than most of them, but its also doing something different.
 
-You can replicate some of what it does by piping their output into fzf though.
+You can replicate some of what it does by piping their output into fzf though if you feel like a flawed comparison.
+
+On my local machine which at time of writing is a Macbook Air M1 it can search a recent checkout of the linux source
+code in ~2.5 seconds. While absolute performance is not a design goal, I also don't want this to be a slow tool. As such
+if any obvious performance gains are on the table I will take them.
+
+#### Where is the index?
+
+There is none. Everything is brute force calculated on the fly. For TUI mode there are some shortcuts taken with
+caching of results to speed things up.
+
+#### How does the ranking work then?
+
+Standard BM25 or TF/IDF or the modified TF/IDF in Lucene https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/ 
+which dampens the impact of term frequency.
+
+Technically speaking it's not accurate because it calculates the weights based on what it matched on and not everything,
+but it works well enough in practice and is calculated on the fly. Try it out and report if something is not working as
+you expect?
+
+#### How do you get the snippets?
+
+It's not fun... https://github.com/boyter/cs/blob/master/snippet.go Have a look at the code. 
+
+It works by passing the document content to extract the snippet from and all the match locations for each term. 
+It then looks through each location for each word, and checks on either side looking for terms close to it. 
+It then ranks on the term frequency for the term we are checking around and rewards rarer terms. 
+It also rewards more matches, closer matches, exact case matches and matches that are whole words.
+
+For more info read the "Snippet Extraction AKA I am PHP developer" section of this blog post https://boyter.org/posts/abusing-aws-to-make-a-search-engine/
+
 
 ### Usage
 
@@ -82,12 +115,14 @@ Flags:
   -v, --version                   version for cs
 ```
 
-```
+Searches work on single or multiple words with a logical AND applied between them. You can negate with NOT before a term.
+You can do exact match with quotes, and do regular expressions using toothpicks.
+
 Example search that uses all current functionality
+
+```shell
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 ```
-
-
 
 
 
@@ -100,11 +135,3 @@ cs -d --template-display ./asset/templates/display.tmpl --template-search ./asse
 ```shell
 cs powernow_dmi_table acer
 ```
-
-
-Release 1.0.0 list
-
- - Write README with details about what its for and examples
- - Write blog post about it
- - Ensure all command line params are supported and working
- - give ability to set directory via params for http mode
