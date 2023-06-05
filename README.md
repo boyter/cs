@@ -154,7 +154,7 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
-if you hit the enter key/
+if you hit the enter key.
 
 ```shell
 cat `cs`
