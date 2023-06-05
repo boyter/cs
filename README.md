@@ -12,8 +12,7 @@ Dual-licensed under MIT or the UNLICENSE.
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)
 [![Cs Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
 
-
-<img alt="scc" src=https://github.com/boyter/cs/raw/master/cs_http.png>
+[![asciicast](https://asciinema.org/a/589640.svg)](https://asciinema.org/a/589640)
 
 ### Pitch
 
@@ -80,6 +79,18 @@ It also rewards more matches, closer matches, exact case matches and matches tha
 
 For more info read the "Snippet Extraction AKA I am PHP developer" section of this blog post https://boyter.org/posts/abusing-aws-to-make-a-search-engine/
 
+#### What does HTTP mode look like?
+
+It's a little brutalist.
+
+<img alt="scc" src=https://github.com/boyter/cs/raw/master/cs_http.png>
+
+You can change its look and feel using `--template-display` and `--template-search`. See https://github.com/boyter/cs/tree/master/asset/templates
+for example templates you can use to modify things.
+
+```shell
+cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
+```
 
 ### Usage
 
@@ -139,15 +150,4 @@ if you hit the enter key/
 
 ```shell
 cat `cs`
-```
-
-
-template example (from root)
-
-```
-cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
-```
-
-```shell
-cs powernow_dmi_table acer
 ```
