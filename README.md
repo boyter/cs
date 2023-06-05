@@ -68,5 +68,4 @@ Release 1.0.0 list
  - Write README with details about what its for and examples
  - Write blog post about it
  - Ensure all command line params are supported and working
- - ensure paging preserves extension in http mode
  - give ability to set directory via params for http mode

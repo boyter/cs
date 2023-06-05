@@ -13,6 +13,7 @@ type search struct {
 	ProcessedFileCount  int64
 	ExtensionFacet      []facetResult
 	Pages               []pageResult
+	Ext                 string
 }
 
 type pageResult struct {
@@ -20,6 +21,7 @@ type pageResult struct {
 	SnippetSize int
 	Value       int
 	Name        string
+	Ext         string
 }
 
 type searchResult struct {
@@ -50,7 +52,7 @@ var httpFileTemplate = `<html>
 		<title>{{ .Location }}</title>
 		<style>
 			strong {
-				background-color: #FFFF00
+				background-color: #FFFF00;
 			}
 			pre {
 				white-space: pre-wrap;
@@ -100,7 +102,7 @@ var httpSearchTemplate = `<html>
 		<title>{{ .SearchTerm }}</title>
 		<style>
 			strong {
-				background-color: #FFFF00
+				background-color: #FFFF00;
 			}
 			pre {
 				white-space: pre-wrap;
@@ -152,7 +154,7 @@ var httpSearchTemplate = `<html>
 
 				<div>
 				{{- range .Pages }}
-					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}">{{ .Name }}</a>
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}">{{ .Name }}</a>
 				{{- end }}
 				</div>
 			</div>

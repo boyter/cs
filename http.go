@@ -165,7 +165,7 @@ func StartHttpServer() {
 
 		// if we have more than the page size of results, lets just show the first page
 		displayResults := results
-		pages := calculatePages(results, pageSize, query, snippetLength)
+		pages := calculatePages(results, pageSize, query, snippetLength, ext)
 
 		if displayResults != nil && len(displayResults) > pageSize {
 			displayResults = displayResults[:pageSize]
@@ -238,6 +238,7 @@ func StartHttpServer() {
 			ProcessedFileCount:  fileCount,
 			ExtensionFacet:      calculateExtensionFacet(extensionFacets, query, snippetLength),
 			Pages:               pages,
+			Ext:                 ext,
 		})
 
 		if err != nil {
@@ -272,7 +273,7 @@ func calculateExtensionFacet(extensionFacets map[string]int, query string, snipp
 	return ef
 }
 
-func calculatePages(results []*FileJob, pageSize int, query string, snippetLength int) []pageResult {
+func calculatePages(results []*FileJob, pageSize int, query string, snippetLength int, ext string) []pageResult {
 	var pages []pageResult
 
 	if len(results) == 0 {
@@ -301,6 +302,7 @@ func calculatePages(results []*FileJob, pageSize int, query string, snippetLengt
 			SnippetSize: snippetLength,
 			Value:       i,
 			Name:        strconv.Itoa(i + 1),
+			Ext:         ext,
 		})
 	}
 	return pages
