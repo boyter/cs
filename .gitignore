@@ -20,3 +20,4 @@ cs
 .vscode
 
 sc.pprof
+dist/
