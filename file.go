@@ -23,7 +23,7 @@ func FindFiles(query string) chan *gocodewalker.File {
 
 	// get the keys for the cache
 	var keys []string
-	for k, _ := range searchToFileMatchesCache {
+	for k := range searchToFileMatchesCache {
 		keys = append(keys, k)
 	}
 
@@ -113,7 +113,7 @@ func processFile(f *gocodewalker.File) ([]byte, error) {
 
 	if len(content) == 0 {
 		if Verbose {
-			fmt.Println(fmt.Sprintf("empty file so moving on %s", f.Location))
+			fmt.Printf("empty file so moving on %s\n", f.Location)
 		}
 		return nil, errors.New("empty file so moving on")
 	}
@@ -133,7 +133,7 @@ func processFile(f *gocodewalker.File) ([]byte, error) {
 
 		if isBinary {
 			if Verbose {
-				fmt.Println(fmt.Sprintf("file determined to be binary so moving on %s", f.Location))
+				fmt.Printf("file determined to be binary so moving on %s\n", f.Location)
 			}
 			return nil, errors.New("binary file")
 		}
@@ -151,7 +151,7 @@ func processFile(f *gocodewalker.File) ([]byte, error) {
 
 		if averageLineLength > MinifiedLineByteLength {
 			if Verbose {
-				fmt.Println(fmt.Sprintf("file determined to be minified so moving on %s", f.Location))
+				fmt.Printf("file determined to be minified so moving on %s", f.Location)
 			}
 			return nil, errors.New("file determined to be minified")
 		}

@@ -7,15 +7,6 @@ package main
 // Verbose enables verbose logging output
 var Verbose = false
 
-// Debug enables debug logging output
-var Debug = false
-
-// Trace enables trace logging output which is extremely verbose
-var Trace = false
-
-// Trace enables error logging output
-var Error = true
-
 // Include minified files
 var IncludeMinified = false
 
@@ -48,9 +39,6 @@ var PathDenylist = []string{}
 
 // Allow ignoring files by location
 var LocationExcludePattern = []string{}
-
-// Allow including files by location
-var LocationIncludePattern = []string{}
 
 // CaseSensitive allows tweaking of case in/sensitive search
 var CaseSensitive = false

@@ -3,9 +3,7 @@
 package main
 
 import (
-	"errors"
 	str "github.com/boyter/go-string"
-	"regexp"
 	"strings"
 )
 
@@ -131,19 +129,6 @@ func ParseQuery(args []string) []searchParams {
 	}
 
 	return params
-}
-
-func regexSearch(needle searchParams, content string) (x [][]int, err error) {
-	// Its possible the user supplies an invalid regex and if so we should not crash
-	// but ignore it
-	defer func() {
-		if recover() != nil {
-			err = errors.New("regex compile failure issue")
-		}
-	}()
-
-	r := regexp.MustCompile("(?i)" + needle.Term)
-	return r.FindAllIndex([]byte(content), 20), nil
 }
 
 const letterDigitFuzzyBytes = `abcdefghijklmnopqrstuvwxyz1234567890`

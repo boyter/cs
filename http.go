@@ -115,9 +115,9 @@ func StartHttpServer() {
 				Msg("search query")
 
 			// If the user asks we should look back till we find the .git or .hg directory and start the search from there
-			directory := "."
+			dirFilePaths[0] = "."
 			if FindRoot {
-				directory = gocodewalker.FindRepositoryRoot(directory)
+				dirFilePaths[0] = gocodewalker.FindRepositoryRoot(dirFilePaths[0])
 			}
 
 			if len(ext) != 0 {

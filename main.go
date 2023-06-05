@@ -38,7 +38,6 @@ func main() {
 			} else if len(SearchString) != 0 {
 				NewConsoleSearch()
 			} else {
-				Error = false // suppress writing errors in TUI mode
 				NewTuiSearch()
 			}
 		},
@@ -143,13 +142,6 @@ func main() {
 		[]string{},
 		"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]",
 	)
-	//flags.StringSliceVarP(
-	//	&LocationIncludePattern,
-	//	"include-pattern",
-	//	"i",
-	//	[]string{},
-	//	"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]",
-	//)
 	flags.BoolVar(
 		&IncludeMinified,
 		"min",

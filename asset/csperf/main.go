@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	str "github.com/boyter/go-string"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"time"
@@ -21,7 +20,7 @@ func main() {
 	arg1 := os.Args[1]
 	arg2 := os.Args[2]
 
-	b, err := ioutil.ReadFile(arg2)
+	b, err := os.ReadFile(arg2)
 	if err != nil {
 		fmt.Print(err)
 		return
