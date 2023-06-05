@@ -58,13 +58,15 @@ template example (from root)
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 ```
 
+```shell
+cs powernow_dmi_table acer
+```
+
 
 Release 1.0.0 list
 
- - Improve the file walking, with the cache for queries (in tui currently)
  - Write README with details about what its for and examples
  - Write blog post about it
  - Ensure all command line params are supported and working
- - resolve issue in tui view where /[cb]at/ displays incorrectly
  - ensure paging preserves extension in http mode
  - give ability to set directory via params for http mode

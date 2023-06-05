@@ -365,8 +365,8 @@ func NewTuiSearch() {
 		})
 
 	statusView = tview.NewTextView().
-		SetDynamicColors(true).
-		SetRegions(true).
+		SetDynamicColors(false).
+		SetRegions(false).
 		ScrollToBeginning()
 
 	// setup the flex containers to have everything rendered neatly
