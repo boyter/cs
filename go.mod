@@ -1,4 +1,4 @@
-module cs
+module github.com/boyter/cs
 
 go 1.20
 
