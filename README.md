@@ -26,6 +26,14 @@ Why use cs?
 The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my own
 problem. 
 
+### Install
+
+If you want to create a package to install things please do. Let me know and ill ensure I add it here.
+
+#### Manual
+
+Binaries for Windows, GNU/Linux and macOS are available from the [releases](https://github.com/boyter/cs/releases) page.
+
 ### FAQ
 
 #### Is this as fast as...
