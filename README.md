@@ -13,6 +13,8 @@ Dual-licensed under MIT or the UNLICENSE.
 [![Cs Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
 
 
+<img alt="scc" src=https://github.com/boyter/cs/raw/master/cs_http.png>
+
 ### Pitch
 
 Why use cs?
