@@ -3,7 +3,15 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/boyter/gocodewalker)](https://goreportcard.com/report/github.com/boyter/gocodewalker)
 [![Str Count Badge](https://sloc.xyz/github/boyter/gocodewalker/)](https://github.com/boyter/gocodewalker/)
 
-Library to help with walking of code directories in Go
+Library to help with walking of code directories in Go. 
+
+The problem. You want to walk the directories of a code repository. You want to respect .gitignore and .ignore files, and 
+some are nested. This library is the answer.
+
+ - Designed to walk code repositories or find the root of them.
+ - By default, respects both .gitignore and .ignore files (can be disabled) and nested ones for accuracy
+ - Has configurable options for skipping files based on regex, extension or general match
+ - Uses readdir to provide as fast as possible file walking
 
 NB this was moved from go-code-walker due to the name being annoying and to ensure it has a unique package name. Should still be drop in replaceable
 so long as you refer to the new package name.
@@ -15,7 +23,7 @@ or looking for the root directory assuming already in a git project.
 
 Example of usage,
 
-```
+```go
 fileListQueue := make(chan *gocodewalker.File, 100)
 
 fileWalker := gocodewalker.NewFileWalker(".", fileListQueue)
@@ -41,7 +49,6 @@ The above by default will recursively add files to the fileListQueue respecting 
 only adding files with the go extension into the queue.
 
 All code is dual-licenced as either MIT or Unlicence.
-Note that as an Australian I cannot put this into the public domain, hence the choice most liberal licences I can find.
 
 ### Error Handler
 
@@ -50,7 +57,7 @@ and decide if the walker should continue to process, or return.
 
 The simplest handler is the below, which if set will swallow all errors and continue as best it can.
 
-```
+```go
 errorHandler := func(e error) bool {
     return true
 }
@@ -59,7 +66,7 @@ fileWalker.SetErrorHandler(errorHandler)
 
 If you wanted to return on errors you could use the following.
 
-```
+```go
 errorHandler := func(e error) bool {
     return false
 }
@@ -69,7 +76,7 @@ fileWalker.SetErrorHandler(errorHandler)
 If you wanted to terminate walking on an error you could use the following, which would cause it to return the error,
 and then terminate all walking. This might be desirable where any error indicates a total failure.
 
-```
+```go
 errorHandler := func(e error) bool {
     fileWalker.Terminate()
     return false

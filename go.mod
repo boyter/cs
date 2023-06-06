@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/boyter/go-string v1.0.5
-	github.com/boyter/gocodewalker v1.1.0
+	github.com/boyter/gocodewalker v1.1.1
 	github.com/fatih/color v1.15.0
 	github.com/gdamore/tcell v1.3.0
 	github.com/mattn/go-isatty v0.0.17

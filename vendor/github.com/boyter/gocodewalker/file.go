@@ -152,7 +152,7 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, gitignores []gitig
 	}
 	defer d.Close()
 
-	foundFiles, err := d.ReadDir(-1)
+	foundFiles, err := d.Readdir(-1)
 	if err != nil {
 		// nothing we can do with this so return nil and process as best we can
 		if f.errorsHandler(err) {
@@ -161,8 +161,8 @@ func (f *FileWalker) walkDirectoryRecursive(directory string, gitignores []gitig
 		return err
 	}
 
-	files := []os.DirEntry{}
-	dirs := []os.DirEntry{}
+	files := []os.FileInfo{}
+	dirs := []os.FileInfo{}
 
 	// We want to break apart the files and directories from the
 	// return as we loop over them differently and this avoids some

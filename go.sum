@@ -1,8 +1,8 @@
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/boyter/go-string v1.0.5 h1:/xcOlWdgelLYLVkUU0xBLfioGjZ9KIMUMI/RXG138YY=
 github.com/boyter/go-string v1.0.5/go.mod h1:Mww9cDld2S2cdJ0tQffBhsZFMQRA2OJdcjWYZXvZ4Ss=
-github.com/boyter/gocodewalker v1.1.0 h1:R/BOXRB5WcE5x/Q6Ln95GUQOQE4PAk86nq6WccZqZmM=
-github.com/boyter/gocodewalker v1.1.0/go.mod h1:CppTdM9RtednxKPcit+Zn36FXqwYaDIGufs/tenbswo=
+github.com/boyter/gocodewalker v1.1.1 h1:Mst/UL+Mu8ZGezEdsDFI+bZmvBHbKn6qO3GvzS6UwAQ=
+github.com/boyter/gocodewalker v1.1.1/go.mod h1:l3OQnRDklRvyaz+IGsu0Tw86nX4p4WqwopMRQm+5o54=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 h1:y5HC9v93H5EPKqaS1UYVg1uYah5Xf51mBfIoWehClUQ=
