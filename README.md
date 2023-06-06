@@ -30,6 +30,18 @@ problem.
 
 If you want to create a package to install things please do. Let me know and ill ensure I add it here.
 
+#### Go Get
+
+If you have Go >= 1.20 installed
+
+`go install github.com/boyter/cs@v1.1.0`
+
+#### Nixos
+
+`nix-shell -p codespelunker`
+
+https://github.com/NixOS/nixpkgs/pull/236073
+
 #### Manual
 
 Binaries for Windows, GNU/Linux and macOS are available from the [releases](https://github.com/boyter/cs/releases) page.
