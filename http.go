@@ -49,20 +49,13 @@ func StartHttpServer() {
 		var content []byte
 		var err error
 
+		if strings.TrimSpace(Directory) != "" {
+			path = "/" + path
+		}
 		content, err = os.ReadFile(path)
 		if err != nil {
 			log.Error().
 				Str("unique_code", "d063c1fd").
-				Int("startpos", startPos).
-				Int("endpos", endPos).
-				Str("path", path).
-				Msg("error reading file")
-		}
-		
-		content, err = os.ReadFile("/" + path)
-		if err != nil {
-			log.Error().
-				Str("unique_code", "78e24312").
 				Int("startpos", startPos).
 				Int("endpos", endPos).
 				Str("path", path).
