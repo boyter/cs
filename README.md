@@ -122,15 +122,15 @@ features listed below may be missing from your installation.
 ```
 $ cs -h
 code spelunker (cs) code search.
-Version 1.1.1
+Version 1.2.0
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
-optionally combined with regular expressions. 
+optionally combined with regular expressions.
 
 Works via command line where passed in arguments are the search terms
-or in a TUI mode with no arguments. Can also run in HTTP mode with 
-the -d or --http-server flag. 
+or in a TUI mode with no arguments. Can also run in HTTP mode with
+the -d or --http-server flag.
 
 Searches by default use AND boolean syntax for all terms
  - exact match using quotes "find this"
@@ -139,13 +139,13 @@ Searches by default use AND boolean syntax for all terms
  - regex with toothpick syntax /pr[e-i]de/
 
 Example search that uses all current functionality
- - darcy NOT collins wickham~1 "ten thousand a year" "/pr[e-i]de/"
+ - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/
 
 The default input field in tui mode supports some nano commands
- - CTRL+a move to the beginning of the input
- - CTRL+e move to the end of the input
- - CTRL+k to clear from the cursor location forward 
- 
+- CTRL+a move to the beginning of the input
+- CTRL+e move to the end of the input
+- CTRL+k to clear from the cursor location forward
+
 Usage:
   cs [flags]
 

@@ -34,6 +34,9 @@ var Ranker = "bm25" // seems to be the best default
 // FileOutput sets the file that output should be written to
 var FileOutput = ""
 
+// Directory if not empty indicates the user wants to search not from the current location
+var Directory = ""
+
 // PathExclude sets the paths that should be skipped
 var PathDenylist = []string{}
 

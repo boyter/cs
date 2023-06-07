@@ -5,6 +5,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 )
 
 const (
@@ -45,7 +46,11 @@ func main() {
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			SearchString = args
+
 			dirFilePaths = []string{"."}
+			if strings.TrimSpace(Directory) != "" {
+				dirFilePaths = []string{Directory}
+			}
 
 			// If there are arguments we want to print straight out to the console
 			// otherwise we should enter interactive tui mode
@@ -196,6 +201,12 @@ func main() {
 		"o",
 		"",
 		"output filename (default stdout)",
+	)
+	flags.StringVar(
+		&Directory,
+		"dir",
+		"",
+		"directory to search, if not set defaults to current working directory",
 	)
 
 	if err := rootCmd.Execute(); err != nil {
