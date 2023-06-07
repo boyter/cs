@@ -22,6 +22,7 @@ Why use cs?
  - Rank results on the fly helping you find things
  - Searches across multiple lines
  - Has a nice TUI interface.
+ - Cross-platform (probably needs the new Windows terminal though)
 
 The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my own
 problem. 
@@ -118,14 +119,23 @@ Command line usage of `cs` is designed to be as simple as possible.
 Full details can be found in `cs --help` or `cs -h`. Note that the below reflects the state of master not a release, as such
 features listed below may be missing from your installation.
 
-```shell
+```
 $ cs -h
 code spelunker (cs) code search.
-Version 1.0.0
+Version 1.1.1
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
 optionally combined with regular expressions.
+
+searches by default use AND boolean syntax for all terms
+ - exact match using quotes "find this"
+ - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2
+ - negate using NOT such as pride NOT prejudice
+ - regex with toothpick syntax /pr[e-i]de/
+
+example search that uses all current functionality
+ - darcy NOT collins wickham~1 "ten thousand a year" "/pr[e-i]de/"
 
 Usage:
   cs [flags]
