@@ -153,6 +153,7 @@ Flags:
       --address string            address and port to listen to in HTTP mode (default ":8080")
       --binary                    set to disable binary file detection and search binary files
   -c, --case-sensitive            make the search case sensitive
+      --dir string                directory to search, if not set defaults to current working directory
       --exclude-dir strings       directories to exclude (default [.git,.hg,.svn])
   -x, --exclude-pattern strings   file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]
   -r, --find-root                 attempts to find the root of this repository by traversing in reverse looking for .git or .hg
