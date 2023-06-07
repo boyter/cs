@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	Version = "1.1.1"
+	Version = "1.2.0"
 )
 
 func main() {
@@ -25,15 +25,23 @@ func main() {
 			"cs recursively searches the current directory using some boolean logic\n" +
 			"optionally combined with regular expressions.\n" +
 			"\n" +
-			"searches by default use AND boolean syntax for all terms\n" +
+			"Works via command line where passed in arguments are the search terms\n" +
+			"or in a TUI mode with no arguments. Can also run in HTTP mode with\n" +
+			"the -d or --http-server flag.\n" +
+			"\n" +
+			"Searches by default use AND boolean syntax for all terms\n" +
 			" - exact match using quotes \"find this\"\n" +
 			" - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2\n" +
 			" - negate using NOT such as pride NOT prejudice\n" +
 			" - regex with toothpick syntax /pr[e-i]de/\n" +
 			"\n" +
-			"example search that uses all current functionality\n" +
-			" - darcy NOT collins wickham~1 \"ten thousand a year\" \"/pr[e-i]de/\"\n" +
-			"\n",
+			"Example search that uses all current functionality\n" +
+			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/\n" +
+			"\n" +
+			"The default input field in tui mode supports some nano commands\n" +
+			"- CTRL+a move to the beginning of the input\n" +
+			"- CTRL+e move to the end of the input\n" +
+			"- CTRL+k to clear from the cursor location forward\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			SearchString = args
