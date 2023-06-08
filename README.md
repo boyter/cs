@@ -35,7 +35,7 @@ If you want to create a package to install things please do. Let me know and ill
 
 If you have Go >= 1.20 installed
 
-`go install github.com/boyter/cs@v1.1.0`
+`go install github.com/boyter/cs@v1.2.0`
 
 #### Nixos
 
