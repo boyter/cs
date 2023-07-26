@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/boyter/gocodewalker"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 	"os"
 	"runtime"
 	"sync"
@@ -168,6 +169,7 @@ type FileReaderWorker struct {
 	fileCount        int64 // Count of the number of files that have been read
 	InstanceId       int
 	MaxReadSizeBytes int64
+	FuzzyMatch       string
 }
 
 func NewFileReaderWorker(input chan *gocodewalker.File, output chan *FileJob) *FileReaderWorker {
@@ -191,6 +193,12 @@ func (f *FileReaderWorker) Start() {
 		wg.Add(1)
 		go func() {
 			for res := range f.input {
+				if f.FuzzyMatch != "" {
+					if !fuzzy.MatchFold(f.FuzzyMatch, res.Filename) {
+						continue
+					}
+				}
+
 				fil, err := processFile(res)
 				if err == nil {
 					atomic.AddInt64(&f.fileCount, 1)

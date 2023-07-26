@@ -18,6 +18,7 @@ func NewConsoleSearch() {
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
 	fileReaderWorker := NewFileReaderWorker(files, toProcessQueue)
+
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
 	fileSearcher.SearchString = SearchString
 
