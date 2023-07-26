@@ -16,7 +16,8 @@ import (
 
 var dirFilePaths = []string{}
 var searchToFileMatchesCache = map[string][]string{}
-var searchToFileMatchesCacheMutex = sync.Mutex{}
+
+//var searchToFileMatchesCacheMutex = sync.Mutex{}
 
 func FindFiles(query string) chan *gocodewalker.File {
 	// TODO enable this again as it seems to have issues

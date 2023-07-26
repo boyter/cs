@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	Version = "1.2.0"
+	Version = "1.3.0"
 )
 
 func main() {
@@ -36,8 +36,17 @@ func main() {
 			" - negate using NOT such as pride NOT prejudice\n" +
 			" - regex with toothpick syntax /pr[e-i]de/\n" +
 			"\n" +
+			"Searches can fuzzy match which files are searched by adding\n" +
+			"the following syntax\n" +
+			"\n" +
+			" - test file:test\n" +
+			" - stuff filename:.go\n" +
+			"\n" +
+			"Files that are searched will be limited to those that fuzzy\n" +
+			"match test for the first example and .go for the second." +
+			"\n" +
 			"Example search that uses all current functionality\n" +
-			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/\n" +
+			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/ file:test\n" +
 			"\n" +
 			"The default input field in tui mode supports some nano commands\n" +
 			"- CTRL+a move to the beginning of the input\n" +

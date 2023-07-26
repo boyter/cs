@@ -122,7 +122,7 @@ features listed below may be missing from your installation.
 ```
 $ cs -h
 code spelunker (cs) code search.
-Version 1.2.0
+Version 1.3.0
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
@@ -138,8 +138,16 @@ Searches by default use AND boolean syntax for all terms
  - negate using NOT such as pride NOT prejudice
  - regex with toothpick syntax /pr[e-i]de/
 
+Searches can fuzzy match which files are searched by adding
+the following syntax
+
+ - test file:test
+ - stuff filename:.go
+
+Files that are searched will be limited to those that fuzzy
+match test for the first example and .go for the second.
 Example search that uses all current functionality
- - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/
+ - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/ file:test
 
 The default input field in tui mode supports some nano commands
 - CTRL+a move to the beginning of the input
@@ -182,7 +190,7 @@ You can do exact match with quotes, and do regular expressions using toothpicks.
 Example search that uses all current functionality
 
 ```shell
-cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/"
+cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/" file:test
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
