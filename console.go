@@ -17,10 +17,13 @@ func NewConsoleSearch() {
 	toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
 	summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
 
+	// parse the query here to get the fuzzy stuff
+	query, fuzzy := PreParseQuery(SearchString)
 	fileReaderWorker := NewFileReaderWorker(files, toProcessQueue)
+	fileReaderWorker.FuzzyMatch = fuzzy
 
 	fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
-	fileSearcher.SearchString = SearchString
+	fileSearcher.SearchString = query
 
 	resultSummarizer := NewResultSummarizer(summaryQueue)
 	resultSummarizer.FileReaderWorker = fileReaderWorker
