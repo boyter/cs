@@ -1,6 +1,6 @@
 module github.com/boyter/cs
 
-go 1.20
+go 1.21
 
 require (
 	github.com/boyter/go-string v1.0.5
