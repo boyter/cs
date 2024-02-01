@@ -14,6 +14,10 @@ Dual-licensed under MIT or the UNLICENSE.
 
 [![asciicast](https://asciinema.org/a/589640.svg)](https://asciinema.org/a/589640)
 
+### Support
+
+Using `cs` commercially? If you want priority support for `cs` you can purchase a years worth https://boyter.gumroad.com/l/vvmyi which entitles you to priority direct email support from the developer.
+
 ### Pitch
 
 Why use cs?
