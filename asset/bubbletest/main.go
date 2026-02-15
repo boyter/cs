@@ -3,9 +3,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -83,6 +85,20 @@ var mockResults = []searchResult{
 	},
 }
 
+// debounceTickMsg is sent after the debounce delay to trigger a search
+type debounceTickMsg struct {
+	seq   int
+	query string
+}
+
+// searchResultsMsg delivers incremental search results from the search goroutine
+type searchResultsMsg struct {
+	seq     int
+	results []searchResult
+	done    bool // true = search complete
+	total   int  // total files scanned so far
+}
+
 // Styles
 var (
 	titleStyle = lipgloss.NewStyle().
@@ -128,12 +144,18 @@ type model struct {
 	snippetInput  textinput.Model
 	focusIndex    int // 0=search, 1=snippet
 	results       []searchResult
-	allResults    []searchResult // unfiltered
 	selectedIndex int
 	scrollOffset  int
 	windowHeight  int
 	windowWidth   int
 	chosen        string // set on Enter, printed after exit
+
+	searchSeq     int                    // monotonic counter, incremented on every text change
+	searching     bool                   // true while search is in flight
+	searchCancel  context.CancelFunc     // cancels in-flight search; nil if none
+	searchResults chan searchResultsMsg   // channel from search goroutine
+	lastQuery     string                 // query that produced current results
+	fileCount     int                    // total files scanned (for status line)
 }
 
 func initialModel() model {
@@ -154,8 +176,6 @@ func initialModel() model {
 		searchInput:  si,
 		snippetInput: sn,
 		focusIndex:   0,
-		results:      mockResults,
-		allResults:   mockResults,
 	}
 }
 
@@ -173,13 +193,64 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.clampScroll()
 		return m, nil
 
+	case debounceTickMsg:
+		if msg.seq != m.searchSeq {
+			return m, nil // stale tick, user kept typing
+		}
+		if m.searchCancel != nil {
+			m.searchCancel() // cancel previous search
+		}
+
+		query := strings.TrimSpace(msg.query)
+		if query == "" {
+			m.results = nil
+			m.searching = false
+			m.fileCount = 0
+			return m, nil
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m.searchCancel = cancel
+		m.searching = true
+		m.results = nil
+		m.selectedIndex = 0
+		m.scrollOffset = 0
+		m.fileCount = 0
+		ch := make(chan searchResultsMsg, 1)
+		m.searchResults = ch
+		go mockSearch(ctx, m.searchSeq, query, ch)
+		return m, listenForResults(ch)
+
+	case searchResultsMsg:
+		if msg.seq != m.searchSeq {
+			return m, nil // stale results from old search
+		}
+
+		m.results = append(m.results, msg.results...)
+		m.fileCount = msg.total
+
+		if msg.done {
+			m.searching = false
+			m.searchCancel = nil
+			m.lastQuery = m.searchInput.Value()
+			return m, nil
+		}
+		// Keep listening for more results
+		return m, listenForResults(m.searchResults)
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
+			if m.searchCancel != nil {
+				m.searchCancel()
+			}
 			return m, tea.Quit
 
 		case tea.KeyEnter:
 			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
+				if m.searchCancel != nil {
+					m.searchCancel()
+				}
 				m.chosen = m.results[m.selectedIndex].Filename
 				return m, tea.Quit
 			}
@@ -199,7 +270,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyUp:
 			if m.focusIndex == 1 {
-				// In snippet field, increase value
 				m.adjustSnippetLength(100)
 				return m, nil
 			}
@@ -211,7 +281,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyDown:
 			if m.focusIndex == 1 {
-				// In snippet field, decrease value
 				m.adjustSnippetLength(-100)
 				return m, nil
 			}
@@ -242,9 +311,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.searchInput, cmd = m.searchInput.Update(msg)
 		cmds = append(cmds, cmd)
 
-		// Filter results on search change
+		// On text change, increment seq and start debounce timer
 		if m.searchInput.Value() != prevValue {
-			m.filterResults()
+			m.searchSeq++
+			cmds = append(cmds, makeDebounceCmd(m.searchSeq, m.searchInput.Value()))
 		}
 	} else {
 		var cmd tea.Cmd
@@ -270,30 +340,72 @@ func (m *model) adjustSnippetLength(delta int) {
 	m.snippetInput.SetValue(fmt.Sprintf("%d", val))
 }
 
-func (m *model) filterResults() {
-	query := strings.ToLower(strings.TrimSpace(m.searchInput.Value()))
-	if query == "" {
-		m.results = m.allResults
-	} else {
-		terms := strings.Fields(query)
-		var filtered []searchResult
-		for _, r := range m.allResults {
-			match := true
-			for _, term := range terms {
-				if !strings.Contains(strings.ToLower(r.Filename), term) &&
-					!strings.Contains(strings.ToLower(r.Snippet), term) {
-					match = false
-					break
-				}
-			}
-			if match {
-				filtered = append(filtered, r)
+// makeDebounceCmd returns a tea.Cmd that fires a debounceTickMsg after 200ms
+func makeDebounceCmd(seq int, query string) tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+		return debounceTickMsg{seq: seq, query: query}
+	})
+}
+
+// listenForResults returns a tea.Cmd that blocks until the next message arrives on ch
+func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-ch
+		if !ok {
+			return searchResultsMsg{done: true}
+		}
+		return msg
+	}
+}
+
+// mockSearch simulates a streaming search with per-file delays and batch sending
+func mockSearch(ctx context.Context, seq int, query string, ch chan<- searchResultsMsg) {
+	defer close(ch)
+
+	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
+	var batch []searchResult
+	scanned := 0
+
+	for _, r := range mockResults {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		// Simulate per-file processing time
+		time.Sleep(50 * time.Millisecond)
+		scanned++
+
+		// Check if result matches
+		match := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(r.Filename), term) &&
+				!strings.Contains(strings.ToLower(r.Snippet), term) {
+				match = false
+				break
 			}
 		}
-		m.results = filtered
+		if match {
+			batch = append(batch, r)
+		}
+
+		// Send batch every 3 results processed
+		if scanned%3 == 0 && len(batch) > 0 {
+			select {
+			case ch <- searchResultsMsg{seq: seq, results: batch, total: scanned}:
+				batch = nil
+			case <-ctx.Done():
+				return
+			}
+		}
 	}
-	m.selectedIndex = 0
-	m.scrollOffset = 0
+
+	// Send remaining results + done signal
+	select {
+	case ch <- searchResultsMsg{seq: seq, results: batch, done: true, total: scanned}:
+	case <-ctx.Done():
+	}
 }
 
 // resultHeight returns the number of terminal lines a result takes up
@@ -368,12 +480,16 @@ func (m model) View() string {
 	var status string
 	if query == "" {
 		status = "type a query to search"
+	} else if m.searching {
+		status = fmt.Sprintf("%d results for '%s' from %d files (searching...)",
+			len(m.results), query, m.fileCount)
 	} else {
 		plural := "s"
 		if len(m.results) == 1 {
 			plural = ""
 		}
-		status = fmt.Sprintf("%d result%s for '%s' from 450 files", len(m.results), plural, query)
+		status = fmt.Sprintf("%d result%s for '%s' from %d files",
+			len(m.results), plural, m.lastQuery, m.fileCount)
 	}
 	b.WriteString(statusStyle.Render(status))
 	b.WriteString("\n")
@@ -402,7 +518,11 @@ func (m model) View() string {
 		}
 
 		isSelected := i == m.selectedIndex
-		resultStr := m.renderResult(r, isSelected, query)
+		highlightQuery := m.lastQuery
+		if m.searching {
+			highlightQuery = query
+		}
+		resultStr := m.renderResult(r, isSelected, highlightQuery)
 		resultLines := strings.Split(resultStr, "\n")
 
 		// Handle partial rendering at top (scroll offset cuts into this result)
