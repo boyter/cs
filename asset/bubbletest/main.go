@@ -3,86 +3,33 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/pkg/ranker"
+	"github.com/boyter/cs/pkg/search"
+	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/gocodewalker"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// searchResult represents a single search result with mock data
+// searchResult represents a single search result
 type searchResult struct {
 	Filename string
+	Location string
 	Score    float64
 	Snippet  string // plain text snippet
 	Lines    string // line range info
-}
-
-var mockResults = []searchResult{
-	{
-		Filename: "searcher.go",
-		Score:    0.9847,
-		Snippet:  "func SearcherWorker(input chan *FileJob, output chan *FileJob) {\n\tfor res := range input {\n\t\tif res.Binary {\n\t\t\tcontinue\n\t\t}\n\t\tfor _, term := range searchTerms {\n\t\t\tif matchContent(res.Content, term) {\n\t\t\t\toutput <- res\n\t\t\t}\n\t\t}\n\t}",
-		Lines:    "45-56",
-	},
-	{
-		Filename: "search.go",
-		Score:    0.8523,
-		Snippet:  "func PreParseQuery(args []string) ([]SearchTerm, bool) {\n\tvar searchTerms []SearchTerm\n\tfuzzy := false\n\tfor _, arg := range args {\n\t\tif strings.HasPrefix(arg, \"file:\") {\n\t\t\tcontinue\n\t\t}\n\t\tsearchTerms = append(searchTerms, parseSearchTerm(arg))\n\t}",
-		Lines:    "12-20",
-	},
-	{
-		Filename: "ranker.go",
-		Score:    0.7234,
-		Snippet:  "func rankResults(documentCount int, results []*FileJob) {\n\tswitch strings.ToLower(Ranker) {\n\tcase \"bm25\":\n\t\tfor _, r := range results {\n\t\t\tr.Score = calculateBM25(r, documentCount)\n\t\t}\n\tcase \"tfidf\":\n\t\tfor _, r := range results {\n\t\t\tr.Score = calculateTfIdf(r, documentCount)\n\t\t}",
-		Lines:    "8-17",
-	},
-	{
-		Filename: "file.go",
-		Score:    0.6891,
-		Snippet:  "func FileReaderWorker(input chan string, output chan *FileJob) {\n\tfor path := range input {\n\t\tdata, err := os.ReadFile(path)\n\t\tif err != nil {\n\t\t\tcontinue\n\t\t}\n\t\toutput <- &FileJob{\n\t\t\tLocation: path,\n\t\t\tContent:  data,\n\t\t}",
-		Lines:    "30-40",
-	},
-	{
-		Filename: "snippet.go",
-		Score:    0.5912,
-		Snippet:  "func extractRelevantV3(res *FileJob, freq map[string]int, snippetLen int) []Snippet {\n\twindowSize := snippetLen\n\tbestScore := 0\n\tbestPos := 0\n\tcontent := string(res.Content)",
-		Lines:    "88-93",
-	},
-	{
-		Filename: "main.go",
-		Score:    0.4756,
-		Snippet:  "func main() {\n\trootCmd := &cobra.Command{\n\t\tUse:   \"cs [query]\",\n\t\tShort: \"Code search tool\",\n\t\tRun: func(cmd *cobra.Command, args []string) {\n\t\t\tif SearchHTTP {\n\t\t\t\tStartHttpServer()\n\t\t\t} else if len(args) > 0 {\n\t\t\t\tNewConsoleSearch(args)\n\t\t\t}",
-		Lines:    "15-24",
-	},
-	{
-		Filename: "console.go",
-		Score:    0.3845,
-		Snippet:  "func NewConsoleSearch(args []string) {\n\tquery := strings.Join(args, \" \")\n\tfiles := FindFiles(query)\n\ttoProcessQueue := make(chan *FileJob)\n\tsummaryQueue := make(chan *FileJob)",
-		Lines:    "22-27",
-	},
-	{
-		Filename: "tui.go",
-		Score:    0.3102,
-		Snippet:  "func NewTuiSearch() {\n\ttviewApplication = tview.NewApplication()\n\tapplicationController := tuiApplicationController{\n\t\tMutex:      sync.Mutex{},\n\t\tSpinString: `\\|/-`,\n\t}",
-		Lines:    "249-254",
-	},
-	{
-		Filename: "globals.go",
-		Score:    0.2481,
-		Snippet:  "var SnippetLength int64 = 300\nvar SnippetCount int64 = 1\nvar Ranker = \"bm25\"\nvar CaseSensitive = false\nvar SearchHTTP = false",
-		Lines:    "8-12",
-	},
-	{
-		Filename: "vendor/github.com/boyter/gocodewalker/walker.go",
-		Score:    0.1234,
-		Snippet:  "func walkFiles(root string, output chan string) {\n\tfilepath.Walk(root, func(path string, info os.FileInfo, err error) error {\n\t\tif err != nil {\n\t\t\treturn nil\n\t\t}\n\t\tif !info.IsDir() {\n\t\t\toutput <- path\n\t\t}",
-		Lines:    "45-53",
-	},
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -93,10 +40,11 @@ type debounceTickMsg struct {
 
 // searchResultsMsg delivers incremental search results from the search goroutine
 type searchResultsMsg struct {
-	seq     int
-	results []searchResult
-	done    bool // true = search complete
-	total   int  // total files scanned so far
+	seq      int
+	results  []searchResult
+	fileJobs []*common.FileJob
+	done     bool // true = search complete
+	total    int  // total files scanned so far
 }
 
 // Styles
@@ -144,18 +92,19 @@ type model struct {
 	snippetInput  textinput.Model
 	focusIndex    int // 0=search, 1=snippet
 	results       []searchResult
+	fileJobs      []*common.FileJob
 	selectedIndex int
 	scrollOffset  int
 	windowHeight  int
 	windowWidth   int
 	chosen        string // set on Enter, printed after exit
 
-	searchSeq     int                    // monotonic counter, incremented on every text change
-	searching     bool                   // true while search is in flight
-	searchCancel  context.CancelFunc     // cancels in-flight search; nil if none
-	searchResults chan searchResultsMsg   // channel from search goroutine
-	lastQuery     string                 // query that produced current results
-	fileCount     int                    // total files scanned (for status line)
+	searchSeq     int                  // monotonic counter, incremented on every text change
+	searching     bool                 // true while search is in flight
+	searchCancel  context.CancelFunc   // cancels in-flight search; nil if none
+	searchResults chan searchResultsMsg // channel from search goroutine
+	lastQuery     string               // query that produced current results
+	fileCount     int                  // total files scanned (for status line)
 }
 
 func initialModel() model {
@@ -204,21 +153,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		query := strings.TrimSpace(msg.query)
 		if query == "" {
 			m.results = nil
+			m.fileJobs = nil
 			m.searching = false
 			m.fileCount = 0
 			return m, nil
+		}
+
+		// Parse snippet length from input
+		snippetLen := 300
+		if v := m.snippetInput.Value(); v != "" {
+			fmt.Sscanf(v, "%d", &snippetLen)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		m.searchCancel = cancel
 		m.searching = true
 		m.results = nil
+		m.fileJobs = nil
 		m.selectedIndex = 0
 		m.scrollOffset = 0
 		m.fileCount = 0
 		ch := make(chan searchResultsMsg, 1)
 		m.searchResults = ch
-		go mockSearch(ctx, m.searchSeq, query, ch)
+		go realSearch(ctx, m.searchSeq, query, snippetLen, ch)
 		return m, listenForResults(ch)
 
 	case searchResultsMsg:
@@ -227,12 +184,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.results = append(m.results, msg.results...)
+		m.fileJobs = append(m.fileJobs, msg.fileJobs...)
 		m.fileCount = msg.total
 
 		if msg.done {
 			m.searching = false
 			m.searchCancel = nil
 			m.lastQuery = m.searchInput.Value()
+
+			// Rank all results with BM25
+			if len(m.fileJobs) > 0 {
+				ranked := ranker.RankResults("bm25", m.fileCount, m.fileJobs)
+
+				// Rebuild results in ranked order
+				resultMap := make(map[string]searchResult, len(m.results))
+				for _, r := range m.results {
+					resultMap[r.Location] = r
+				}
+				var newResults []searchResult
+				for _, fj := range ranked {
+					if r, ok := resultMap[fj.Location]; ok {
+						r.Score = fj.Score
+						newResults = append(newResults, r)
+					}
+				}
+				m.results = newResults
+				m.fileJobs = nil // free memory
+				m.selectedIndex = 0
+				m.scrollOffset = 0
+			}
+
 			return m, nil
 		}
 		// Keep listening for more results
@@ -251,7 +232,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.searchCancel != nil {
 					m.searchCancel()
 				}
-				m.chosen = m.results[m.selectedIndex].Filename
+				m.chosen = m.results[m.selectedIndex].Location
 				return m, tea.Quit
 			}
 			return m, nil
@@ -358,43 +339,140 @@ func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
 	}
 }
 
-// mockSearch simulates a streaming search with per-file delays and batch sending
-func mockSearch(ctx context.Context, seq int, query string, ch chan<- searchResultsMsg) {
+// realSearch performs a streaming search using gocodewalker for file discovery
+// and pkg/search for AST-based query evaluation against each file.
+func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch chan<- searchResultsMsg) {
 	defer close(ch)
 
-	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
-	var batch []searchResult
-	scanned := 0
+	// Parse query into AST
+	lexer := search.NewLexer(strings.NewReader(query))
+	parser := search.NewParser(lexer)
+	ast, _ := parser.ParseQuery()
+	if ast == nil {
+		return
+	}
+	transformer := &search.Transformer{}
+	ast, _ = transformer.TransformAST(ast)
+	ast = search.PlanAST(ast)
 
-	for _, r := range mockResults {
+	// Walk files using gocodewalker
+	fileQueue := make(chan *gocodewalker.File, 1000)
+	walker := gocodewalker.NewFileWalker(".", fileQueue)
+	go func() { _ = walker.Start() }()
+
+	// Ensure walker is terminated on context cancellation
+	searchDone := make(chan struct{})
+	defer close(searchDone)
+	go func() {
 		select {
 		case <-ctx.Done():
-			return
-		default:
+			walker.Terminate()
+		case <-searchDone:
 		}
+	}()
 
-		// Simulate per-file processing time
-		time.Sleep(50 * time.Millisecond)
-		scanned++
+	type matchResult struct {
+		sr searchResult
+		fj *common.FileJob
+	}
 
-		// Check if result matches
-		match := true
-		for _, term := range terms {
-			if !strings.Contains(strings.ToLower(r.Filename), term) &&
-				!strings.Contains(strings.ToLower(r.Snippet), term) {
-				match = false
-				break
+	var fileCount atomic.Int64
+	matches := make(chan matchResult, runtime.NumCPU())
+
+	// Fan out workers to read and search files in parallel
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range fileQueue {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				content, err := os.ReadFile(f.Location)
+				if err != nil {
+					fileCount.Add(1)
+					continue
+				}
+				fileCount.Add(1)
+
+				// Binary check: look for NUL byte in first 10KB
+				check := content
+				if len(check) > 10_000 {
+					check = content[:10_000]
+				}
+				if bytes.IndexByte(check, 0) != -1 {
+					continue
+				}
+
+				// Evaluate query AST against file content
+				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, false)
+				if !matched {
+					continue
+				}
+
+				// Build FileJob for snippet extraction and later ranking
+				fj := &common.FileJob{
+					Filename:       f.Filename,
+					Location:       f.Location,
+					Content:        content,
+					Bytes:          len(content),
+					MatchLocations: matchLocations,
+				}
+
+				// Extract snippet
+				snippets := snippet.ExtractRelevant(fj, nil, snippetLen)
+				snippetText := ""
+				lineRange := ""
+				if len(snippets) > 0 {
+					snippetText = snippets[0].Content
+					lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+				}
+
+				// Clear content to save memory after snippet extraction
+				fj.Content = nil
+
+				select {
+				case matches <- matchResult{
+					sr: searchResult{
+						Filename: f.Location,
+						Location: f.Location,
+						Snippet:  snippetText,
+						Lines:    lineRange,
+					},
+					fj: fj,
+				}:
+				case <-ctx.Done():
+					return
+				}
 			}
-		}
-		if match {
-			batch = append(batch, r)
-		}
+		}()
+	}
 
-		// Send batch every 3 results processed
-		if scanned%3 == 0 && len(batch) > 0 {
+	go func() {
+		wg.Wait()
+		close(matches)
+	}()
+
+	// Collect matches and send to TUI in batches
+	var batch []searchResult
+	var batchJobs []*common.FileJob
+
+	for mr := range matches {
+		batch = append(batch, mr.sr)
+		batchJobs = append(batchJobs, mr.fj)
+
+		if len(batch) >= 5 {
 			select {
-			case ch <- searchResultsMsg{seq: seq, results: batch, total: scanned}:
+			case ch <- searchResultsMsg{
+				seq: seq, results: batch, fileJobs: batchJobs,
+				total: int(fileCount.Load()),
+			}:
 				batch = nil
+				batchJobs = nil
 			case <-ctx.Done():
 				return
 			}
@@ -403,7 +481,10 @@ func mockSearch(ctx context.Context, seq int, query string, ch chan<- searchResu
 
 	// Send remaining results + done signal
 	select {
-	case ch <- searchResultsMsg{seq: seq, results: batch, done: true, total: scanned}:
+	case ch <- searchResultsMsg{
+		seq: seq, results: batch, fileJobs: batchJobs,
+		done: true, total: int(fileCount.Load()),
+	}:
 	case <-ctx.Done():
 	}
 }
