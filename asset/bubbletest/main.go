@@ -40,11 +40,12 @@ type debounceTickMsg struct {
 
 // searchResultsMsg delivers incremental search results from the search goroutine
 type searchResultsMsg struct {
-	seq      int
-	results  []searchResult
-	fileJobs []*common.FileJob
-	done     bool // true = search complete
-	total    int  // total files scanned so far
+	seq       int
+	results   []searchResult
+	fileJobs  []*common.FileJob
+	done      bool // true = search complete
+	total     int  // total files scanned so far
+	textTotal int  // non-binary, successfully read files (for BM25 ranking)
 }
 
 // Styles
@@ -105,6 +106,7 @@ type model struct {
 	searchResults chan searchResultsMsg // channel from search goroutine
 	lastQuery     string               // query that produced current results
 	fileCount     int                  // total files scanned (for status line)
+	textFileCount int                  // non-binary, successfully read files (for BM25 ranking)
 }
 
 func initialModel() model {
@@ -186,30 +188,45 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.results = append(m.results, msg.results...)
 		m.fileJobs = append(m.fileJobs, msg.fileJobs...)
 		m.fileCount = msg.total
+		m.textFileCount = msg.textTotal
 
 		if msg.done {
 			m.searching = false
 			m.searchCancel = nil
 			m.lastQuery = m.searchInput.Value()
 
-			// Rank all results with BM25
+			// Rank all results with BM25 and re-extract snippets with global frequencies
 			if len(m.fileJobs) > 0 {
-				ranked := ranker.RankResults("bm25", m.fileCount, m.fileJobs)
+				ranked := ranker.RankResults("bm25", m.textFileCount, m.fileJobs)
+				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
 
-				// Rebuild results in ranked order
-				resultMap := make(map[string]searchResult, len(m.results))
-				for _, r := range m.results {
-					resultMap[r.Location] = r
+				// Parse snippet length from input
+				snippetLen := 300
+				if v := m.snippetInput.Value(); v != "" {
+					fmt.Sscanf(v, "%d", &snippetLen)
 				}
+
 				var newResults []searchResult
 				for _, fj := range ranked {
-					if r, ok := resultMap[fj.Location]; ok {
-						r.Score = fj.Score
-						newResults = append(newResults, r)
+					snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+					snippetText := ""
+					lineRange := ""
+					if len(snippets) > 0 {
+						snippetText = snippets[0].Content
+						lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
 					}
+					fj.Content = nil // free memory after final extraction
+
+					newResults = append(newResults, searchResult{
+						Filename: fj.Location,
+						Location: fj.Location,
+						Score:    fj.Score,
+						Snippet:  snippetText,
+						Lines:    lineRange,
+					})
 				}
 				m.results = newResults
-				m.fileJobs = nil // free memory
+				m.fileJobs = nil
 				m.selectedIndex = 0
 				m.scrollOffset = 0
 			}
@@ -377,6 +394,7 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 	}
 
 	var fileCount atomic.Int64
+	var textFileCount atomic.Int64
 	matches := make(chan matchResult, runtime.NumCPU())
 
 	// Fan out workers to read and search files in parallel
@@ -407,6 +425,7 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 				if bytes.IndexByte(check, 0) != -1 {
 					continue
 				}
+				textFileCount.Add(1)
 
 				// Evaluate query AST against file content
 				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, false)
@@ -423,17 +442,20 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 					MatchLocations: matchLocations,
 				}
 
+				// Build per-file document frequencies for initial snippet scoring
+				docFreq := make(map[string]int, len(matchLocations))
+				for k, v := range matchLocations {
+					docFreq[k] = len(v)
+				}
+
 				// Extract snippet
-				snippets := snippet.ExtractRelevant(fj, nil, snippetLen)
+				snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
 				snippetText := ""
 				lineRange := ""
 				if len(snippets) > 0 {
 					snippetText = snippets[0].Content
 					lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
 				}
-
-				// Clear content to save memory after snippet extraction
-				fj.Content = nil
 
 				select {
 				case matches <- matchResult{
@@ -469,7 +491,7 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 			select {
 			case ch <- searchResultsMsg{
 				seq: seq, results: batch, fileJobs: batchJobs,
-				total: int(fileCount.Load()),
+				total: int(fileCount.Load()), textTotal: int(textFileCount.Load()),
 			}:
 				batch = nil
 				batchJobs = nil
@@ -483,7 +505,7 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 	select {
 	case ch <- searchResultsMsg{
 		seq: seq, results: batch, fileJobs: batchJobs,
-		done: true, total: int(fileCount.Load()),
+		done: true, total: int(fileCount.Load()), textTotal: int(textFileCount.Load()),
 	}:
 	case <-ctx.Done():
 	}
@@ -743,7 +765,7 @@ func (m model) highlightMatches(line string, query string, isSelected bool) stri
 }
 
 func main() {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen(), tea.WithOutput(os.Stderr))
 	m, err := p.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
