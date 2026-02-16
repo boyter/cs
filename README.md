@@ -26,7 +26,7 @@ Why use cs?
  - Rank results on the fly helping you find things
  - Searches across multiple lines
  - Has a nice TUI interface.
- - Cross-platform (probably needs the new Windows terminal though)
+ - Cross-platform (on Windows it probably needs the terminal)
 
 The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my own
 problem. 
@@ -195,9 +195,9 @@ Flags:
 
 Searches work on single or multiple words with a logical AND applied between them. You can negate with NOT before a term.
 You can combine terms with OR and use parentheses to control grouping.
-You can do exact match with quotes, and do regular expressions using toothpicks.
+You can do an exact match with quotes and do regular expressions using toothpicks.
 
-Example search that uses all current functionality
+Example search that uses all current functionality (but will match nothing in this repository)
 
 ```shell
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/" file:test

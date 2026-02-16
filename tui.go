@@ -104,6 +104,7 @@ type model struct {
 	fileCount     int                   // total files scanned (for status line)
 	textFileCount int                   // non-binary, successfully read files (for BM25 ranking)
 	snippetMode   string                // "snippet" or "lines"
+	searchCache   *SearchCache          // caches file locations across progressive queries
 }
 
 func initialModel(cfg *Config) model {
@@ -126,6 +127,7 @@ func initialModel(cfg *Config) model {
 		snippetInput: sn,
 		focusIndex:   0,
 		snippetMode:  cfg.SnippetMode,
+		searchCache:  NewSearchCache(),
 	}
 }
 
@@ -176,7 +178,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fileCount = 0
 		ch := make(chan searchResultsMsg, 1)
 		m.searchResults = ch
-		go realSearch(ctx, m.cfg, m.searchSeq, query, snippetLen, m.snippetMode, ch)
+		go realSearch(ctx, m.cfg, m.searchSeq, query, snippetLen, m.snippetMode, m.searchCache, ch)
 		return m, listenForResults(ch)
 
 	case searchResultsMsg:
@@ -393,10 +395,10 @@ func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
 }
 
 // realSearch wraps DoSearch for TUI use, streaming results in batches via the channel.
-func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippetLen int, snippetMode string, ch chan<- searchResultsMsg) {
+func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippetLen int, snippetMode string, cache *SearchCache, ch chan<- searchResultsMsg) {
 	defer close(ch)
 
-	searchCh, stats := DoSearch(ctx, cfg, query)
+	searchCh, stats := DoSearch(ctx, cfg, query, cache)
 
 	var batch []searchResult
 	var batchJobs []*common.FileJob
@@ -730,4 +732,3 @@ func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) str
 
 	return result.String()
 }
-

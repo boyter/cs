@@ -11,6 +11,9 @@ github.com/boyter/go-string
 ## explicit; go 1.20
 github.com/boyter/gocodewalker
 github.com/boyter/gocodewalker/go-gitignore
+# github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
+## explicit; go 1.23.3
+github.com/boyter/simplecache
 # github.com/charmbracelet/bubbles v0.16.1
 ## explicit; go 1.17
 github.com/charmbracelet/bubbles/cursor

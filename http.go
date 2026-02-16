@@ -76,6 +76,7 @@ type httpPageResult struct {
 }
 
 func StartHttpServer(cfg *Config) {
+	cache := NewSearchCache()
 	searchTmpl, err := resolveSearchTemplate(cfg)
 	if err != nil {
 		log.Fatalf("failed to load search template: %v", err)
@@ -151,7 +152,7 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			ctx := context.Background()
-			ch, stats := DoSearch(ctx, &searchCfg, query)
+			ch, stats := DoSearch(ctx, &searchCfg, query, cache)
 
 			for fj := range ch {
 				results = append(results, fj)

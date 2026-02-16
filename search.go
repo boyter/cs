@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -25,7 +26,9 @@ type SearchStats struct {
 
 // DoSearch runs the search pipeline and returns a channel of matched FileJob results
 // plus stats that are populated as the search runs.
-func DoSearch(ctx context.Context, cfg *Config, query string) (<-chan *common.FileJob, *SearchStats) {
+// If cache is non-nil, it will attempt to use cached file locations from a previous
+// prefix query instead of walking the filesystem, and will store results for future use.
+func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache) (<-chan *common.FileJob, *SearchStats) {
 	out := make(chan *common.FileJob, runtime.NumCPU())
 	stats := &SearchStats{}
 
@@ -50,27 +53,60 @@ func DoSearch(ctx context.Context, cfg *Config, query string) (<-chan *common.Fi
 		dir = gocodewalker.FindRepositoryRoot(dir)
 	}
 
-	// Set up file walker
 	fileQueue := make(chan *gocodewalker.File, 1000)
-	walker := gocodewalker.NewFileWalker(dir, fileQueue)
-	walker.AllowListExtensions = cfg.AllowListExtensions
-	walker.IgnoreIgnoreFile = cfg.IgnoreIgnoreFile
-	walker.IgnoreGitIgnore = cfg.IgnoreGitIgnore
-	walker.LocationExcludePattern = cfg.LocationExcludePattern
-	walker.IncludeHidden = cfg.IncludeHidden
-	walker.ExcludeDirectory = cfg.PathDenylist
 
-	go func() { _ = walker.Start() }()
+	// Try cache hit path: feed cached file locations instead of walking
+	var walkerToTerminate *gocodewalker.FileWalker
+	if cache != nil {
+		if cachedFiles, ok := cache.FindPrefixFiles(cfg.AllowListExtensions, query); ok {
+			go func() {
+				defer close(fileQueue)
+				for _, loc := range cachedFiles {
+					select {
+					case <-ctx.Done():
+						return
+					case fileQueue <- &gocodewalker.File{
+						Location: loc,
+						Filename: filepath.Base(loc),
+					}:
+					}
+				}
+			}()
+			goto startWorkers
+		}
+	}
 
+	// Set up file walker (cache miss or no cache)
+	{
+		walker := gocodewalker.NewFileWalker(dir, fileQueue)
+		walker.AllowListExtensions = cfg.AllowListExtensions
+		walker.IgnoreIgnoreFile = cfg.IgnoreIgnoreFile
+		walker.IgnoreGitIgnore = cfg.IgnoreGitIgnore
+		walker.LocationExcludePattern = cfg.LocationExcludePattern
+		walker.IncludeHidden = cfg.IncludeHidden
+		walker.ExcludeDirectory = cfg.PathDenylist
+		walkerToTerminate = walker
+
+		go func() { _ = walker.Start() }()
+	}
+
+startWorkers:
 	// Ensure walker is terminated on context cancellation
 	searchDone := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			walker.Terminate()
-		case <-searchDone:
-		}
-	}()
+	if walkerToTerminate != nil {
+		walker := walkerToTerminate
+		go func() {
+			select {
+			case <-ctx.Done():
+				walker.Terminate()
+			case <-searchDone:
+			}
+		}()
+	}
+
+	// Track matched file locations for cache population
+	var matchedMu sync.Mutex
+	var matchedLocations []string
 
 	// Fan out workers to read and search files in parallel
 	var wg sync.WaitGroup
@@ -125,6 +161,13 @@ func DoSearch(ctx context.Context, cfg *Config, query string) (<-chan *common.Fi
 					continue
 				}
 
+				// Track matched file location for cache
+				if cache != nil {
+					matchedMu.Lock()
+					matchedLocations = append(matchedLocations, f.Location)
+					matchedMu.Unlock()
+				}
+
 				snippet.AddPhraseMatchLocations(content, strings.Trim(query, "\""), matchLocations)
 
 				fj := &common.FileJob{
@@ -149,6 +192,11 @@ func DoSearch(ctx context.Context, cfg *Config, query string) (<-chan *common.Fi
 		wg.Wait()
 		close(out)
 		close(searchDone)
+
+		// Populate cache with matched file locations
+		if cache != nil && len(matchedLocations) > 0 {
+			cache.Store(cfg.AllowListExtensions, query, matchedLocations)
+		}
 	}()
 
 	return out, stats

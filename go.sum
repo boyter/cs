@@ -6,6 +6,8 @@ github.com/boyter/go-string v1.0.5 h1:/xcOlWdgelLYLVkUU0xBLfioGjZ9KIMUMI/RXG138Y
 github.com/boyter/go-string v1.0.5/go.mod h1:Mww9cDld2S2cdJ0tQffBhsZFMQRA2OJdcjWYZXvZ4Ss=
 github.com/boyter/gocodewalker v1.1.1 h1:Mst/UL+Mu8ZGezEdsDFI+bZmvBHbKn6qO3GvzS6UwAQ=
 github.com/boyter/gocodewalker v1.1.1/go.mod h1:l3OQnRDklRvyaz+IGsu0Tw86nX4p4WqwopMRQm+5o54=
+github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4 h1:NEsNtTjl+nY4IuqfzWjuDnxHnu/NSXZdg0gVHSfIbVM=
+github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4/go.mod h1:8yw7v2b4T5LJbZEBhPOqUsqe8h04anlyPhmWnoUtRIs=
 github.com/charmbracelet/bubbles v0.16.1 h1:6uzpAAaT9ZqKssntbvZMlksWHruQLNxg49H5WdeuYSY=
 github.com/charmbracelet/bubbles v0.16.1/go.mod h1:2QCp9LFlEsBQMvIYERr7Ww2H2bA7xen1idUDIzm/+Xc=
 github.com/charmbracelet/bubbletea v0.24.2 h1:uaQIKx9Ai6Gdh5zpTbGiWpytMU+CfsPp06RaW2cx/SY=

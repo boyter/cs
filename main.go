@@ -36,7 +36,6 @@ func main() {
 			"\n" +
 			"Searches can fuzzy match which files are searched by adding\n" +
 			"the following syntax\n" +
-			"\n" +
 			" - test file:test\n" +
 			" - stuff filename:.go\n" +
 			"\n" +
@@ -62,7 +61,7 @@ func main() {
 				p := tea.NewProgram(initialModel(&cfg), tea.WithAltScreen(), tea.WithOutput(os.Stderr))
 				m, err := p.Run()
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 					os.Exit(1)
 				}
 				if fm, ok := m.(model); ok && fm.chosen != "" {

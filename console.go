@@ -23,7 +23,7 @@ func ConsoleSearch(cfg *Config) {
 	query := strings.Join(cfg.SearchString, " ")
 
 	ctx := context.Background()
-	ch, stats := DoSearch(ctx, cfg, query)
+	ch, stats := DoSearch(ctx, cfg, query, nil)
 
 	// Collect all results
 	var results []*common.FileJob

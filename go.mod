@@ -1,6 +1,6 @@
 module github.com/boyter/cs
 
-go 1.21
+go 1.23.3
 
 require (
 	github.com/boyter/go-string v1.0.5
@@ -16,6 +16,7 @@ require (
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
