@@ -276,8 +276,9 @@ func ExtractRelevant(res *common.FileJob, documentFrequencies map[string]int, re
 func convertToRelevant(res *common.FileJob) []relevantV3 {
 	var rv3 []relevantV3
 
+	filterShort := shouldFilterShortTerms(res.MatchLocations)
 	for k, v := range res.MatchLocations {
-		if len(k) < minTermLen {
+		if filterShort && len(k) < minTermLen {
 			continue
 		}
 		for _, i := range v {

@@ -216,6 +216,41 @@ func TestFindMatchingLinesKeepsPhraseWithShortWords(t *testing.T) {
 	}
 }
 
+func TestFindMatchingLinesSingleCharOnly(t *testing.T) {
+	// When all search terms are single characters, they should NOT be
+	// filtered out — otherwise no snippets are produced at all.
+	content := []byte("one\ntwo\nthree")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"e": {{2, 3}, {10, 11}, {12, 13}},
+		},
+	}
+	result := FindMatchingLines(res, 0)
+	if len(result) == 0 {
+		t.Fatal("expected results for single-char-only search, got none")
+	}
+
+	// Lines 1 ("one") and 3 ("three") contain "e"
+	lineNums := make(map[int]bool)
+	for _, lr := range result {
+		lineNums[lr.LineNumber] = true
+	}
+	if !lineNums[1] {
+		t.Error("expected line 1 ('one') in results")
+	}
+	if !lineNums[3] {
+		t.Error("expected line 3 ('three') in results")
+	}
+
+	// Verify match locations are populated
+	for _, lr := range result {
+		if len(lr.Locs) == 0 && (lr.LineNumber == 1 || lr.LineNumber == 3) {
+			t.Errorf("expected Locs on line %d, got none", lr.LineNumber)
+		}
+	}
+}
+
 func TestAddPhraseMatchLocations(t *testing.T) {
 	content := []byte("Ten Thousand a Year is a lot of money. ten thousand a year indeed.")
 

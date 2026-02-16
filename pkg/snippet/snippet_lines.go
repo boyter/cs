@@ -21,6 +21,18 @@ type LineResult struct {
 
 const minTermLen = 2
 
+// shouldFilterShortTerms returns true if MatchLocations contains at least
+// one term that meets the minTermLen threshold, meaning short terms can
+// safely be filtered out without losing all matches.
+func shouldFilterShortTerms(matchLocations map[string][][]int) bool {
+	for term := range matchLocations {
+		if len(term) >= minTermLen {
+			return true
+		}
+	}
+	return false
+}
+
 // AddPhraseMatchLocations case-insensitively searches for the full query string
 // in file content and adds any hits to the MatchLocations map. This gives a
 // natural boost to lines containing the exact phrase since the key is long.
@@ -80,8 +92,9 @@ func FindMatchingLines(res *common.FileJob, surroundLines int) []LineResult {
 		var locs [][]int
 		var score float64
 
+		filterShort := shouldFilterShortTerms(res.MatchLocations)
 		for term, positions := range res.MatchLocations {
-			if len(term) < minTermLen {
+			if filterShort && len(term) < minTermLen {
 				continue
 			}
 			for _, pos := range positions {
