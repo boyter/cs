@@ -143,7 +143,7 @@ func formatCodeStats(res *common.FileJob) string {
 	if res.Lines == 0 {
 		return ""
 	}
-	return fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d)", res.Lines, res.Code, res.Comment, res.Blank)
+	return fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d Complexity:%d)", res.Lines, res.Code, res.Comment, res.Blank, res.Complexity)
 }
 
 type jsonLineResult struct {

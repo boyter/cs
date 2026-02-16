@@ -665,7 +665,7 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	// Title line: indicator + filename (language) (score) [linerange] code stats
 	codeStats := ""
 	if r.TotalLines > 0 {
-		codeStats = fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d)", r.TotalLines, r.Code, r.Comment, r.Blank)
+		codeStats = fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d Complexity:%d)", r.TotalLines, r.Code, r.Comment, r.Blank, r.Complexity)
 	}
 	var titleText string
 	if r.Language != "" {
