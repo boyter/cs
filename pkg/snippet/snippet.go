@@ -3,7 +3,6 @@
 package snippet
 
 import (
-	"bytes"
 	"sort"
 	"unicode"
 
@@ -156,7 +155,7 @@ func ExtractRelevant(res *common.FileJob, documentFrequencies map[string]int, re
 			m.StartPos = 0
 		}
 		// As above, but against the end so we just include the rest if we are close
-		if len(res.Content)-m.EndPos <= 10 {
+		if len(res.Content)-m.EndPos <= SnipSideMax {
 			m.EndPos = len(res.Content)
 		}
 
@@ -193,7 +192,7 @@ func ExtractRelevant(res *common.FileJob, documentFrequencies map[string]int, re
 		if rv3[i].Start >= 1 && unicode.IsSpace(rune(res.Content[rv3[i].Start-1])) {
 			m.Score += SpaceBoundBoost
 		}
-		if rv3[i].End < len(res.Content)-1 && unicode.IsSpace(rune(res.Content[rv3[i].End+1])) {
+		if rv3[i].End < len(res.Content) && unicode.IsSpace(rune(res.Content[rv3[i].End])) {
 			m.Score += SpaceBoundBoost
 		}
 
@@ -245,9 +244,8 @@ func ExtractRelevant(res *common.FileJob, documentFrequencies map[string]int, re
 	var snippets []Snippet
 	for _, b := range bestMatchesClean {
 
-		index := bytes.Index(res.Content, res.Content[b.StartPos:b.EndPos])
 		startLineOffset := 1
-		for i := 0; i < index; i++ {
+		for i := 0; i < b.StartPos; i++ {
 			if res.Content[i] == '\n' {
 				startLineOffset++
 			}

@@ -134,7 +134,7 @@ func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequen
 
 		for word, wordCount := range results[i].MatchLocations {
 			tf := float64(len(wordCount)) / words
-			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
+			idf := math.Log10(1 + float64(corpusCount) / float64(documentFrequencies[word]))
 
 			step1 := idf * tf * (k1 + 1)
 			step2 := tf + k1*(1-b+(b*words/averageDocumentWords))

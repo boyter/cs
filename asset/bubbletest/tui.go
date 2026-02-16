@@ -1,0 +1,774 @@
+// SPDX-License-Identifier: MIT OR Unlicense
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/pkg/ranker"
+	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/gocodewalker"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// searchResult represents a single search result
+type searchResult struct {
+	Filename    string
+	Location    string
+	Score       float64
+	Snippet     string               // plain text snippet (snippet mode)
+	Lines       string               // line range info
+	LineResults []snippet.LineResult  // per-line results with positions (lines mode)
+}
+
+// debounceTickMsg is sent after the debounce delay to trigger a search
+type debounceTickMsg struct {
+	seq   int
+	query string
+}
+
+// searchResultsMsg delivers incremental search results from the search goroutine
+type searchResultsMsg struct {
+	seq       int
+	results   []searchResult
+	fileJobs  []*common.FileJob
+	done      bool // true = search complete
+	total     int  // total files scanned so far
+	textTotal int  // non-binary, successfully read files (for BM25 ranking)
+}
+
+// Styles
+var (
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("5")) // fuchsia/magenta
+
+	selectedTitleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("5")).
+				Bold(true).
+				Background(lipgloss.Color("236"))
+
+	snippetStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252"))
+
+	selectedSnippetStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252")).
+				Background(lipgloss.Color("236"))
+
+	matchStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("1")). // red
+			Bold(true)
+
+	selectedMatchStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("1")).
+				Bold(true).
+				Background(lipgloss.Color("236"))
+
+	statusStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
+
+	inputLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("7"))
+
+	snippetLabelStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("243"))
+
+	selectedIndicator = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("5")).
+				SetString("▎")
+)
+
+type model struct {
+	cfg           *Config
+	searchInput   textinput.Model
+	snippetInput  textinput.Model
+	focusIndex    int // 0=search, 1=snippet
+	results       []searchResult
+	fileJobs      []*common.FileJob
+	selectedIndex int
+	scrollOffset  int
+	windowHeight  int
+	windowWidth   int
+	chosen        string // set on Enter, printed after exit
+
+	searchSeq     int                  // monotonic counter, incremented on every text change
+	searching     bool                 // true while search is in flight
+	searchCancel  context.CancelFunc   // cancels in-flight search; nil if none
+	searchResults chan searchResultsMsg // channel from search goroutine
+	lastQuery     string               // query that produced current results
+	fileCount     int                  // total files scanned (for status line)
+	textFileCount int                  // non-binary, successfully read files (for BM25 ranking)
+	snippetMode   string               // "snippet" or "lines"
+}
+
+func initialModel(cfg *Config) model {
+	si := textinput.New()
+	si.Placeholder = "search query..."
+	si.Prompt = "> "
+	si.Focus()
+	si.CharLimit = 256
+
+	sn := textinput.New()
+	sn.Placeholder = ""
+	sn.Prompt = ""
+	sn.SetValue(fmt.Sprintf("%d", cfg.SnippetLength))
+	sn.CharLimit = 5
+	sn.Width = 5
+
+	return model{
+		cfg:          cfg,
+		searchInput:  si,
+		snippetInput: sn,
+		focusIndex:   0,
+		snippetMode:  cfg.SnippetMode,
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, textinput.Blink)
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.windowHeight = msg.Height
+		m.windowWidth = msg.Width
+		m.clampScroll()
+		return m, nil
+
+	case debounceTickMsg:
+		if msg.seq != m.searchSeq {
+			return m, nil // stale tick, user kept typing
+		}
+		if m.searchCancel != nil {
+			m.searchCancel() // cancel previous search
+		}
+
+		query := strings.TrimSpace(msg.query)
+		if query == "" {
+			m.results = nil
+			m.fileJobs = nil
+			m.searching = false
+			m.fileCount = 0
+			return m, nil
+		}
+
+		// Parse snippet length from input
+		snippetLen := 300
+		if v := m.snippetInput.Value(); v != "" {
+			fmt.Sscanf(v, "%d", &snippetLen)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m.searchCancel = cancel
+		m.searching = true
+		m.results = nil
+		m.fileJobs = nil
+		m.selectedIndex = 0
+		m.scrollOffset = 0
+		m.fileCount = 0
+		ch := make(chan searchResultsMsg, 1)
+		m.searchResults = ch
+		go realSearch(ctx, m.cfg, m.searchSeq, query, snippetLen, m.snippetMode, ch)
+		return m, listenForResults(ch)
+
+	case searchResultsMsg:
+		if msg.seq != m.searchSeq {
+			return m, nil // stale results from old search
+		}
+
+		m.results = append(m.results, msg.results...)
+		m.fileJobs = append(m.fileJobs, msg.fileJobs...)
+		m.fileCount = msg.total
+		m.textFileCount = msg.textTotal
+
+		if msg.done {
+			m.searching = false
+			m.searchCancel = nil
+			m.lastQuery = m.searchInput.Value()
+
+			// Rank all results with BM25 and re-extract snippets with global frequencies
+			if len(m.fileJobs) > 0 {
+				ranked := ranker.RankResults("bm25", m.textFileCount, m.fileJobs)
+				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
+
+				// Parse snippet length from input
+				snippetLen := 300
+				if v := m.snippetInput.Value(); v != "" {
+					fmt.Sscanf(v, "%d", &snippetLen)
+				}
+
+				var newResults []searchResult
+				for _, fj := range ranked {
+					fileMode := resolveSnippetMode(m.snippetMode, fj.Filename)
+					if fileMode == "lines" {
+						lineResults := snippet.FindMatchingLines(fj, 2)
+						lineRange := ""
+						if len(lineResults) > 0 {
+							lineRange = fmt.Sprintf("%d-%d",
+								lineResults[0].LineNumber,
+								lineResults[len(lineResults)-1].LineNumber)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename:    fj.Location,
+							Location:    fj.Location,
+							Score:       fj.Score,
+							LineResults: lineResults,
+							Lines:       lineRange,
+						})
+					} else {
+						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+						snippetText := ""
+						lineRange := ""
+						if len(snippets) > 0 {
+							snippetText = snippets[0].Content
+							lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename: fj.Location,
+							Location: fj.Location,
+							Score:    fj.Score,
+							Snippet:  snippetText,
+							Lines:    lineRange,
+						})
+					}
+				}
+				m.results = newResults
+				m.fileJobs = nil
+				m.selectedIndex = 0
+				m.scrollOffset = 0
+			}
+
+			return m, nil
+		}
+		// Keep listening for more results
+		return m, listenForResults(m.searchResults)
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			if m.searchCancel != nil {
+				m.searchCancel()
+			}
+			return m, tea.Quit
+
+		case tea.KeyEnter:
+			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
+				if m.searchCancel != nil {
+					m.searchCancel()
+				}
+				m.chosen = m.results[m.selectedIndex].Location
+				return m, tea.Quit
+			}
+			return m, nil
+
+		case tea.KeyTab, tea.KeyShiftTab:
+			if m.focusIndex == 0 {
+				m.focusIndex = 1
+				m.searchInput.Blur()
+				m.snippetInput.Focus()
+			} else {
+				m.focusIndex = 0
+				m.snippetInput.Blur()
+				m.searchInput.Focus()
+			}
+			return m, nil
+
+		case tea.KeyUp:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(100)
+				return m, nil
+			}
+			if m.selectedIndex > 0 {
+				m.selectedIndex--
+				m.ensureVisible()
+			}
+			return m, nil
+
+		case tea.KeyDown:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(-100)
+				return m, nil
+			}
+			if m.selectedIndex < len(m.results)-1 {
+				m.selectedIndex++
+				m.ensureVisible()
+			}
+			return m, nil
+
+		case tea.KeyPgUp:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(200)
+				return m, nil
+			}
+
+		case tea.KeyPgDown:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(-200)
+				return m, nil
+			}
+		}
+	}
+
+	// Update the focused input
+	if m.focusIndex == 0 {
+		prevValue := m.searchInput.Value()
+		var cmd tea.Cmd
+		m.searchInput, cmd = m.searchInput.Update(msg)
+		cmds = append(cmds, cmd)
+
+		// On text change, increment seq and start debounce timer
+		if m.searchInput.Value() != prevValue {
+			m.searchSeq++
+			cmds = append(cmds, makeDebounceCmd(m.searchSeq, m.searchInput.Value()))
+		}
+	} else {
+		var cmd tea.Cmd
+		m.snippetInput, cmd = m.snippetInput.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *model) adjustSnippetLength(delta int) {
+	val := 300
+	if v := m.snippetInput.Value(); v != "" {
+		fmt.Sscanf(v, "%d", &val)
+	}
+	val += delta
+	if val < 100 {
+		val = 100
+	}
+	if val > 8000 {
+		val = 8000
+	}
+	m.snippetInput.SetValue(fmt.Sprintf("%d", val))
+}
+
+// makeDebounceCmd returns a tea.Cmd that fires a debounceTickMsg after 200ms
+func makeDebounceCmd(seq int, query string) tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+		return debounceTickMsg{seq: seq, query: query}
+	})
+}
+
+// listenForResults returns a tea.Cmd that blocks until the next message arrives on ch
+func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-ch
+		if !ok {
+			return searchResultsMsg{done: true}
+		}
+		return msg
+	}
+}
+
+// resolveSnippetMode returns the effective snippet mode for a file.
+// If globalMode is "auto", it selects based on the file extension.
+func resolveSnippetMode(globalMode, filename string) string {
+	if globalMode != "auto" {
+		return globalMode
+	}
+	return snippet.SnippetModeForExtension(gocodewalker.GetExtension(filename))
+}
+
+// realSearch wraps DoSearch for TUI use, streaming results in batches via the channel.
+func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippetLen int, snippetMode string, ch chan<- searchResultsMsg) {
+	defer close(ch)
+
+	searchCh, stats := DoSearch(ctx, cfg, query)
+
+	var batch []searchResult
+	var batchJobs []*common.FileJob
+
+	for fj := range searchCh {
+		// Build a preliminary searchResult for immediate display
+		fileMode := resolveSnippetMode(snippetMode, fj.Filename)
+		var sr searchResult
+		if fileMode == "lines" {
+			lineResults := snippet.FindMatchingLines(fj, 2)
+			lineRange := ""
+			if len(lineResults) > 0 {
+				lineRange = fmt.Sprintf("%d-%d",
+					lineResults[0].LineNumber,
+					lineResults[len(lineResults)-1].LineNumber)
+			}
+			sr = searchResult{
+				Filename:    fj.Location,
+				Location:    fj.Location,
+				LineResults: lineResults,
+				Lines:       lineRange,
+			}
+		} else {
+			docFreq := make(map[string]int, len(fj.MatchLocations))
+			for k, v := range fj.MatchLocations {
+				docFreq[k] = len(v)
+			}
+			snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+			snippetText := ""
+			lineRange := ""
+			if len(snippets) > 0 {
+				snippetText = snippets[0].Content
+				lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+			}
+			sr = searchResult{
+				Filename: fj.Location,
+				Location: fj.Location,
+				Snippet:  snippetText,
+				Lines:    lineRange,
+			}
+		}
+
+		batch = append(batch, sr)
+		batchJobs = append(batchJobs, fj)
+
+		if len(batch) >= 5 {
+			select {
+			case ch <- searchResultsMsg{
+				seq: seq, results: batch, fileJobs: batchJobs,
+				total: int(stats.FileCount.Load()), textTotal: int(stats.TextFileCount.Load()),
+			}:
+				batch = nil
+				batchJobs = nil
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+
+	// Send remaining results + done signal
+	select {
+	case ch <- searchResultsMsg{
+		seq: seq, results: batch, fileJobs: batchJobs,
+		done: true, total: int(stats.FileCount.Load()), textTotal: int(stats.TextFileCount.Load()),
+	}:
+	case <-ctx.Done():
+	}
+}
+
+// resultHeight returns the number of terminal lines a result takes up
+func resultHeight(r searchResult) int {
+	if len(r.LineResults) > 0 {
+		return 1 + len(r.LineResults) + 1
+	}
+	// 1 for title + lines in snippet + 1 blank line separator
+	lines := strings.Count(r.Snippet, "\n") + 1
+	return 1 + lines + 1
+}
+
+func (m *model) clampScroll() {
+	if m.scrollOffset < 0 {
+		m.scrollOffset = 0
+	}
+}
+
+func (m *model) ensureVisible() {
+	// Calculate available height for results area
+	availHeight := m.windowHeight - 3 // input line + status line + separator
+
+	// Make sure selected item is visible by adjusting scroll offset
+	heightBefore := 0
+	for i := 0; i < m.selectedIndex; i++ {
+		if i < len(m.results) {
+			heightBefore += resultHeight(m.results[i])
+		}
+	}
+
+	selectedH := 0
+	if m.selectedIndex < len(m.results) {
+		selectedH = resultHeight(m.results[m.selectedIndex])
+	}
+
+	// Scroll up if selected is above viewport
+	if heightBefore < m.scrollOffset {
+		m.scrollOffset = heightBefore
+	}
+
+	// Scroll down if selected is below viewport
+	if heightBefore+selectedH > m.scrollOffset+availHeight {
+		m.scrollOffset = heightBefore + selectedH - availHeight
+	}
+
+	m.clampScroll()
+}
+
+func (m model) View() string {
+	if m.windowWidth == 0 {
+		return "loading..."
+	}
+
+	var b strings.Builder
+
+	// === Top line: search input + snippet length ===
+	snippetLabel := snippetLabelStyle.Render("[" + m.snippetInput.View() + "]")
+	snippetWidth := lipgloss.Width(snippetLabel)
+	searchWidth := m.windowWidth - snippetWidth - 1
+	if searchWidth < 10 {
+		searchWidth = 10
+	}
+	m.searchInput.Width = searchWidth - 3 // account for prompt "> "
+
+	topLine := lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Width(searchWidth).Render(m.searchInput.View()),
+		lipgloss.NewStyle().Width(snippetWidth).Align(lipgloss.Right).Render(snippetLabel),
+	)
+	b.WriteString(topLine)
+	b.WriteString("\n")
+
+	// === Status line ===
+	query := m.searchInput.Value()
+	var status string
+	if query == "" {
+		status = "type a query to search"
+	} else if m.searching {
+		status = fmt.Sprintf("%d results for '%s' from %d files (searching...)",
+			len(m.results), query, m.fileCount)
+	} else {
+		plural := "s"
+		if len(m.results) == 1 {
+			plural = ""
+		}
+		status = fmt.Sprintf("%d result%s for '%s' from %d files",
+			len(m.results), plural, m.lastQuery, m.fileCount)
+	}
+	b.WriteString(statusStyle.Render(status))
+	b.WriteString("\n")
+
+	// === Results area ===
+	availHeight := m.windowHeight - 3 // input + status + separator line
+	if availHeight < 1 {
+		availHeight = 1
+	}
+
+	linesRendered := 0
+	linesSkipped := 0
+
+	for i, r := range m.results {
+		rh := resultHeight(r)
+
+		// Skip results that are above the scroll offset
+		if linesSkipped+rh <= m.scrollOffset {
+			linesSkipped += rh
+			continue
+		}
+
+		// Stop if we've filled the viewport
+		if linesRendered >= availHeight {
+			break
+		}
+
+		isSelected := i == m.selectedIndex
+		highlightQuery := m.lastQuery
+		if m.searching {
+			highlightQuery = query
+		}
+		resultStr := m.renderResult(r, isSelected, highlightQuery)
+		resultLines := strings.Split(resultStr, "\n")
+
+		// Handle partial rendering at top (scroll offset cuts into this result)
+		startLine := 0
+		if linesSkipped < m.scrollOffset {
+			startLine = m.scrollOffset - linesSkipped
+			linesSkipped = m.scrollOffset
+		}
+
+		for j := startLine; j < len(resultLines); j++ {
+			if linesRendered >= availHeight {
+				break
+			}
+			b.WriteString(resultLines[j])
+			b.WriteString("\n")
+			linesRendered++
+		}
+	}
+
+	// Fill remaining space so alt screen doesn't look jagged
+	for linesRendered < availHeight {
+		b.WriteString("\n")
+		linesRendered++
+	}
+
+	return b.String()
+}
+
+func (m model) renderResult(r searchResult, isSelected bool, query string) string {
+	var b strings.Builder
+
+	// Title line: indicator + filename (score)
+	titleText := fmt.Sprintf("%s (%0.4f) [%s]", r.Filename, r.Score, r.Lines)
+
+	if isSelected {
+		b.WriteString(selectedIndicator.String())
+		b.WriteString(selectedTitleStyle.Render(titleText))
+	} else {
+		b.WriteString(" ")
+		b.WriteString(titleStyle.Render(titleText))
+	}
+	b.WriteString("\n")
+
+	// Render content: line-based or snippet-based
+	if len(r.LineResults) > 0 {
+		for _, lr := range r.LineResults {
+			prefix := "  "
+			if isSelected {
+				prefix = selectedIndicator.String() + " "
+			}
+			lineNum := snippetLabelStyle.Render(fmt.Sprintf("%4d ", lr.LineNumber))
+			highlighted := m.highlightWithLocs(lr.Content, lr.Locs, isSelected)
+			b.WriteString(prefix + lineNum + highlighted)
+			b.WriteString("\n")
+		}
+	} else {
+		snippetLines := strings.Split(r.Snippet, "\n")
+		for _, line := range snippetLines {
+			prefix := "  "
+			if isSelected {
+				prefix = selectedIndicator.String() + " "
+			}
+
+			highlighted := m.highlightMatches(line, query, isSelected)
+			b.WriteString(prefix + highlighted)
+			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
+}
+
+func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) string {
+	normal := snippetStyle
+	highlight := matchStyle
+	if isSelected {
+		normal = selectedSnippetStyle
+		highlight = selectedMatchStyle
+	}
+
+	if len(locs) == 0 {
+		return normal.Render(line)
+	}
+
+	marked := make([]bool, len(line))
+	for _, loc := range locs {
+		for i := loc[0]; i < loc[1] && i < len(marked); i++ {
+			marked[i] = true
+		}
+	}
+
+	var result strings.Builder
+	inMatch := false
+	segStart := 0
+
+	for i := 0; i <= len(line); i++ {
+		currentMatch := i < len(line) && marked[i]
+		if i == len(line) || currentMatch != inMatch {
+			seg := line[segStart:i]
+			if inMatch {
+				result.WriteString(highlight.Render(seg))
+			} else {
+				result.WriteString(normal.Render(seg))
+			}
+			segStart = i
+			inMatch = currentMatch
+		}
+	}
+
+	return result.String()
+}
+
+func (m model) highlightMatches(line string, query string, isSelected bool) string {
+	if query == "" {
+		if isSelected {
+			return selectedSnippetStyle.Render(line)
+		}
+		return snippetStyle.Render(line)
+	}
+
+	// Strip surrounding quotes for phrase queries
+	stripped := strings.Trim(query, "\"")
+
+	terms := strings.Fields(strings.ToLower(stripped))
+	if len(terms) == 0 {
+		if isSelected {
+			return selectedSnippetStyle.Render(line)
+		}
+		return snippetStyle.Render(line)
+	}
+
+	// If it's a multi-word phrase, prepend the full phrase as a search term
+	// so the entire span gets highlighted together
+	if strings.Contains(stripped, " ") {
+		terms = append([]string{strings.ToLower(stripped)}, terms...)
+	}
+
+	// Find all match positions
+	type span struct {
+		start, end int
+	}
+	var matches []span
+	lower := strings.ToLower(line)
+	for _, term := range terms {
+		idx := 0
+		for {
+			pos := strings.Index(lower[idx:], term)
+			if pos == -1 {
+				break
+			}
+			matches = append(matches, span{idx + pos, idx + pos + len(term)})
+			idx += pos + len(term)
+		}
+	}
+
+	if len(matches) == 0 {
+		if isSelected {
+			return selectedSnippetStyle.Render(line)
+		}
+		return snippetStyle.Render(line)
+	}
+
+	// Sort and merge overlapping spans
+	// Simple approach: mark each character as matched or not
+	marked := make([]bool, len(line))
+	for _, m := range matches {
+		for i := m.start; i < m.end && i < len(marked); i++ {
+			marked[i] = true
+		}
+	}
+
+	// Build highlighted string
+	var result strings.Builder
+	inMatch := false
+	segStart := 0
+
+	normal := snippetStyle
+	highlight := matchStyle
+	if isSelected {
+		normal = selectedSnippetStyle
+		highlight = selectedMatchStyle
+	}
+
+	for i := 0; i <= len(line); i++ {
+		currentMatch := i < len(line) && marked[i]
+		if i == len(line) || currentMatch != inMatch {
+			seg := line[segStart:i]
+			if inMatch {
+				result.WriteString(highlight.Render(seg))
+			} else {
+				result.WriteString(normal.Render(seg))
+			}
+			segStart = i
+			inMatch = currentMatch
+		}
+	}
+
+	return result.String()
+}
