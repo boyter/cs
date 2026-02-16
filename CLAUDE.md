@@ -46,6 +46,6 @@ FindFiles() → FileReaderWorker → SearcherWorker → ResultSummarizer/TUI/HTT
 ## Key Conventions
 
 - Dependencies are vendored (`vendor/` directory)
-- SPDX license headers on all source files (MIT or Unlicense)
+- SPDX license headers on all source files (MIT)
 - TUI uses both `tview` and `bubbletea` (migration in progress)
 - Releases via GoReleaser (`.goreleaser.yaml`)

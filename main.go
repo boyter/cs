@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Unlicense
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const Version = "1.4.0"
+const Version = "2.0.0"
 
 func main() {
 	cfg := DefaultConfig()

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Unlicense
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -24,7 +24,7 @@ type searchResult struct {
 	Score       float64
 	Snippet     string               // plain text snippet (snippet mode)
 	Lines       string               // line range info
-	LineResults []snippet.LineResult  // per-line results with positions (lines mode)
+	LineResults []snippet.LineResult // per-line results with positions (lines mode)
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -96,14 +96,14 @@ type model struct {
 	windowWidth   int
 	chosen        string // set on Enter, printed after exit
 
-	searchSeq     int                  // monotonic counter, incremented on every text change
-	searching     bool                 // true while search is in flight
-	searchCancel  context.CancelFunc   // cancels in-flight search; nil if none
+	searchSeq     int                   // monotonic counter, incremented on every text change
+	searching     bool                  // true while search is in flight
+	searchCancel  context.CancelFunc    // cancels in-flight search; nil if none
 	searchResults chan searchResultsMsg // channel from search goroutine
-	lastQuery     string               // query that produced current results
-	fileCount     int                  // total files scanned (for status line)
-	textFileCount int                  // non-binary, successfully read files (for BM25 ranking)
-	snippetMode   string               // "snippet" or "lines"
+	lastQuery     string                // query that produced current results
+	fileCount     int                   // total files scanned (for status line)
+	textFileCount int                   // non-binary, successfully read files (for BM25 ranking)
+	snippetMode   string                // "snippet" or "lines"
 }
 
 func initialModel(cfg *Config) model {
@@ -286,6 +286,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyUp:
 			if m.focusIndex == 1 {
 				m.adjustSnippetLength(100)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
 				return m, nil
 			}
 			if m.selectedIndex > 0 {
@@ -297,6 +301,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyDown:
 			if m.focusIndex == 1 {
 				m.adjustSnippetLength(-100)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
 				return m, nil
 			}
 			if m.selectedIndex < len(m.results)-1 {
@@ -308,12 +316,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyPgUp:
 			if m.focusIndex == 1 {
 				m.adjustSnippetLength(200)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
 				return m, nil
 			}
 
 		case tea.KeyPgDown:
 			if m.focusIndex == 1 {
 				m.adjustSnippetLength(-200)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
 				return m, nil
 			}
 		}

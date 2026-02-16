@@ -6,7 +6,7 @@ the console, via a TUI or HTTP server, using some boolean queries or regular exp
 
 Consider it a similar approach to using ripgrep, silver searcher or grep coupled with fzf but in a single tool.
 
-Dual-licensed under MIT or the UNLICENSE.
+Licensed under MIT.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/boyter/cs)](https://goreportcard.com/report/github.com/boyter/cs)
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)

@@ -1,33 +1,33 @@
-// SPDX-License-Identifier: MIT OR Unlicense
+// SPDX-License-Identifier: MIT
 
 package snippet
 
 // proseExtensions maps file extensions (without dot) that are considered
 // prose/free-text to true. Everything else is treated as code.
 var proseExtensions = map[string]bool{
-	"md":        true,
-	"markdown":  true,
-	"txt":       true,
-	"text":      true,
-	"rst":       true,
-	"adoc":      true,
-	"asciidoc":  true,
-	"html":      true,
-	"htm":       true,
-	"xml":       true,
-	"svg":       true,
-	"csv":       true,
-	"tsv":       true,
-	"log":       true,
-	"org":       true,
-	"tex":       true,
-	"latex":     true,
-	"wiki":      true,
-	"rdoc":      true,
-	"textile":   true,
-	"pod":       true,
-	"man":       true,
-	"roff":      true,
+	"md":       true,
+	"markdown": true,
+	"txt":      true,
+	"text":     true,
+	"rst":      true,
+	"adoc":     true,
+	"asciidoc": true,
+	"html":     true,
+	"htm":      true,
+	"xml":      true,
+	"svg":      true,
+	"csv":      true,
+	"tsv":      true,
+	"log":      true,
+	"org":      true,
+	"tex":      true,
+	"latex":    true,
+	"wiki":     true,
+	"rdoc":     true,
+	"textile":  true,
+	"pod":      true,
+	"man":      true,
+	"roff":     true,
 }
 
 // SnippetModeForExtension returns the snippet mode appropriate for a given
