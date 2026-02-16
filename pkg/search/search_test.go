@@ -102,6 +102,11 @@ func TestExecutor(t *testing.T) {
 		{"Fuzzy AND Keyword", "houss~1 AND brown", false, []string{"file1.go"}},
 		{"Fuzzy Distance 2", "hovze~2", false, []string{"file1.go"}}, // "hovze" is distance 2 from "house" (u→v, s→z), only in file1
 
+		// Colon filter syntax
+		{"Colon file filter", "cat file:file1", false, []string{"file1.go"}},
+		{"Colon ext filter", "cat ext:go", false, []string{"file1.go"}},
+		{"Colon lang filter", "cat lang:go", false, []string{"file1.go"}},
+
 		// TODO: Add tests for NOT operator precedence and filter interaction.
 		// {"NOT Operator Precedence", "lazy AND NOT dog", false, []string{"file3.py"}},
 		// {"NOT with Filter", "NOT lang=go", false, []string{"file3.py", "file4.py", "file5.rs"}},
@@ -301,6 +306,22 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
+			name:  "Colon in identifier (file:test)",
+			query: "file:test",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "file:test"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
+			name:  "Colon non-filter (std::cout)",
+			query: "std::cout",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "std::cout"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
 			name:  "Parens and symbols",
 			query: "func(a *int)",
 			want: []Token{
@@ -364,6 +385,8 @@ func TestTermExtractor(t *testing.T) {
 		{"Fuzzy with AND", "cat~1 AND dog", []string{"cat", "dog"}},
 		{"Filter Only", "lang=go", []string{}},
 		{"Filter with Keyword", "cat lang=go", []string{"cat"}},
+		{"Colon Filter Only", "file:test", []string{}},
+		{"Colon Filter with Keyword", "cat file:test", []string{"cat"}},
 		{"Empty Query", "", nil},
 	}
 
@@ -502,7 +525,7 @@ func TestEvaluateFile(t *testing.T) {
 			wantTerms: []string{"Cat"},
 		},
 		{
-			name:      "Filter passes through",
+			name:      "Lang filter passes through in per-file mode",
 			query:     "cat AND lang=go",
 			content:   "the cat sat on the mat",
 			wantMatch: true,
@@ -528,6 +551,130 @@ func TestEvaluateFile(t *testing.T) {
 			content:   "the cat sat on the mat",
 			wantMatch: false,
 		},
+	}
+
+	// Add file filter tests with specific filenames
+	fileFilterCases := []struct {
+		name          string
+		query         string
+		content       string
+		filename      string
+		caseSensitive bool
+		wantMatch     bool
+		wantTerms     []string
+	}{
+		{
+			name:      "File filter matches substring",
+			query:     "cat file=test",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "File filter no match",
+			query:     "cat file=test",
+			content:   "the cat sat on the mat",
+			filename:  "main.go",
+			wantMatch: false,
+		},
+		{
+			name:      "File filter != operator",
+			query:     "cat file!=test",
+			content:   "the cat sat on the mat",
+			filename:  "main.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "File filter != excludes matching file",
+			query:     "cat file!=test",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "Extension filter in per-file mode",
+			query:     "cat ext=go",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Extension filter no match in per-file mode",
+			query:     "cat ext=py",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "Filename filter case insensitive",
+			query:     "cat file=TEST",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Extension filter case insensitive",
+			query:     "cat ext=GO",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Lang filter passes through in per-file mode",
+			query:     "cat lang=go",
+			content:   "the cat sat on the mat",
+			filename:  "anything.py",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		// Colon syntax tests
+		{
+			name:      "Colon file filter matches",
+			query:     "cat file:test",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Colon file filter no match",
+			query:     "cat file:test",
+			content:   "the cat sat on the mat",
+			filename:  "main.go",
+			wantMatch: false,
+		},
+		{
+			name:      "Colon ext filter matches",
+			query:     "cat ext:go",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+	}
+
+	for _, tc := range fileFilterCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parse(tc.query)
+			matched, locations := EvaluateFile(node, []byte(tc.content), tc.filename, tc.caseSensitive)
+
+			if matched != tc.wantMatch {
+				t.Errorf("EvaluateFile() matched = %v, want %v", matched, tc.wantMatch)
+			}
+
+			if tc.wantMatch && tc.wantTerms != nil {
+				for _, term := range tc.wantTerms {
+					if _, ok := locations[term]; !ok {
+						t.Errorf("EvaluateFile() missing locations for term %q, got keys: %v", term, mapKeys(locations))
+					}
+				}
+			}
+		})
 	}
 
 	for _, tc := range testCases {
@@ -931,6 +1078,8 @@ func TestFilterAliases(t *testing.T) {
 		{"ext=py", "ext=py", []string{"file3.py", "file4.py"}},
 		{"filename=file1.go", "filename=file1.go", []string{"file1.go"}},
 		{"file=file1.go", "file=file1.go", []string{"file1.go"}},
+		{"file substring match", "file=file1", []string{"file1.go"}},
+		{"file substring match .go", "file=.go", []string{"file1.go", "file2.go"}},
 	}
 
 	for _, tc := range tests {

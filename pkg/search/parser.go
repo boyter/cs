@@ -103,10 +103,28 @@ func (p *Parser) parseExpression(precedence int) Node {
 	return left
 }
 
+func isFilterField(s string) bool {
+	switch strings.ToLower(s) {
+	case "file", "filename", "ext", "extension", "lang", "language", "complexity":
+		return true
+	}
+	return false
+}
+
 func (p *Parser) parsePrefix() Node {
 	var node Node
 	switch p.tok.Type {
 	case IDENTIFIER:
+		// Check for colon filter syntax: "file:test", "ext:go", etc.
+		if colonIdx := strings.Index(p.tok.Literal, ":"); colonIdx > 0 {
+			field := p.tok.Literal[:colonIdx]
+			value := p.tok.Literal[colonIdx+1:]
+			if isFilterField(field) && value != "" {
+				node = &FilterNode{Field: field, Operator: "=", Value: value}
+				p.nextToken() // Consume the identifier
+				return node
+			}
+		}
 		if p.peekTok.Type == OPERATOR {
 			node = p.parseFilterExpression()
 			return node // Filter expression consumes its own tokens
