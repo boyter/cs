@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ .Location }} - cs</title>
+	<style>
+		*, *::before, *::after { box-sizing: border-box; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+			background: #fff;
+			color: #24292f;
+			margin: 0;
+			padding: 20px;
+			line-height: 1.5;
+		}
+		.container { max-width: 960px; margin: 0 auto; }
+		a { color: #0969da; text-decoration: none; }
+		a:hover { text-decoration: underline; }
+		form {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			flex-wrap: wrap;
+			margin-bottom: 16px;
+		}
+		input[type="text"] {
+			flex: 1;
+			min-width: 200px;
+			padding: 8px 12px;
+			background: #fff;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			color: #24292f;
+			font-size: 14px;
+		}
+		input[type="text"]:focus { outline: none; border-color: #0969da; box-shadow: 0 0 0 3px rgba(9,105,218,0.15); }
+		input[type="submit"] {
+			padding: 8px 16px;
+			background: #2da44e;
+			border: 1px solid #1b7f37;
+			border-radius: 6px;
+			color: #fff;
+			cursor: pointer;
+			font-size: 14px;
+			font-weight: 500;
+		}
+		input[type="submit"]:hover { background: #2c974b; }
+		select {
+			padding: 8px;
+			background: #fff;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			color: #24292f;
+			font-size: 14px;
+		}
+		.stats { color: #656d76; font-size: 13px; }
+		.file-header {
+			margin: 16px 0 8px 0;
+			padding-bottom: 8px;
+			border-bottom: 1px solid #d8dee4;
+		}
+		.file-header h4 { margin: 0 0 4px 0; color: #24292f; font-size: 16px; }
+		.file-header small a { color: #656d76; font-size: 13px; }
+		.file-header small a:hover { color: #0969da; }
+		pre {
+			padding: 16px;
+			background: #f6f8fa;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+			font-size: 13px;
+			color: #24292f;
+			white-space: pre-wrap;
+			word-wrap: break-word;
+			overflow-x: auto;
+			line-height: 1.6;
+		}
+		strong {
+			background: #fff8c5;
+			border-bottom: 2px solid #d4a72c;
+			padding: 1px 2px;
+			border-radius: 2px;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<form method="get" action="/">
+			<input type="text" name="q" value="" autofocus="autofocus" onfocus="this.select()" placeholder="Search..." />
+			<input type="submit" value="Search" />
+			<select name="ss" id="ss">
+				<option value="100">100</option>
+				<option value="200">200</option>
+				<option selected value="300">300</option>
+				<option value="400">400</option>
+				<option value="500">500</option>
+				<option value="600">600</option>
+				<option value="700">700</option>
+				<option value="800">800</option>
+				<option value="900">900</option>
+				<option value="1000">1000</option>
+			</select>
+			<span class="stats">[processed in {{ .RuntimeMilliseconds }} ms]</span>
+		</form>
+
+		<div class="file-header">
+			<h4>{{ .Location }}</h4>
+			<small>[<a href="/file/raw/{{ .Location }}">raw file</a>]</small>
+		</div>
+		<pre>{{ .Content }}</pre>
+	</div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ .SearchTerm }} - cs search</title>
+	<style>
+		*, *::before, *::after { box-sizing: border-box; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+			background: #fff;
+			color: #24292f;
+			margin: 0;
+			padding: 20px;
+			line-height: 1.5;
+		}
+		.container { max-width: 960px; margin: 0 auto; }
+		h1 { font-size: 1.4em; margin: 0 0 16px 0; color: #24292f; }
+		a { color: #0969da; text-decoration: none; }
+		a:hover { text-decoration: underline; }
+		form {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			flex-wrap: wrap;
+			margin-bottom: 16px;
+		}
+		input[type="text"] {
+			flex: 1;
+			min-width: 200px;
+			padding: 8px 12px;
+			background: #fff;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			color: #24292f;
+			font-size: 14px;
+		}
+		input[type="text"]:focus { outline: none; border-color: #0969da; box-shadow: 0 0 0 3px rgba(9,105,218,0.15); }
+		input[type="submit"] {
+			padding: 8px 16px;
+			background: #2da44e;
+			border: 1px solid #1b7f37;
+			border-radius: 6px;
+			color: #fff;
+			cursor: pointer;
+			font-size: 14px;
+			font-weight: 500;
+		}
+		input[type="submit"]:hover { background: #2c974b; }
+		select {
+			padding: 8px;
+			background: #fff;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			color: #24292f;
+			font-size: 14px;
+		}
+		.stats { color: #656d76; font-size: 13px; }
+		.results-layout { display: flex; gap: 24px; }
+		.results-main { flex: 4; min-width: 0; }
+		.results-sidebar { flex: 1; min-width: 150px; }
+		.result-item {
+			padding: 12px 0;
+			border-bottom: 1px solid #d8dee4;
+		}
+		.result-item h4 { margin: 0 0 4px 0; font-size: 14px; font-weight: normal; }
+		.result-item h4 a { color: #0969da; }
+		.result-item pre {
+			margin: 8px 0 4px 0;
+			padding: 10px;
+			background: #f6f8fa;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+			font-size: 13px;
+			color: #24292f;
+			white-space: pre-wrap;
+			word-wrap: break-word;
+			overflow-x: auto;
+		}
+		.result-item strong {
+			background: #fff8c5;
+			border-bottom: 2px solid #d4a72c;
+			padding: 1px 2px;
+			border-radius: 2px;
+		}
+		.jump-link { font-size: 12px; color: #656d76; }
+		.jump-link a { color: #656d76; }
+		.jump-link a:hover { color: #0969da; }
+		.sidebar-heading {
+			font-size: 13px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #656d76;
+			margin: 0 0 8px 0;
+			padding-bottom: 6px;
+			border-bottom: 1px solid #d8dee4;
+		}
+		.facet-list { list-style: none; padding: 0; margin: 0; }
+		.facet-list li {
+			padding: 3px 0;
+			font-size: 13px;
+		}
+		.facet-list a { color: #24292f; }
+		.facet-list a:hover { color: #0969da; }
+		.facet-count { color: #656d76; font-size: 12px; }
+		.pages { padding: 16px 0; }
+		.pages a {
+			display: inline-block;
+			padding: 4px 10px;
+			margin-right: 4px;
+			background: #f6f8fa;
+			border: 1px solid #d0d7de;
+			border-radius: 6px;
+			font-size: 13px;
+			color: #24292f;
+		}
+		.pages a:hover { background: #eaeef2; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<form method="get" action="/">
+			<input type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" placeholder="Search..." />
+			<input type="submit" value="Search" />
+			<select name="ss" id="ss" onchange="this.form.submit()">
+				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
+				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
+				<option value="300" {{ if eq .SnippetSize 300 }}selected{{ end }}>300</option>
+				<option value="400" {{ if eq .SnippetSize 400 }}selected{{ end }}>400</option>
+				<option value="500" {{ if eq .SnippetSize 500 }}selected{{ end }}>500</option>
+				<option value="600" {{ if eq .SnippetSize 600 }}selected{{ end }}>600</option>
+				<option value="700" {{ if eq .SnippetSize 700 }}selected{{ end }}>700</option>
+				<option value="800" {{ if eq .SnippetSize 800 }}selected{{ end }}>800</option>
+				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
+				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
+			</select>
+			<span class="stats">[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} ms]</span>
+		</form>
+
+		<div class="results-layout">
+			{{if .Results -}}
+			<div class="results-main">
+				{{- range .Results }}
+				<div class="result-item">
+					<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
+					{{- range .Content }}
+					<pre>{{ . }}</pre>
+					{{- end }}
+					<span class="jump-link">[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to match</a>]</span>
+				</div>
+				{{- end }}
+
+				<div class="pages">
+				{{- range .Pages }}
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}">{{ .Name }}</a>
+				{{- end }}
+				</div>
+			</div>
+			{{- end}}
+			{{if .ExtensionFacet }}
+			<div class="results-sidebar">
+				<div class="sidebar-heading">Extensions</div>
+				<ul class="facet-list">
+				{{- range .ExtensionFacet }}
+					<li><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}">{{ .Title }}</a> <span class="facet-count">({{ .Count }})</span></li>
+				{{- end }}
+				</ul>
+			</div>
+			{{- end }}
+		</div>
+	</div>
+</body>
+</html>

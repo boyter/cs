@@ -227,6 +227,12 @@ func main() {
 		"",
 		"path to a custom display template",
 	)
+	flags.StringVar(
+		&cfg.TemplateStyle,
+		"template-style",
+		"dark",
+		"built-in theme for the HTTP server UI [dark, light, bare]",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

@@ -37,6 +37,7 @@ type Config struct {
 	HttpServer      bool
 	SearchTemplate  string
 	DisplayTemplate string
+	TemplateStyle   string
 }
 
 // DefaultConfig returns a Config with sensible defaults matching the root-level globals.
@@ -52,5 +53,6 @@ func DefaultConfig() Config {
 		MaxReadSizeBytes:       1_000_000,
 		Format:                 "text",
 		Address:                ":8080",
+		TemplateStyle:          "dark",
 	}
 }
