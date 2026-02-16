@@ -74,10 +74,11 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				continue
 			}
 			lines := fmt.Sprintf("%d-%d", lineResults[0].LineNumber, lineResults[len(lineResults)-1].LineNumber)
+			codeStats := formatCodeStats(res)
 			if res.Language != "" {
-				color.Magenta(fmt.Sprintf("%s (%s) Lines %s (%.3f)", res.Location, res.Language, lines, res.Score))
+				color.Magenta(fmt.Sprintf("%s (%s) Lines %s (%.3f)%s", res.Location, res.Language, lines, res.Score, codeStats))
 			} else {
-				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)", res.Location, lines, res.Score))
+				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)%s", res.Location, lines, res.Score, codeStats))
 			}
 			for _, lr := range lineResults {
 				displayContent := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
@@ -95,10 +96,11 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				lines += fmt.Sprintf("%d-%d ", snippets[i].LineStart, snippets[i].LineEnd)
 			}
 
+			codeStats := formatCodeStats(res)
 			if res.Language != "" {
-				color.Magenta(fmt.Sprintf("%s (%s) Lines %s(%.3f)", res.Location, res.Language, lines, res.Score))
+				color.Magenta(fmt.Sprintf("%s (%s) Lines %s(%.3f)%s", res.Location, res.Language, lines, res.Score, codeStats))
 			} else {
-				color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)", res.Location, lines, res.Score))
+				color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)%s", res.Location, lines, res.Score, codeStats))
 			}
 
 			for i := 0; i < len(snippets); i++ {
@@ -135,6 +137,15 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 	}
 }
 
+// formatCodeStats returns a formatted string of code counting stats for a file result.
+// Returns empty string if no stats are available.
+func formatCodeStats(res *common.FileJob) string {
+	if res.Lines == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d)", res.Lines, res.Code, res.Comment, res.Blank)
+}
+
 type jsonLineResult struct {
 	LineNumber int     `json:"line_number"`
 	Content    string  `json:"content"`
@@ -149,6 +160,11 @@ type jsonResult struct {
 	MatchLocations [][]int          `json:"matchlocations,omitempty"`
 	Lines          []jsonLineResult `json:"lines,omitempty"`
 	Language       string           `json:"language,omitempty"`
+	TotalLines     int64            `json:"total_lines"`
+	Code           int64            `json:"code"`
+	Comment        int64            `json:"comment"`
+	Blank          int64            `json:"blank"`
+	Complexity     int64            `json:"complexity"`
 }
 
 func formatJSON(cfg *Config, results []*common.FileJob) {
@@ -173,11 +189,16 @@ func formatJSON(cfg *Config, results []*common.FileJob) {
 				})
 			}
 			jsonResults = append(jsonResults, jsonResult{
-				Filename: res.Filename,
-				Location: res.Location,
-				Score:    res.Score,
-				Lines:    jLines,
-				Language: res.Language,
+				Filename:   res.Filename,
+				Location:   res.Location,
+				Score:      res.Score,
+				Lines:      jLines,
+				Language:   res.Language,
+				TotalLines: res.Lines,
+				Code:       res.Code,
+				Comment:    res.Comment,
+				Blank:      res.Blank,
+				Complexity: res.Complexity,
 			})
 		} else {
 			snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
@@ -205,6 +226,11 @@ func formatJSON(cfg *Config, results []*common.FileJob) {
 				Score:          res.Score,
 				MatchLocations: l,
 				Language:       res.Language,
+				TotalLines:     res.Lines,
+				Code:           res.Code,
+				Comment:        res.Comment,
+				Blank:          res.Blank,
+				Complexity:     res.Complexity,
 			})
 		}
 	}

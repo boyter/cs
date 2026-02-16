@@ -14,4 +14,9 @@ type FileJob struct {
 	MatchLocations map[string][][]int
 	Minified       bool
 	Language       string
+	Lines          int64
+	Code           int64
+	Comment        int64
+	Blank          int64
+	Complexity     int64
 }

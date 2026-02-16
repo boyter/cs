@@ -53,6 +53,11 @@ type httpSearchResult struct {
 	IsLineMode  bool
 	LineResults []httpLineResult
 	Language    string
+	Lines       int64
+	Code        int64
+	Comment     int64
+	Blank       int64
+	Complexity  int64
 }
 
 type httpFileDisplay struct {
@@ -246,6 +251,11 @@ func StartHttpServer(cfg *Config) {
 					IsLineMode:  true,
 					LineResults: httpLines,
 					Language:    res.Language,
+					Lines:       res.Lines,
+					Code:        res.Code,
+					Comment:     res.Comment,
+					Blank:       res.Blank,
+					Complexity:  res.Complexity,
 				})
 			} else {
 				snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
@@ -281,13 +291,18 @@ func StartHttpServer(cfg *Config) {
 				}
 
 				searchResults = append(searchResults, httpSearchResult{
-					Title:    res.Location,
-					Location: res.Location,
-					Content:  []template.HTML{template.HTML(coloredContent)},
-					StartPos: v3.StartPos,
-					EndPos:   v3.EndPos,
-					Score:    res.Score,
-					Language: res.Language,
+					Title:      res.Location,
+					Location:   res.Location,
+					Content:    []template.HTML{template.HTML(coloredContent)},
+					StartPos:   v3.StartPos,
+					EndPos:     v3.EndPos,
+					Score:      res.Score,
+					Language:   res.Language,
+					Lines:      res.Lines,
+					Code:       res.Code,
+					Comment:    res.Comment,
+					Blank:      res.Blank,
+					Complexity: res.Complexity,
 				})
 			}
 		}

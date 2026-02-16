@@ -23,9 +23,14 @@ type searchResult struct {
 	Score       float64
 	Snippet     string               // plain text snippet (snippet mode)
 	SnippetLocs [][]int              // match positions within Snippet [start, end]
-	Lines       string               // line range info
+	LineRange   string               // line range info
 	LineResults []snippet.LineResult // per-line results with positions (lines mode)
 	Language    string
+	TotalLines  int64
+	Code        int64
+	Comment     int64
+	Blank       int64
+	Complexity  int64
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -225,8 +230,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Location:    fj.Location,
 							Score:       fj.Score,
 							LineResults: lineResults,
-							Lines:       lineRange,
+							LineRange:   lineRange,
 							Language:    fj.Language,
+							TotalLines:  fj.Lines,
+							Code:        fj.Code,
+							Comment:     fj.Comment,
+							Blank:       fj.Blank,
+							Complexity:  fj.Complexity,
 						})
 					} else {
 						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
@@ -245,8 +255,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Score:       fj.Score,
 							Snippet:     snippetText,
 							SnippetLocs: sLocs,
-							Lines:       lineRange,
+							LineRange:   lineRange,
 							Language:    fj.Language,
+							TotalLines:  fj.Lines,
+							Code:        fj.Code,
+							Comment:     fj.Comment,
+							Blank:       fj.Blank,
+							Complexity:  fj.Complexity,
 						})
 					}
 				}
@@ -422,8 +437,13 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Filename:    fj.Location,
 				Location:    fj.Location,
 				LineResults: lineResults,
-				Lines:       lineRange,
+				LineRange:   lineRange,
 				Language:    fj.Language,
+				TotalLines:  fj.Lines,
+				Code:        fj.Code,
+				Comment:     fj.Comment,
+				Blank:       fj.Blank,
+				Complexity:  fj.Complexity,
 			}
 		} else {
 			docFreq := make(map[string]int, len(fj.MatchLocations))
@@ -444,8 +464,13 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Location:    fj.Location,
 				Snippet:     snippetText,
 				SnippetLocs: sLocs,
-				Lines:       lineRange,
+				LineRange:   lineRange,
 				Language:    fj.Language,
+				TotalLines:  fj.Lines,
+				Code:        fj.Code,
+				Comment:     fj.Comment,
+				Blank:       fj.Blank,
+				Complexity:  fj.Complexity,
 			}
 		}
 
@@ -637,12 +662,16 @@ func (m model) View() string {
 func (m model) renderResult(r searchResult, isSelected bool) string {
 	var b strings.Builder
 
-	// Title line: indicator + filename (language) (score)
+	// Title line: indicator + filename (language) (score) [linerange] code stats
+	codeStats := ""
+	if r.TotalLines > 0 {
+		codeStats = fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d)", r.TotalLines, r.Code, r.Comment, r.Blank)
+	}
 	var titleText string
 	if r.Language != "" {
-		titleText = fmt.Sprintf("%s (%s) (%0.4f) [%s]", r.Filename, r.Language, r.Score, r.Lines)
+		titleText = fmt.Sprintf("%s (%s) (%0.4f) [%s]%s", r.Filename, r.Language, r.Score, r.LineRange, codeStats)
 	} else {
-		titleText = fmt.Sprintf("%s (%0.4f) [%s]", r.Filename, r.Score, r.Lines)
+		titleText = fmt.Sprintf("%s (%0.4f) [%s]%s", r.Filename, r.Score, r.LineRange, codeStats)
 	}
 
 	if isSelected {
