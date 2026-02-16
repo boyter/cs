@@ -17,7 +17,6 @@ import (
 const (
 	LocationBoostValue = 0.05
 	DefaultScoreValue  = 0.01
-	PhraseBoostValue   = 1.00
 	BytesWordDivisor   = 2
 )
 
@@ -71,7 +70,7 @@ func rankResultsLocation(results []*common.FileJob) []*common.FileJob {
 					}
 				}
 
-				results[i].Score = results[i].Score*1.0 - (float64(low) * 0.02)
+				results[i].Score = results[i].Score * (1.0 / (1.0 + float64(low)*0.02))
 			}
 		}
 
@@ -116,6 +115,10 @@ func rankResultsTFIDF(corpusCount int, results []*common.FileJob, documentFreque
 //
 //	TF + k1 * (1 - b + b * D / L)
 func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequencies map[string]int) []*common.FileJob {
+	if len(results) == 0 {
+		return results
+	}
+
 	var weight float64
 
 	var averageDocumentWords float64
@@ -133,11 +136,11 @@ func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequen
 		words := float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
 
 		for word, wordCount := range results[i].MatchLocations {
-			tf := float64(len(wordCount)) / words
+			rawCount := float64(len(wordCount))
 			idf := math.Log10(1 + float64(corpusCount)/float64(documentFrequencies[word]))
 
-			step1 := idf * tf * (k1 + 1)
-			step2 := tf + k1*(1-b+(b*words/averageDocumentWords))
+			step1 := idf * rawCount * (k1 + 1)
+			step2 := rawCount + k1*(1-b+(b*words/averageDocumentWords))
 
 			weight += step1 / step2
 		}
