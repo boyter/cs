@@ -12,11 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 go build -o cs                        # Build binary
 go test ./...                         # Run all tests
 go test -v ./...                      # Verbose tests
-go test --tags=integration ./...      # With integration tests (used by check.sh)
+go test --tags=integration ./...      # With integration tests
 go test -run TestPreParseQuery ./...  # Run a single test
 ```
 
-**Linting (from check.sh):**
+**Linting:**
 ```bash
 golangci-lint run --enable=gofmt ./...
 gofmt -s -w -l .
@@ -24,28 +24,52 @@ gofmt -s -w -l .
 
 ## Architecture
 
-All source files are in the root package `main`. The codebase uses a **concurrent worker pipeline** connected by Go channels:
+Root package `main` plus subpackages under `pkg/`. The search pipeline is orchestrated by `DoSearch()` in `search.go`:
 
 ```
-FindFiles() → FileReaderWorker → SearcherWorker → ResultSummarizer/TUI/HTTP
+FileWalker → [read + filter files] → AST query evaluation → matched FileJobs channel
 ```
 
-1. **File discovery** (`file.go`): `walkFiles()` via gocodewalker, filters binary/minified files, respects .gitignore
-2. **File reading** (`file.go`): `FileReaderWorker` reads files in parallel (NumCPU goroutines)
-3. **Search** (`searcher.go`): `SearcherWorker` matches content in parallel, supports text/quoted/regex/fuzzy/negation
-4. **Query parsing** (`search.go`): `PreParseQuery()` extracts `file:` filters, `ParseQuery()` handles boolean operators, quoted phrases, regex (`/pattern/`), fuzzy (`~1`, `~2`), and negation (`NOT`)
-5. **Ranking** (`ranker.go`): `rankResults()` applies BM25 (default), TF-IDF, or simple ranking with location-based boosting for filename matches
-6. **Snippet extraction** (`snippet.go`): Sliding window algorithm (`extractRelevantV3`) that finds the most relevant text around matches
+### Query Pipeline (`pkg/search/`)
 
-**Entry point** (`main.go`): Cobra CLI routes to `StartHttpServer()`, `NewConsoleSearch()`, or `NewTuiSearch()` based on flags/args.
+Queries are parsed into an AST and evaluated against each file:
 
-**Global configuration** (`globals.go`): All CLI flags and search parameters are package-level variables set by Cobra.
+```
+Lexer → Parser → Transformer → Planner → Executor
+```
 
-**Output formats** (`console.go`): text (with ANSI color), JSON, vimgrep.
+- **Lexer** (`lexer.go`): tokenizes query string (terms, quotes, regex, operators, fuzzy markers)
+- **Parser** (`parser.go`): builds AST with boolean logic (AND/OR/NOT), quoted phrases, regex `/pattern/`, fuzzy `~1`/`~2`
+- **Transformer** (`transformer.go`): semantic rewrites (e.g. `complexity=high`)
+- **Planner** (`planner.go`): query optimization
+- **Executor** (`executor.go`): evaluates AST against file content, returns match locations
+- **Extractor** (`extractor.go`): extracts matched terms for highlighting
+
+See `pkg/search/README.md` for detailed query syntax documentation.
+
+### Core Root Files
+
+- **`main.go`**: Cobra CLI entry point. Routes to `ConsoleSearch()`, TUI (`initialModel()`), or `StartHttpServer()` based on flags/args
+- **`config.go`**: `Config` struct with all CLI-configurable fields. `DefaultConfig()` provides sensible defaults
+- **`search.go`**: `DoSearch()` — orchestrates the full search pipeline: file walking, reading, binary/minified filtering, AST evaluation, and result streaming via channels. Uses `SearchCache` for prefix-based caching
+- **`console.go`**: `ConsoleSearch()` — collects results, ranks, and outputs in text/JSON/vimgrep format
+- **`tui.go`**: bubbletea TUI with lipgloss styling. Debounced search input, incremental result streaming, syntax-highlighted preview
+- **`http.go`**: HTTP server with embedded templates, search/display endpoints, theme support (dark/light/bare), custom template overrides
+- **`cache.go`**: `SearchCache` — LRU cache with TTL for query results; supports prefix matching for progressive refinement in TUI
+- **`syntax.go`**: Syntax highlighting with keyword tables for 80+ languages
+- **`language.go`**: Language detection via scc processor's language database
+- **`templates.go`**: Template loading with `//go:embed` for built-in HTML templates; supports custom template paths
+
+### Subpackages
+
+- **`pkg/common/`**: `FileJob` struct — the core data type passed through the pipeline
+- **`pkg/ranker/`**: `RankResults()` — BM25 (default), TF-IDF, or simple ranking with location-based boosting
+- **`pkg/snippet/`**: Snippet extraction (sliding window) and line-based extraction; auto-selects mode by file type
 
 ## Key Conventions
 
 - Dependencies are vendored (`vendor/` directory)
 - SPDX license headers on all source files (MIT)
-- TUI uses both `tview` and `bubbletea` (migration in progress)
+- TUI uses bubbletea + bubbles (text input) + lipgloss (styling)
 - Releases via GoReleaser (`.goreleaser.yaml`)
+- Go 1.25.2, module: `github.com/boyter/cs`
