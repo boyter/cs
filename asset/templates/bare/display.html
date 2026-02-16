@@ -1,0 +1,49 @@
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>{{ .Location }}</title>
+		<style>
+			strong {
+				background-color: #FFFF00;
+			}
+			pre {
+				white-space: pre-wrap;
+				white-space: -moz-pre-wrap;
+				white-space: -pre-wrap;
+				white-space: -o-pre-wrap;
+				word-wrap: break-word;
+			}
+			body {
+				width: 80%;
+				margin: 10px auto;
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+		<form method="get" action="/" >
+			<input type="text" name="q" value="" autofocus="autofocus" onfocus="this.select()" />
+			<input type="submit" value="search" />
+			<select name="ss" id="ss">
+				<option value="100">100</option>
+				<option value="200">200</option>
+				<option selected value="300">300</option>
+				<option value="400">400</option>
+				<option value="500">500</option>
+				<option value="600">600</option>
+				<option value="700">700</option>
+				<option value="800">800</option>
+				<option value="900">900</option>
+				<option value="1000">1000</option>
+			</select>
+			<small>[processed in {{ .RuntimeMilliseconds }} (ms)]</small>
+		</form>
+		</div>
+		<div>
+			<h4>{{ .Location }}</h4>
+			<small>[<a href="/file/raw/{{ .Location }}">raw file</a>]</small>
+			<pre>{{ .Content }}</pre>
+		</div>
+	</body>
+</html>

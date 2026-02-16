@@ -1,21 +1,19 @@
-// SPDX-License-Identifier: MIT OR Unlicense
+// SPDX-License-Identifier: MIT
 
 package main
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
 	"os"
-	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
 )
 
-const (
-	Version = "1.4.0"
-)
+const Version = "2.0.0"
 
 func main() {
-	//f, _ := os.Create("profile.pprof")
-	//pprof.StartCPUProfile(f)
-	//defer pprof.StopCPUProfile()
+	cfg := DefaultConfig()
 
 	rootCmd := &cobra.Command{
 		Use: "cs",
@@ -54,168 +52,186 @@ func main() {
 			"- CTRL+k to clear from the cursor location forward\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
-			SearchString = args
+			cfg.SearchString = args
 
-			dirFilePaths = []string{"."}
-			if strings.TrimSpace(Directory) != "" {
-				dirFilePaths = []string{Directory}
-			}
-
-			// If there are arguments we want to print straight out to the console
-			// otherwise we should enter interactive tui mode
-			if HttpServer {
-				// start HTTP server
-				StartHttpServer()
-			} else if len(SearchString) != 0 {
-				NewConsoleSearch()
+			if cfg.HttpServer {
+				StartHttpServer(&cfg)
+			} else if len(cfg.SearchString) != 0 {
+				ConsoleSearch(&cfg)
 			} else {
-				NewTuiSearch()
+				p := tea.NewProgram(initialModel(&cfg), tea.WithAltScreen(), tea.WithOutput(os.Stderr))
+				m, err := p.Run()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					os.Exit(1)
+				}
+				if fm, ok := m.(model); ok && fm.chosen != "" {
+					fmt.Println(fm.chosen)
+				}
 			}
 		},
 	}
 
 	flags := rootCmd.PersistentFlags()
 
-	flags.StringVar(
-		&Address,
-		"address",
-		":8080",
-		"address and port to listen to in HTTP mode",
-	)
-	flags.BoolVarP(
-		&HttpServer,
-		"http-server",
-		"d",
-		false,
-		"start http server for search",
-	)
 	flags.BoolVar(
-		&IncludeBinaryFiles,
+		&cfg.IncludeBinaryFiles,
 		"binary",
 		false,
 		"set to disable binary file detection and search binary files",
 	)
 	flags.BoolVar(
-		&IgnoreIgnoreFile,
+		&cfg.IgnoreIgnoreFile,
 		"no-ignore",
 		false,
 		"disables .ignore file logic",
 	)
 	flags.BoolVar(
-		&IgnoreGitIgnore,
+		&cfg.IgnoreGitIgnore,
 		"no-gitignore",
 		false,
 		"disables .gitignore file logic",
 	)
-	flags.Int64VarP(
-		&SnippetLength,
+	flags.IntVarP(
+		&cfg.SnippetLength,
 		"snippet-length",
 		"n",
 		300,
 		"size of the snippet to display",
 	)
-	flags.Int64VarP(
-		&SnippetCount,
+	flags.IntVarP(
+		&cfg.SnippetCount,
 		"snippet-count",
 		"s",
 		1,
 		"number of snippets to display",
 	)
 	flags.BoolVar(
-		&IncludeHidden,
+		&cfg.IncludeHidden,
 		"hidden",
 		false,
 		"include hidden files",
 	)
 	flags.StringSliceVarP(
-		&AllowListExtensions,
+		&cfg.AllowListExtensions,
 		"include-ext",
 		"i",
 		[]string{},
 		"limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]",
 	)
 	flags.BoolVarP(
-		&FindRoot,
+		&cfg.FindRoot,
 		"find-root",
 		"r",
 		false,
 		"attempts to find the root of this repository by traversing in reverse looking for .git or .hg",
 	)
 	flags.StringSliceVar(
-		&PathDenylist,
+		&cfg.PathDenylist,
 		"exclude-dir",
 		[]string{".git", ".hg", ".svn"},
 		"directories to exclude",
 	)
 	flags.BoolVarP(
-		&CaseSensitive,
+		&cfg.CaseSensitive,
 		"case-sensitive",
 		"c",
 		false,
 		"make the search case sensitive",
 	)
-	flags.StringVar(
-		&SearchTemplate,
-		"template-search",
-		"",
-		"path to search template for custom styling",
-	)
-	flags.StringVar(
-		&DisplayTemplate,
-		"template-display",
-		"",
-		"path to display template for custom styling",
-	)
 	flags.StringSliceVarP(
-		&LocationExcludePattern,
+		&cfg.LocationExcludePattern,
 		"exclude-pattern",
 		"x",
 		[]string{},
 		"file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]",
 	)
 	flags.BoolVar(
-		&IncludeMinified,
+		&cfg.IncludeMinified,
 		"min",
 		false,
 		"include minified files",
 	)
 	flags.IntVar(
-		&MinifiedLineByteLength,
+		&cfg.MinifiedLineByteLength,
 		"min-line-length",
 		255,
 		"number of bytes per average line for file to be considered minified",
 	)
 	flags.Int64Var(
-		&MaxReadSizeBytes,
+		&cfg.MaxReadSizeBytes,
 		"max-read-size-bytes",
 		1_000_000,
 		"number of bytes to read into a file with the remaining content ignored",
 	)
 	flags.StringVarP(
-		&Format,
+		&cfg.Format,
 		"format",
 		"f",
 		"text",
 		"set output format [text, json, vimgrep]",
 	)
 	flags.StringVar(
-		&Ranker,
+		&cfg.Ranker,
 		"ranker",
 		"bm25",
 		"set ranking algorithm [simple, tfidf, tfidf2, bm25]",
 	)
 	flags.StringVarP(
-		&FileOutput,
+		&cfg.FileOutput,
 		"output",
 		"o",
 		"",
 		"output filename (default stdout)",
 	)
 	flags.StringVar(
-		&Directory,
+		&cfg.Directory,
 		"dir",
 		"",
 		"directory to search, if not set defaults to current working directory",
+	)
+	flags.StringVar(
+		&cfg.SnippetMode,
+		"snippet-mode",
+		"auto",
+		"snippet extraction mode: auto, snippet, or lines",
+	)
+	flags.IntVar(
+		&cfg.ResultLimit,
+		"result-limit",
+		-1,
+		"maximum number of results to return (-1 for unlimited)",
+	)
+	flags.BoolVarP(
+		&cfg.HttpServer,
+		"http-server",
+		"d",
+		false,
+		"start the HTTP server",
+	)
+	flags.StringVar(
+		&cfg.Address,
+		"address",
+		":8080",
+		"address and port to listen on",
+	)
+	flags.StringVar(
+		&cfg.SearchTemplate,
+		"template-search",
+		"",
+		"path to a custom search template",
+	)
+	flags.StringVar(
+		&cfg.DisplayTemplate,
+		"template-display",
+		"",
+		"path to a custom display template",
+	)
+	flags.StringVar(
+		&cfg.TemplateStyle,
+		"template-style",
+		"dark",
+		"built-in theme for the HTTP server UI [dark, light, bare]",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

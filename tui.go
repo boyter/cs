@@ -1,417 +1,733 @@
-// // SPDX-License-Identifier: MIT OR Unlicense
+// SPDX-License-Identifier: MIT
 
 package main
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"context"
 	"fmt"
-	str "github.com/boyter/go-string"
-	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
-	"os"
-	"runtime"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/pkg/ranker"
+	"github.com/boyter/cs/pkg/snippet"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-type displayResult struct {
-	Title      *tview.TextView
-	Body       *tview.TextView
-	BodyHeight int
-	SpacerOne  *tview.TextView
-	SpacerTwo  *tview.TextView
-	Location   string
+// searchResult represents a single search result
+type searchResult struct {
+	Filename    string
+	Location    string
+	Score       float64
+	Snippet     string               // plain text snippet (snippet mode)
+	SnippetLocs [][]int              // match positions within Snippet [start, end]
+	Lines       string               // line range info
+	LineResults []snippet.LineResult // per-line results with positions (lines mode)
 }
 
-type codeResult struct {
-	Title    string
-	Content  string
-	Score    float64
-	Location string
+// debounceTickMsg is sent after the debounce delay to trigger a search
+type debounceTickMsg struct {
+	seq   int
+	query string
 }
 
-type tuiApplicationController struct {
-	Query         string
-	Offset        int
-	Results       []*FileJob
-	DocumentCount int64
-	Mutex         sync.Mutex
-	DrawMutex     sync.Mutex
-	SearchMutex   sync.Mutex
-
-	// View requirements
-	SpinString   string
-	SpinLocation int
-	SpinRun      int
+// searchResultsMsg delivers incremental search results from the search goroutine
+type searchResultsMsg struct {
+	seq       int
+	results   []searchResult
+	fileJobs  []*common.FileJob
+	done      bool // true = search complete
+	total     int  // total files scanned so far
+	textTotal int  // non-binary, successfully read files (for BM25 ranking)
 }
 
-func (cont *tuiApplicationController) SetQuery(q string) {
-	cont.Mutex.Lock()
-	cont.Query = q
-	cont.Mutex.Unlock()
+// Styles
+var (
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("5")) // fuchsia/magenta
+
+	selectedTitleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("5")).
+				Bold(true).
+				Background(lipgloss.Color("236"))
+
+	snippetStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252"))
+
+	selectedSnippetStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252")).
+				Background(lipgloss.Color("236"))
+
+	matchStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("1")). // red
+			Bold(true)
+
+	selectedMatchStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("1")).
+				Bold(true).
+				Background(lipgloss.Color("236"))
+
+	statusStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
+
+	inputLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("7"))
+
+	snippetLabelStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("243"))
+
+	selectedIndicator = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("5")).
+				SetString("▎")
+)
+
+type model struct {
+	cfg           *Config
+	searchInput   textinput.Model
+	snippetInput  textinput.Model
+	focusIndex    int // 0=search, 1=snippet
+	results       []searchResult
+	fileJobs      []*common.FileJob
+	selectedIndex int
+	scrollOffset  int
+	windowHeight  int
+	windowWidth   int
+	chosen        string // set on Enter, printed after exit
+
+	searchSeq     int                   // monotonic counter, incremented on every text change
+	searching     bool                  // true while search is in flight
+	searchCancel  context.CancelFunc    // cancels in-flight search; nil if none
+	searchResults chan searchResultsMsg // channel from search goroutine
+	lastQuery     string                // query that produced current results
+	fileCount     int                   // total files scanned (for status line)
+	textFileCount int                   // non-binary, successfully read files (for BM25 ranking)
+	snippetMode   string                // "snippet" or "lines"
 }
 
-func (cont *tuiApplicationController) IncrementOffset() {
-	cont.Offset++
-}
+func initialModel(cfg *Config) model {
+	si := textinput.New()
+	si.Placeholder = "search query..."
+	si.Prompt = "> "
+	si.Focus()
+	si.CharLimit = 256
 
-func (cont *tuiApplicationController) DecrementOffset() {
-	if cont.Offset > 0 {
-		cont.Offset--
+	sn := textinput.New()
+	sn.Placeholder = ""
+	sn.Prompt = ""
+	sn.SetValue(fmt.Sprintf("%d", cfg.SnippetLength))
+	sn.CharLimit = 5
+	sn.Width = 5
+
+	return model{
+		cfg:          cfg,
+		searchInput:  si,
+		snippetInput: sn,
+		focusIndex:   0,
+		snippetMode:  cfg.SnippetMode,
 	}
 }
 
-func (cont *tuiApplicationController) ResetOffset() {
-	cont.Offset = 0
+func (m model) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, textinput.Blink)
 }
 
-func (cont *tuiApplicationController) GetOffset() int {
-	return cont.Offset
-}
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 
-// After any change is made that requires something drawn on the screen this is the method that does it
-// NB this can never be called directly because it triggers a draw at the end.
-func (cont *tuiApplicationController) drawView() {
-	cont.DrawMutex.Lock()
-	defer cont.DrawMutex.Unlock()
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.windowHeight = msg.Height
+		m.windowWidth = msg.Width
+		m.clampScroll()
+		return m, nil
 
-	// reset the elements by clearing out every one so we have a clean slate to start with
-	for _, t := range tuiDisplayResults {
-		t.Title.SetText("")
-		t.Body.SetText("")
-		t.SpacerOne.SetText("")
-		t.SpacerTwo.SetText("")
-		resultsFlex.ResizeItem(t.Body, 0, 0)
-	}
+	case debounceTickMsg:
+		if msg.seq != m.searchSeq {
+			return m, nil // stale tick, user kept typing
+		}
+		if m.searchCancel != nil {
+			m.searchCancel() // cancel previous search
+		}
 
-	resultsCopy := make([]*FileJob, len(cont.Results))
-	copy(resultsCopy, cont.Results)
+		query := strings.TrimSpace(msg.query)
+		if query == "" {
+			m.results = nil
+			m.fileJobs = nil
+			m.searching = false
+			m.fileCount = 0
+			return m, nil
+		}
 
-	// rank all results
-	// then go and get the relevant portion for display
-	rankResults(int(cont.DocumentCount), resultsCopy)
-	documentTermFrequency := calculateDocumentTermFrequency(resultsCopy)
+		// Parse snippet length from input
+		snippetLen := 300
+		if v := m.snippetInput.Value(); v != "" {
+			fmt.Sscanf(v, "%d", &snippetLen)
+		}
 
-	// after ranking only get the details for as many as we actually need to
-	// cut down on processing
-	if len(resultsCopy) > len(tuiDisplayResults) {
-		resultsCopy = resultsCopy[:len(tuiDisplayResults)]
-	}
+		ctx, cancel := context.WithCancel(context.Background())
+		m.searchCancel = cancel
+		m.searching = true
+		m.results = nil
+		m.fileJobs = nil
+		m.selectedIndex = 0
+		m.scrollOffset = 0
+		m.fileCount = 0
+		ch := make(chan searchResultsMsg, 1)
+		m.searchResults = ch
+		go realSearch(ctx, m.cfg, m.searchSeq, query, snippetLen, m.snippetMode, ch)
+		return m, listenForResults(ch)
 
-	// We use this to swap out the highlights after we escape to ensure that we don't escape
-	// out own colours
-	md5Digest := md5.New()
-	fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
-	fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
+	case searchResultsMsg:
+		if msg.seq != m.searchSeq {
+			return m, nil // stale results from old search
+		}
 
-	// go and get the codeResults the user wants to see using selected as the offset to display from
-	var codeResults []codeResult
-	for i, res := range resultsCopy {
-		if i >= cont.Offset {
+		m.results = append(m.results, msg.results...)
+		m.fileJobs = append(m.fileJobs, msg.fileJobs...)
+		m.fileCount = msg.total
+		m.textFileCount = msg.textTotal
 
-			// TODO run in parallel for performance boost...
-			snippets := extractRelevantV3(res, documentTermFrequency, int(SnippetLength))
-			if len(snippets) == 0 { // false positive most likely
-				continue
+		if msg.done {
+			m.searching = false
+			m.searchCancel = nil
+			m.lastQuery = m.searchInput.Value()
+
+			// Rank all results with BM25 and re-extract snippets with global frequencies
+			if len(m.fileJobs) > 0 {
+				ranked := ranker.RankResults("bm25", m.textFileCount, m.fileJobs)
+				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
+
+				// Parse snippet length from input
+				snippetLen := 300
+				if v := m.snippetInput.Value(); v != "" {
+					fmt.Sscanf(v, "%d", &snippetLen)
+				}
+
+				var newResults []searchResult
+				for _, fj := range ranked {
+					fileMode := resolveSnippetMode(m.snippetMode, fj.Filename)
+					if fileMode == "lines" {
+						lineResults := snippet.FindMatchingLines(fj, 2)
+						lineRange := ""
+						if len(lineResults) > 0 {
+							lineRange = fmt.Sprintf("%d-%d",
+								lineResults[0].LineNumber,
+								lineResults[len(lineResults)-1].LineNumber)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename:    fj.Location,
+							Location:    fj.Location,
+							Score:       fj.Score,
+							LineResults: lineResults,
+							Lines:       lineRange,
+						})
+					} else {
+						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+						snippetText := ""
+						lineRange := ""
+						var sLocs [][]int
+						if len(snippets) > 0 {
+							snippetText = snippets[0].Content
+							lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+							sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename:    fj.Location,
+							Location:    fj.Location,
+							Score:       fj.Score,
+							Snippet:     snippetText,
+							SnippetLocs: sLocs,
+							Lines:       lineRange,
+						})
+					}
+				}
+				m.results = newResults
+				m.fileJobs = nil
+				m.selectedIndex = 0
+				m.scrollOffset = 0
 			}
-			snippet := snippets[0]
 
-			// now that we have the relevant portion we need to get just the bits related to highlight it correctly
-			// which this method does. It takes in the snippet, we extract and all of the locations and then return
-			l := getLocated(res, snippet)
-			coloredContent := str.HighlightString(snippet.Content, l, fmtBegin, fmtEnd)
-			coloredContent = tview.Escape(coloredContent)
+			return m, nil
+		}
+		// Keep listening for more results
+		return m, listenForResults(m.searchResults)
 
-			coloredContent = strings.Replace(coloredContent, fmtBegin, "[red]", -1)
-			coloredContent = strings.Replace(coloredContent, fmtEnd, "[white]", -1)
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			if m.searchCancel != nil {
+				m.searchCancel()
+			}
+			return m, tea.Quit
 
-			codeResults = append(codeResults, codeResult{
-				Title:    res.Location,
-				Content:  coloredContent,
-				Score:    res.Score,
-				Location: res.Location,
-			})
+		case tea.KeyEnter:
+			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
+				if m.searchCancel != nil {
+					m.searchCancel()
+				}
+				m.chosen = m.results[m.selectedIndex].Location
+				return m, tea.Quit
+			}
+			return m, nil
+
+		case tea.KeyTab, tea.KeyShiftTab:
+			if m.focusIndex == 0 {
+				m.focusIndex = 1
+				m.searchInput.Blur()
+				m.snippetInput.Focus()
+			} else {
+				m.focusIndex = 0
+				m.snippetInput.Blur()
+				m.searchInput.Focus()
+			}
+			return m, nil
+
+		case tea.KeyUp:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(100)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
+				return m, nil
+			}
+			if m.selectedIndex > 0 {
+				m.selectedIndex--
+				m.ensureVisible()
+			}
+			return m, nil
+
+		case tea.KeyDown:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(-100)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
+				return m, nil
+			}
+			if m.selectedIndex < len(m.results)-1 {
+				m.selectedIndex++
+				m.ensureVisible()
+			}
+			return m, nil
+
+		case tea.KeyPgUp:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(200)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
+				return m, nil
+			}
+
+		case tea.KeyPgDown:
+			if m.focusIndex == 1 {
+				m.adjustSnippetLength(-200)
+				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
+					m.searchSeq++
+					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
+				return m, nil
+			}
 		}
 	}
 
-	// render out what the user wants to see based on the results that have been chosen
-	for i, t := range codeResults {
-		tuiDisplayResults[i].Title.SetText(fmt.Sprintf("[fuchsia]%s (%f)[-:-:-]", t.Title, t.Score))
-		tuiDisplayResults[i].Body.SetText(t.Content)
-		tuiDisplayResults[i].Location = t.Location
+	// Update the focused input
+	if m.focusIndex == 0 {
+		prevValue := m.searchInput.Value()
+		var cmd tea.Cmd
+		m.searchInput, cmd = m.searchInput.Update(msg)
+		cmds = append(cmds, cmd)
 
-		//we need to update the item so that it displays everything we have put in
-		resultsFlex.ResizeItem(tuiDisplayResults[i].Body, len(strings.Split(t.Content, "\n")), 0)
+		// On text change, increment seq and start debounce timer
+		if m.searchInput.Value() != prevValue {
+			m.searchSeq++
+			cmds = append(cmds, makeDebounceCmd(m.searchSeq, m.searchInput.Value()))
+		}
+	} else {
+		var cmd tea.Cmd
+		m.snippetInput, cmd = m.snippetInput.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
-	// because the search runs async through debounce we need to now draw
-	tviewApplication.QueueUpdateDraw(func() {})
+	return m, tea.Batch(cmds...)
 }
 
-func (cont *tuiApplicationController) DoSearch() {
-	cont.Mutex.Lock()
-	query := cont.Query
-	cont.Mutex.Unlock()
+func (m *model) adjustSnippetLength(delta int) {
+	val := 300
+	if v := m.snippetInput.Value(); v != "" {
+		fmt.Sscanf(v, "%d", &val)
+	}
+	val += delta
+	if val < 100 {
+		val = 100
+	}
+	if val > 8000 {
+		val = 8000
+	}
+	m.snippetInput.SetValue(fmt.Sprintf("%d", val))
+}
 
-	cont.SearchMutex.Lock()
-	defer cont.SearchMutex.Unlock()
+// makeDebounceCmd returns a tea.Cmd that fires a debounceTickMsg after 200ms
+func makeDebounceCmd(seq int, query string) tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+		return debounceTickMsg{seq: seq, query: query}
+	})
+}
 
-	// have a spinner which indicates if things are running as we expect
-	running := true
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		for {
-			statusView.SetText(fmt.Sprintf("%s searching for '%s'", string(cont.SpinString[cont.SpinLocation]), query))
-			tviewApplication.QueueUpdateDraw(func() {})
-			cont.RotateSpin()
-			time.Sleep(20 * time.Millisecond)
-			if !running {
-				wg.Done()
+// listenForResults returns a tea.Cmd that blocks until the next message arrives on ch
+func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-ch
+		if !ok {
+			return searchResultsMsg{done: true}
+		}
+		return msg
+	}
+}
+
+// realSearch wraps DoSearch for TUI use, streaming results in batches via the channel.
+func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippetLen int, snippetMode string, ch chan<- searchResultsMsg) {
+	defer close(ch)
+
+	searchCh, stats := DoSearch(ctx, cfg, query)
+
+	var batch []searchResult
+	var batchJobs []*common.FileJob
+
+	for fj := range searchCh {
+		// Build a preliminary searchResult for immediate display
+		fileMode := resolveSnippetMode(snippetMode, fj.Filename)
+		var sr searchResult
+		if fileMode == "lines" {
+			lineResults := snippet.FindMatchingLines(fj, 2)
+			lineRange := ""
+			if len(lineResults) > 0 {
+				lineRange = fmt.Sprintf("%d-%d",
+					lineResults[0].LineNumber,
+					lineResults[len(lineResults)-1].LineNumber)
+			}
+			sr = searchResult{
+				Filename:    fj.Location,
+				Location:    fj.Location,
+				LineResults: lineResults,
+				Lines:       lineRange,
+			}
+		} else {
+			docFreq := make(map[string]int, len(fj.MatchLocations))
+			for k, v := range fj.MatchLocations {
+				docFreq[k] = len(v)
+			}
+			snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+			snippetText := ""
+			lineRange := ""
+			var sLocs [][]int
+			if len(snippets) > 0 {
+				snippetText = snippets[0].Content
+				lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+				sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
+			}
+			sr = searchResult{
+				Filename:    fj.Location,
+				Location:    fj.Location,
+				Snippet:     snippetText,
+				SnippetLocs: sLocs,
+				Lines:       lineRange,
+			}
+		}
+
+		batch = append(batch, sr)
+		batchJobs = append(batchJobs, fj)
+
+		if len(batch) >= 5 {
+			select {
+			case ch <- searchResultsMsg{
+				seq: seq, results: batch, fileJobs: batchJobs,
+				total: int(stats.FileCount.Load()), textTotal: int(stats.TextFileCount.Load()),
+			}:
+				batch = nil
+				batchJobs = nil
+			case <-ctx.Done():
 				return
 			}
 		}
-	}()
+	}
 
-	var results []*FileJob
-	var status string
+	// Send remaining results + done signal
+	select {
+	case ch <- searchResultsMsg{
+		seq: seq, results: batch, fileJobs: batchJobs,
+		done: true, total: int(stats.FileCount.Load()), textTotal: int(stats.TextFileCount.Load()),
+	}:
+	case <-ctx.Done():
+	}
+}
 
-	if strings.TrimSpace(query) != "" {
-		files := FindFiles(query)
-		toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
-		summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
-
-		q, fuzzy := PreParseQuery(strings.Fields(query))
-		fileReaderWorker := NewFileReaderWorker(files, toProcessQueue)
-		fileReaderWorker.FuzzyMatch = fuzzy
-		fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
-		fileSearcher.SearchString = q
-
-		resultSummarizer := NewResultSummarizer(summaryQueue)
-		resultSummarizer.FileReaderWorker = fileReaderWorker
-		resultSummarizer.SnippetCount = SnippetCount
-
-		go fileReaderWorker.Start()
-		go fileSearcher.Start()
-
-		// First step is to collect results so we can rank them
-		fileMatches := []string{}
-		for f := range summaryQueue {
-			results = append(results, f)
-			fileMatches = append(fileMatches, f.Location)
+// snippetMatchLocs filters match locations to those within [startPos, endPos]
+// and adjusts them to be relative to startPos (matching console.go behavior).
+func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [][]int {
+	var locs [][]int
+	for _, value := range matchLocations {
+		for _, s := range value {
+			if s[0] >= startPos && s[1] <= endPos {
+				locs = append(locs, []int{
+					s[0] - startPos,
+					s[1] - startPos,
+				})
+			}
 		}
-		searchToFileMatchesCache[query] = fileMatches
+	}
+	return locs
+}
 
+// resultHeight returns the number of terminal lines a result takes up
+func resultHeight(r searchResult) int {
+	if len(r.LineResults) > 0 {
+		return 1 + len(r.LineResults) + 1
+	}
+	// 1 for title + lines in snippet + 1 blank line separator
+	lines := strings.Count(r.Snippet, "\n") + 1
+	return 1 + lines + 1
+}
+
+func (m *model) clampScroll() {
+	if m.scrollOffset < 0 {
+		m.scrollOffset = 0
+	}
+}
+
+func (m *model) ensureVisible() {
+	// Calculate available height for results area
+	availHeight := m.windowHeight - 3 // input line + status line + separator
+
+	// Make sure selected item is visible by adjusting scroll offset
+	heightBefore := 0
+	for i := 0; i < m.selectedIndex; i++ {
+		if i < len(m.results) {
+			heightBefore += resultHeight(m.results[i])
+		}
+	}
+
+	selectedH := 0
+	if m.selectedIndex < len(m.results) {
+		selectedH = resultHeight(m.results[m.selectedIndex])
+	}
+
+	// Scroll up if selected is above viewport
+	if heightBefore < m.scrollOffset {
+		m.scrollOffset = heightBefore
+	}
+
+	// Scroll down if selected is below viewport
+	if heightBefore+selectedH > m.scrollOffset+availHeight {
+		m.scrollOffset = heightBefore + selectedH - availHeight
+	}
+
+	m.clampScroll()
+}
+
+func (m model) View() string {
+	if m.windowWidth == 0 {
+		return "loading..."
+	}
+
+	var b strings.Builder
+
+	// === Top line: search input + snippet length ===
+	snippetLabel := snippetLabelStyle.Render("[" + m.snippetInput.View() + "]")
+	snippetWidth := lipgloss.Width(snippetLabel)
+	searchWidth := m.windowWidth - snippetWidth - 1
+	if searchWidth < 10 {
+		searchWidth = 10
+	}
+	m.searchInput.Width = searchWidth - 3 // account for prompt "> "
+
+	topLine := lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Width(searchWidth).Render(m.searchInput.View()),
+		lipgloss.NewStyle().Width(snippetWidth).Align(lipgloss.Right).Render(snippetLabel),
+	)
+	b.WriteString(topLine)
+	b.WriteString("\n")
+
+	// === Status line ===
+	query := m.searchInput.Value()
+	var status string
+	if query == "" {
+		status = "type a query to search"
+	} else if m.searching {
+		status = fmt.Sprintf("%d results for '%s' from %d files (searching...)",
+			len(m.results), query, m.fileCount)
+	} else {
 		plural := "s"
-		if len(results) == 1 {
+		if len(m.results) == 1 {
 			plural = ""
 		}
+		status = fmt.Sprintf("%d result%s for '%s' from %d files",
+			len(m.results), plural, m.lastQuery, m.fileCount)
+	}
+	b.WriteString(statusStyle.Render(status))
+	b.WriteString("\n")
 
-		status = fmt.Sprintf("%d result%s for '%s' from %d files", len(results), plural, query, fileReaderWorker.GetFileCount())
-		cont.DocumentCount = fileReaderWorker.GetFileCount()
+	// === Results area ===
+	availHeight := m.windowHeight - 3 // input + status + separator line
+	if availHeight < 1 {
+		availHeight = 1
 	}
 
-	running = false
-	wg.Wait()
-	statusView.SetText(status)
+	linesRendered := 0
+	linesSkipped := 0
 
-	cont.Results = results
-	cont.drawView()
-}
+	for i, r := range m.results {
+		rh := resultHeight(r)
 
-func (cont *tuiApplicationController) RotateSpin() {
-	cont.SpinRun++
-	if cont.SpinRun == 4 {
-		cont.SpinLocation++
-		if cont.SpinLocation >= len(cont.SpinString) {
-			cont.SpinLocation = 0
+		// Skip results that are above the scroll offset
+		if linesSkipped+rh <= m.scrollOffset {
+			linesSkipped += rh
+			continue
 		}
-		cont.SpinRun = 0
+
+		// Stop if we've filled the viewport
+		if linesRendered >= availHeight {
+			break
+		}
+
+		isSelected := i == m.selectedIndex
+		resultStr := m.renderResult(r, isSelected)
+		resultLines := strings.Split(resultStr, "\n")
+
+		// Handle partial rendering at top (scroll offset cuts into this result)
+		startLine := 0
+		if linesSkipped < m.scrollOffset {
+			startLine = m.scrollOffset - linesSkipped
+			linesSkipped = m.scrollOffset
+		}
+
+		for j := startLine; j < len(resultLines); j++ {
+			if linesRendered >= availHeight {
+				break
+			}
+			b.WriteString(resultLines[j])
+			b.WriteString("\n")
+			linesRendered++
+		}
 	}
+
+	// Fill remaining space so alt screen doesn't look jagged
+	for linesRendered < availHeight {
+		b.WriteString("\n")
+		linesRendered++
+	}
+
+	return b.String()
 }
 
-// Sets up the UI components we need to actually display
-var overallFlex *tview.Flex
-var inputField *tview.InputField
-var queryFlex *tview.Flex
-var resultsFlex *tview.Flex
-var statusView *tview.TextView
-var tuiDisplayResults []displayResult
-var tviewApplication *tview.Application
-var snippetInputField *tview.InputField
+func (m model) renderResult(r searchResult, isSelected bool) string {
+	var b strings.Builder
 
-// setup debounce to improve ui feel
-var debounced = NewDebouncer(200 * time.Millisecond)
+	// Title line: indicator + filename (score)
+	titleText := fmt.Sprintf("%s (%0.4f) [%s]", r.Filename, r.Score, r.Lines)
 
-func NewTuiSearch() {
-	// start indexing by walking from the current directory and updating
-	// this needs to run in the background with searches spawning from that
-	tviewApplication = tview.NewApplication()
-	applicationController := tuiApplicationController{
-		Mutex:      sync.Mutex{},
-		SpinString: `\|/-`,
+	if isSelected {
+		b.WriteString(selectedIndicator.String())
+		b.WriteString(selectedTitleStyle.Render(titleText))
+	} else {
+		b.WriteString(" ")
+		b.WriteString(titleStyle.Render(titleText))
 	}
+	b.WriteString("\n")
 
-	// Create the elements we use to display the code results here
-	for i := 1; i < 50; i++ {
-		var textViewTitle *tview.TextView
-		var textViewBody *tview.TextView
-
-		textViewTitle = tview.NewTextView().
-			SetDynamicColors(true).
-			SetRegions(true).
-			ScrollToBeginning()
-
-		textViewBody = tview.NewTextView().
-			SetDynamicColors(true).
-			SetRegions(true).
-			ScrollToBeginning()
-
-		tuiDisplayResults = append(tuiDisplayResults, displayResult{
-			Title:      textViewTitle,
-			Body:       textViewBody,
-			BodyHeight: -1,
-			SpacerOne:  tview.NewTextView(),
-			SpacerTwo:  tview.NewTextView(),
-		})
-	}
-
-	// input field which deals with the user input for the main search which ultimately triggers a search
-	inputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.Color16).
-		SetLabel("> ").
-		SetLabelColor(tcell.ColorWhite).
-		SetFieldWidth(0).
-		SetDoneFunc(func(key tcell.Key) {
-			// this deals with the keys that trigger "done" functions such as up/down/enter
-			switch key {
-			case tcell.KeyEnter:
-				tviewApplication.Stop()
-				// we want to work like fzf for piping into other things hence print out the selected version
-				if len(applicationController.Results) != 0 {
-					fmt.Println(tuiDisplayResults[0].Location)
-				}
-				os.Exit(0)
-			case tcell.KeyTab:
-				tviewApplication.SetFocus(snippetInputField)
-			case tcell.KeyBacktab:
-				tviewApplication.SetFocus(snippetInputField)
-			case tcell.KeyUp:
-				applicationController.DecrementOffset()
-				debounced(applicationController.drawView)
-			case tcell.KeyDown:
-				applicationController.IncrementOffset()
-				debounced(applicationController.drawView)
-			case tcell.KeyESC:
-				tviewApplication.Stop()
-				os.Exit(0)
+	// Render content: line-based or snippet-based
+	if len(r.LineResults) > 0 {
+		for _, lr := range r.LineResults {
+			prefix := "  "
+			if isSelected {
+				prefix = selectedIndicator.String() + " "
 			}
-		}).
-		SetChangedFunc(func(text string) {
-			// after the text has changed set the query and trigger a search
-			text = strings.TrimSpace(text)
-			applicationController.ResetOffset() // reset so we are at the first element again
-			applicationController.SetQuery(text)
-			debounced(applicationController.DoSearch)
-		})
+			lineNum := snippetLabelStyle.Render(fmt.Sprintf("%4d ", lr.LineNumber))
+			highlighted := m.highlightWithLocs(lr.Content, lr.Locs, isSelected)
+			b.WriteString(prefix + lineNum + highlighted)
+			b.WriteString("\n")
+		}
+	} else {
+		snippetLines := strings.Split(r.Snippet, "\n")
+		offset := 0
+		for _, line := range snippetLines {
+			prefix := "  "
+			if isSelected {
+				prefix = selectedIndicator.String() + " "
+			}
 
-	// Decide how large a snippet we should be displaying
-	snippetInputField = tview.NewInputField().
-		SetFieldBackgroundColor(tcell.ColorDefault).
-		SetAcceptanceFunc(tview.InputFieldInteger).
-		SetText(strconv.Itoa(int(SnippetLength))).
-		SetFieldWidth(4).
-		SetChangedFunc(func(text string) {
-			if strings.TrimSpace(text) == "" {
-				SnippetLength = 300 // default
+			// Compute per-line match locations from snippet-wide SnippetLocs
+			var lineLocs [][]int
+			lineEnd := offset + len(line)
+			for _, loc := range r.SnippetLocs {
+				if loc[1] <= offset || loc[0] >= lineEnd {
+					continue // outside this line
+				}
+				start := loc[0] - offset
+				end := loc[1] - offset
+				if start < 0 {
+					start = 0
+				}
+				if end > len(line) {
+					end = len(line)
+				}
+				lineLocs = append(lineLocs, []int{start, end})
+			}
+
+			highlighted := m.highlightWithLocs(line, lineLocs, isSelected)
+			b.WriteString(prefix + highlighted)
+			b.WriteString("\n")
+			offset = lineEnd + 1 // +1 for the \n
+		}
+	}
+
+	return b.String()
+}
+
+func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) string {
+	normal := snippetStyle
+	highlight := matchStyle
+	if isSelected {
+		normal = selectedSnippetStyle
+		highlight = selectedMatchStyle
+	}
+
+	if len(locs) == 0 {
+		return normal.Render(line)
+	}
+
+	marked := make([]bool, len(line))
+	for _, loc := range locs {
+		for i := loc[0]; i < loc[1] && i < len(marked); i++ {
+			marked[i] = true
+		}
+	}
+
+	var result strings.Builder
+	inMatch := false
+	segStart := 0
+
+	for i := 0; i <= len(line); i++ {
+		currentMatch := i < len(line) && marked[i]
+		if i == len(line) || currentMatch != inMatch {
+			seg := line[segStart:i]
+			if inMatch {
+				result.WriteString(highlight.Render(seg))
 			} else {
-				t, _ := strconv.Atoi(text)
-				if t == 0 {
-					SnippetLength = 300
-				} else {
-					SnippetLength = int64(t)
-				}
+				result.WriteString(normal.Render(seg))
 			}
-		}).
-		SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyTab:
-				tviewApplication.SetFocus(inputField)
-			case tcell.KeyBacktab:
-				tviewApplication.SetFocus(inputField)
-			case tcell.KeyEnter:
-				fallthrough
-			case tcell.KeyUp:
-				SnippetLength = min(SnippetLength+100, 8000)
-				snippetInputField.SetText(fmt.Sprintf("%d", SnippetLength))
-				debounced(applicationController.DoSearch)
-			case tcell.KeyPgUp:
-				SnippetLength = min(SnippetLength+200, 8000)
-				snippetInputField.SetText(fmt.Sprintf("%d", SnippetLength))
-				debounced(applicationController.DoSearch)
-			case tcell.KeyDown:
-				SnippetLength = max(100, SnippetLength-100)
-				snippetInputField.SetText(fmt.Sprintf("%d", SnippetLength))
-				debounced(applicationController.DoSearch)
-			case tcell.KeyPgDn:
-				SnippetLength = max(100, SnippetLength-200)
-				snippetInputField.SetText(fmt.Sprintf("%d", SnippetLength))
-				debounced(applicationController.DoSearch)
-			case tcell.KeyESC:
-				tviewApplication.Stop()
-				os.Exit(0)
-			}
-		})
-
-	statusView = tview.NewTextView().
-		SetDynamicColors(false).
-		SetRegions(false).
-		ScrollToBeginning()
-
-	// setup the flex containers to have everything rendered neatly
-	queryFlex = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputField, 0, 8, false).
-		AddItem(snippetInputField, 5, 1, false)
-
-	resultsFlex = tview.NewFlex().SetDirection(tview.FlexRow)
-
-	overallFlex = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(queryFlex, 1, 0, false).
-		AddItem(nil, 1, 0, false).
-		AddItem(statusView, 1, 0, false).
-		AddItem(resultsFlex, 0, 1, false)
-
-	// add all of the display codeResults into the container ready to be populated
-	for _, t := range tuiDisplayResults {
-		resultsFlex.AddItem(t.SpacerOne, 1, 0, false)
-		resultsFlex.AddItem(t.Title, 1, 0, false)
-		resultsFlex.AddItem(t.SpacerTwo, 1, 0, false)
-		resultsFlex.AddItem(t.Body, t.BodyHeight, 1, false)
-	}
-
-	if err := tviewApplication.SetRoot(overallFlex, true).SetFocus(inputField).Run(); err != nil {
-		panic(err)
-	}
-}
-
-func getLocated(res *FileJob, v3 Snippet) [][]int {
-	var l [][]int
-
-	// For all the match locations we have only keep the ones that should be inside
-	// where we are matching
-	for _, value := range res.MatchLocations {
-		for _, s := range value {
-			if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-				// Have to create a new one to avoid changing the position
-				// unlike in others where we throw away the results afterwards
-				t := []int{s[0] - v3.StartPos, s[1] - v3.StartPos}
-				l = append(l, t)
-			}
+			segStart = i
+			inMatch = currentMatch
 		}
 	}
 
-	return l
+	return result.String()
 }
+

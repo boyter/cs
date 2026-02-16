@@ -21,3 +21,5 @@ cs
 
 sc.pprof
 dist/
+
+.DS_Store

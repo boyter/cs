@@ -6,7 +6,7 @@ the console, via a TUI or HTTP server, using some boolean queries or regular exp
 
 Consider it a similar approach to using ripgrep, silver searcher or grep coupled with fzf but in a single tool.
 
-Dual-licensed under MIT or the UNLICENSE.
+Licensed under MIT.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/boyter/cs)](https://goreportcard.com/report/github.com/boyter/cs)
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)
@@ -37,9 +37,9 @@ If you want to create a package to install things please do. Let me know and ill
 
 #### Go Get
 
-If you have Go >= 1.20 installed
+If you have Go >= 1.21 installed
 
-`go install github.com/boyter/cs@v1.3.0`
+`go install github.com/boyter/cs@v2.0.0`
 
 #### Nixos
 
@@ -95,7 +95,7 @@ you expect?
 
 #### How do you get the snippets?
 
-It's not fun... https://github.com/boyter/cs/blob/master/snippet.go Have a look at the code. 
+It's not fun... https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go Have a look at the code. 
 
 It works by passing the document content to extract the snippet from and all the match locations for each term. 
 It then looks through each location for each word, and checks on either side looking for terms close to it. 
@@ -110,10 +110,12 @@ It's a little brutalist.
 
 <img alt="scc" src=https://github.com/boyter/cs/raw/master/cs_http.png>
 
-You can change its look and feel using `--template-display` and `--template-search`. See https://github.com/boyter/cs/tree/master/asset/templates
+You can change its look and feel using `--template-style` for built-in themes (`dark`, `light`, `bare`), or provide
+custom templates with `--template-display` and `--template-search`. See https://github.com/boyter/cs/tree/master/asset/templates
 for example templates you can use to modify things.
 
 ```shell
+cs -d --template-style light
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 ```
 
@@ -126,7 +128,7 @@ features listed below may be missing from your installation.
 ```
 $ cs -h
 code spelunker (cs) code search.
-Version 1.3.0
+Version 2.0.0
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
@@ -162,7 +164,7 @@ Usage:
   cs [flags]
 
 Flags:
-      --address string            address and port to listen to in HTTP mode (default ":8080")
+      --address string            address and port to listen on (default ":8080")
       --binary                    set to disable binary file detection and search binary files
   -c, --case-sensitive            make the search case sensitive
       --dir string                directory to search, if not set defaults to current working directory
@@ -172,7 +174,7 @@ Flags:
   -f, --format string             set output format [text, json, vimgrep] (default "text")
   -h, --help                      help for cs
       --hidden                    include hidden files
-  -d, --http-server               start http server for search
+  -d, --http-server               start the HTTP server
   -i, --include-ext strings       limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]
       --max-read-size-bytes int   number of bytes to read into a file with the remaining content ignored (default 1000000)
       --min                       include minified files
@@ -181,20 +183,25 @@ Flags:
       --no-ignore                 disables .ignore file logic
   -o, --output string             output filename (default stdout)
       --ranker string             set ranking algorithm [simple, tfidf, tfidf2, bm25] (default "bm25")
+      --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
   -s, --snippet-count int         number of snippets to display (default 1)
   -n, --snippet-length int        size of the snippet to display (default 300)
-      --template-display string   path to display template for custom styling
-      --template-search string    path to search template for custom styling
+      --snippet-mode string       snippet extraction mode: auto, snippet, or lines (default "auto")
+      --template-display string   path to a custom display template
+      --template-search string    path to a custom search template
+      --template-style string     built-in theme for the HTTP server UI [dark, light, bare] (default "dark")
   -v, --version                   version for cs
 ```
 
 Searches work on single or multiple words with a logical AND applied between them. You can negate with NOT before a term.
+You can combine terms with OR and use parentheses to control grouping.
 You can do exact match with quotes, and do regular expressions using toothpicks.
 
 Example search that uses all current functionality
 
 ```shell
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/" file:test
+cs (cat OR dog) AND NOT bird
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
