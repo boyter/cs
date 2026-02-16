@@ -33,7 +33,7 @@ problem.
 
 ### Install
 
-If you want to create a package to install things please do. Let me know and ill ensure I add it here.
+If you want to create a package to install, please make it. Let me know and ill ensure I add it here.
 
 #### Go Get
 
@@ -71,6 +71,8 @@ On my local machine which at time of writing is a Macbook Air M1 it can search a
 code in ~2.5 seconds. While absolute performance is not a design goal, I also don't want this to be a slow tool. As such
 if any obvious performance gains are on the table I will take them.
 
+Note that there is an expiring cache built in, so if you add more terms to an existing search it should only get faster.
+
 #### Does it work on normal documents?
 
 So long as they are text. I wrote it to search code, but it works just as well on full text documents. The snippet
@@ -95,7 +97,7 @@ you expect?
 
 #### How do you get the snippets?
 
-It's not fun... https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go Have a look at the code. 
+It's not fun... see https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go and https://github.com/boyter/cs/blob/master/pkg/snippet/snippet_lines.go 
 
 It works by passing the document content to extract the snippet from and all the match locations for each term. 
 It then looks through each location for each word, and checks on either side looking for terms close to it. 
