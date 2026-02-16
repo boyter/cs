@@ -180,6 +180,7 @@ Flags:
       --min-line-length int       number of bytes per average line for file to be considered minified (default 255)
       --no-gitignore              disables .gitignore file logic
       --no-ignore                 disables .ignore file logic
+      --no-syntax                 disable syntax highlighting in output
   -o, --output string             output filename (default stdout)
       --ranker string             set ranking algorithm [simple, tfidf, tfidf2, bm25] (default "bm25")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
@@ -189,6 +190,7 @@ Flags:
       --template-display string   path to a custom display template
       --template-search string    path to a custom search template
       --template-style string     built-in theme for the HTTP server UI [dark, light, bare] (default "dark")
+  -t, --type strings              limit to language types [comma separated list: e.g. Go,Java,Python]
   -v, --version                   version for cs
 ```
 
