@@ -3,31 +3,74 @@
 package main
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	str "github.com/boyter/go-string"
-	"github.com/boyter/gocodewalker"
-	"github.com/rs/zerolog/log"
 	"html"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	str "github.com/boyter/go-string"
+	"github.com/boyter/gocodewalker"
+
+	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/pkg/ranker"
+	"github.com/boyter/cs/pkg/snippet"
 )
 
-func StartHttpServer() {
+// HTTP template types — prefixed with "http" to avoid collision with TUI's searchResult.
+type httpSearch struct {
+	SearchTerm          string
+	SnippetSize         int
+	Results             []httpSearchResult
+	ResultsCount        int
+	RuntimeMilliseconds int64
+	ProcessedFileCount  int64
+	ExtensionFacet      []httpFacetResult
+	Pages               []httpPageResult
+	Ext                 string
+}
+
+type httpSearchResult struct {
+	Title    string
+	Location string
+	Content  []template.HTML
+	StartPos int
+	EndPos   int
+	Score    float64
+}
+
+type httpFileDisplay struct {
+	Location            string
+	Content             template.HTML
+	RuntimeMilliseconds int64
+}
+
+type httpFacetResult struct {
+	Title       string
+	Count       int
+	SearchTerm  string
+	SnippetSize int
+}
+
+type httpPageResult struct {
+	SearchTerm  string
+	SnippetSize int
+	Value       int
+	Name        string
+	Ext         string
+}
+
+func StartHttpServer(cfg *Config) {
 	http.HandleFunc("/file/raw/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.Replace(r.URL.Path, "/file/raw/", "", 1)
-
-		log.Info().
-			Str("unique_code", "f24a4b1d").
-			Str("path", path).
-			Msg("raw page")
-
 		w.Header().Set("Content-Type", "text/plain")
 		http.ServeFile(w, r, path)
 	})
@@ -39,57 +82,40 @@ func StartHttpServer() {
 
 		path := strings.Replace(r.URL.Path, "/file/", "", 1)
 
-		log.Info().
-			Str("unique_code", "9212b49c").
-			Int("startpos", startPos).
-			Int("endpos", endPos).
-			Str("path", path).
-			Msg("file view page")
-
-		var content []byte
-		var err error
-
-		if strings.TrimSpace(Directory) != "" {
+		if strings.TrimSpace(cfg.Directory) != "" {
 			path = "/" + path
 		}
-		content, err = os.ReadFile(path)
+
+		content, err := os.ReadFile(path)
 		if err != nil {
-			log.Error().
-				Str("unique_code", "d063c1fd").
-				Int("startpos", startPos).
-				Int("endpos", endPos).
-				Str("path", path).
-				Msg("error reading file")
 			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+			return
 		}
 
 		// Create a random str to define where the start and end of
-		// out highlight should be which we swap out later after we have
+		// our highlight should be which we swap out later after we have
 		// HTML escaped everything
 		md5Digest := md5.New()
 		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
 		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
 		coloredContent := str.HighlightString(string(content), [][]int{{startPos, endPos}}, fmtBegin, fmtEnd)
-
 		coloredContent = html.EscapeString(coloredContent)
 		coloredContent = strings.Replace(coloredContent, fmtBegin, fmt.Sprintf(`<strong id="%d">`, startPos), -1)
 		coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 
 		t := template.Must(template.New("display.tmpl").Parse(httpFileTemplate))
-
-		if DisplayTemplate != "" {
-			t = template.Must(template.New("display.tmpl").ParseFiles(DisplayTemplate))
+		if cfg.DisplayTemplate != "" {
+			t = template.Must(template.New("display.tmpl").ParseFiles(cfg.DisplayTemplate))
 		}
 
-		err = t.Execute(w, fileDisplay{
+		err = t.Execute(w, httpFileDisplay{
 			Location:            path,
 			Content:             template.HTML(coloredContent),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 		})
-
 		if err != nil {
-			panic(err)
+			log.Printf("template execute error: %v", err)
 		}
 	})
 
@@ -101,81 +127,44 @@ func StartHttpServer() {
 		page := tryParseInt(r.URL.Query().Get("p"), 0)
 		pageSize := 20
 
-		var results []*FileJob
-		var fileCount int64
-
-		log.Info().
-			Str("unique_code", "1e38548a").
-			Msg("search page")
+		var results []*common.FileJob
+		var processedFileCount int64
 
 		if query != "" {
-			log.Info().
-				Str("unique_code", "1a54b0cd").
-				Str("query", query).
-				Int("snippetlength", snippetLength).
-				Str("ext", ext).
-				Msg("search query")
-
-			// If the user asks we should look back till we find the .git or .hg directory and start the search from there
-
-			dirFilePaths = []string{"."}
-			if strings.TrimSpace(Directory) != "" {
-				dirFilePaths = []string{Directory}
-			}
-
-			if FindRoot {
-				dirFilePaths[0] = gocodewalker.FindRepositoryRoot(dirFilePaths[0])
-			}
-
+			// Make a copy of config so we can adjust AllowListExtensions per request
+			searchCfg := *cfg
 			if len(ext) != 0 {
-				AllowListExtensions = []string{ext}
+				searchCfg.AllowListExtensions = []string{ext}
 			} else {
-				AllowListExtensions = []string{}
+				searchCfg.AllowListExtensions = []string{}
 			}
 
-			// walk back through the query to see if we have a shorter one that matches
-			files := FindFiles(query)
+			ctx := context.Background()
+			ch, stats := DoSearch(ctx, &searchCfg, query)
 
-			toProcessQueue := make(chan *FileJob, runtime.NumCPU()) // Files to be read into memory for processing
-			summaryQueue := make(chan *FileJob, runtime.NumCPU())   // Files that match and need to be displayed
-
-			q, fuzzy := PreParseQuery(strings.Fields(query))
-
-			fileReaderWorker := NewFileReaderWorker(files, toProcessQueue)
-			fileReaderWorker.FuzzyMatch = fuzzy
-			fileSearcher := NewSearcherWorker(toProcessQueue, summaryQueue)
-			fileSearcher.SearchString = q
-
-			resultSummarizer := NewResultSummarizer(summaryQueue)
-			resultSummarizer.FileReaderWorker = fileReaderWorker
-			resultSummarizer.SnippetCount = SnippetCount
-
-			go fileReaderWorker.Start()
-			go fileSearcher.Start()
-
-			for f := range summaryQueue {
-				results = append(results, f)
+			for fj := range ch {
+				results = append(results, fj)
 			}
 
-			fileCount = fileReaderWorker.GetFileCount()
-			rankResults(int(fileReaderWorker.GetFileCount()), results)
+			processedFileCount = stats.TextFileCount.Load()
+			results = ranker.RankResults(cfg.Ranker, int(processedFileCount), results)
 		}
 
 		// Create a random str to define where the start and end of
-		// out highlight should be which we swap out later after we have
+		// our highlight should be which we swap out later after we have
 		// HTML escaped everything
 		md5Digest := md5.New()
 		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
 		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
 
-		documentTermFrequency := calculateDocumentTermFrequency(results)
+		documentTermFrequency := ranker.CalculateDocumentTermFrequency(results)
 
-		var searchResults []searchResult
+		var searchResults []httpSearchResult
 		extensionFacets := map[string]int{}
 
 		// if we have more than the page size of results, lets just show the first page
 		displayResults := results
-		pages := calculatePages(results, pageSize, query, snippetLength, ext)
+		pages := httpCalculatePages(results, pageSize, query, snippetLength, ext)
 
 		if displayResults != nil && len(displayResults) > pageSize {
 			displayResults = displayResults[:pageSize]
@@ -185,7 +174,6 @@ func StartHttpServer() {
 			if end > len(results) {
 				end = len(results)
 			}
-
 			displayResults = results[page*pageSize : end]
 		}
 
@@ -195,12 +183,16 @@ func StartHttpServer() {
 		}
 
 		for _, res := range displayResults {
-			v3 := extractRelevantV3(res, documentTermFrequency, snippetLength)[0]
+			snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
+			if len(snippets) == 0 {
+				continue
+			}
+			v3 := snippets[0]
 
 			// We have the snippet so now we need to highlight it
 			// we get all the locations that fall in the snippet length
 			// and then remove the length of the snippet cut which
-			// makes out location line up with the snippet size
+			// makes our location line up with the snippet size
 			var l [][]int
 			for _, value := range res.MatchLocations {
 				for _, s := range value {
@@ -223,7 +215,7 @@ func StartHttpServer() {
 				coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 			}
 
-			searchResults = append(searchResults, searchResult{
+			searchResults = append(searchResults, httpSearchResult{
 				Title:    res.Location,
 				Location: res.Location,
 				Content:  []template.HTML{template.HTML(coloredContent)},
@@ -234,37 +226,35 @@ func StartHttpServer() {
 		}
 
 		t := template.Must(template.New("search.tmpl").Parse(httpSearchTemplate))
-		if SearchTemplate != "" {
-			// If we have been supplied a template then load it up
-			t = template.Must(template.New("search.tmpl").ParseFiles(SearchTemplate))
+		if cfg.SearchTemplate != "" {
+			t = template.Must(template.New("search.tmpl").ParseFiles(cfg.SearchTemplate))
 		}
 
-		err := t.Execute(w, search{
+		err := t.Execute(w, httpSearch{
 			SearchTerm:          query,
 			SnippetSize:         snippetLength,
 			Results:             searchResults,
 			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
-			ProcessedFileCount:  fileCount,
-			ExtensionFacet:      calculateExtensionFacet(extensionFacets, query, snippetLength),
+			ProcessedFileCount:  processedFileCount,
+			ExtensionFacet:      httpCalculateExtensionFacet(extensionFacets, query, snippetLength),
 			Pages:               pages,
 			Ext:                 ext,
 		})
-
 		if err != nil {
-			panic(err)
+			log.Printf("template execute error: %v", err)
 		}
 	})
 
-	log.Info().Str("unique_code", "03148801").Str("address", Address).Msg("ready to serve requests")
-	log.Fatal().Msg(http.ListenAndServe(Address, nil).Error())
+	fmt.Printf("starting HTTP server on %s\n", cfg.Address)
+	log.Fatal(http.ListenAndServe(cfg.Address, nil))
 }
 
-func calculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int) []facetResult {
-	var ef []facetResult
+func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int) []httpFacetResult {
+	var ef []httpFacetResult
 
 	for k, v := range extensionFacets {
-		ef = append(ef, facetResult{
+		ef = append(ef, httpFacetResult{
 			Title:       k,
 			Count:       v,
 			SearchTerm:  query,
@@ -273,7 +263,6 @@ func calculateExtensionFacet(extensionFacets map[string]int, query string, snipp
 	}
 
 	sort.Slice(ef, func(i, j int) bool {
-		// If the same count sort by the name to ensure it's consistent on the display
 		if ef[i].Count == ef[j].Count {
 			return strings.Compare(ef[i].Title, ef[j].Title) < 0
 		}
@@ -283,21 +272,20 @@ func calculateExtensionFacet(extensionFacets map[string]int, query string, snipp
 	return ef
 }
 
-func calculatePages(results []*FileJob, pageSize int, query string, snippetLength int, ext string) []pageResult {
-	var pages []pageResult
+func httpCalculatePages(results []*common.FileJob, pageSize int, query string, snippetLength int, ext string) []httpPageResult {
+	var pages []httpPageResult
 
 	if len(results) == 0 {
 		return pages
 	}
 
 	if len(results) <= pageSize {
-		pages = append(pages, pageResult{
+		pages = append(pages, httpPageResult{
 			SearchTerm:  query,
 			SnippetSize: snippetLength,
 			Value:       0,
 			Name:        "1",
 		})
-
 		return pages
 	}
 
@@ -307,7 +295,7 @@ func calculatePages(results []*FileJob, pageSize int, query string, snippetLengt
 	}
 
 	for i := 0; i < len(results)/pageSize+a; i++ {
-		pages = append(pages, pageResult{
+		pages = append(pages, httpPageResult{
 			SearchTerm:  query,
 			SnippetSize: snippetLength,
 			Value:       i,
@@ -320,10 +308,145 @@ func calculatePages(results []*FileJob, pageSize int, query string, snippetLengt
 
 func tryParseInt(x string, def int) int {
 	t, err := strconv.Atoi(x)
-
 	if err != nil {
 		return def
 	}
-
 	return t
 }
+
+func makeTimestampMilli() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+
+func makeTimestampNano() int64 {
+	return time.Now().UnixNano()
+}
+
+// Inline template strings — identical to the root http_helpers.go templates.
+
+var httpFileTemplate = `<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>{{ .Location }}</title>
+		<style>
+			strong {
+				background-color: #FFFF00;
+			}
+			pre {
+				white-space: pre-wrap;
+				white-space: -moz-pre-wrap;
+				white-space: -pre-wrap;
+				white-space: -o-pre-wrap;
+				word-wrap: break-word;
+			}
+			body {
+				width: 80%;
+				margin: 10px auto;
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+		<form method="get" action="/" >
+			<input type="text" name="q" value="" autofocus="autofocus" onfocus="this.select()" />
+			<input type="submit" value="search" />
+			<select name="ss" id="ss">
+				<option value="100">100</option>
+				<option value="200">200</option>
+				<option selected value="300">300</option>
+				<option value="400">400</option>
+				<option value="500">500</option>
+				<option value="600">600</option>
+				<option value="700">700</option>
+				<option value="800">800</option>
+				<option value="900">900</option>
+				<option value="1000">1000</option>
+			</select>
+			<small>[processed in {{ .RuntimeMilliseconds }} (ms)]</small>
+		</form>
+		</div>
+		<div>
+			<h4>{{ .Location }}</h4>
+			<small>[<a href="/file/raw/{{ .Location }}">raw file</a>]</small>
+			<pre>{{ .Content }}</pre>
+		</div>
+	</body>
+</html>`
+
+var httpSearchTemplate = `<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>{{ .SearchTerm }}</title>
+		<style>
+			strong {
+				background-color: #FFFF00;
+			}
+			pre {
+				white-space: pre-wrap;
+				white-space: -moz-pre-wrap;
+				white-space: -pre-wrap;
+				white-space: -o-pre-wrap;
+				word-wrap: break-word;
+			}
+			body {
+				width: 80%;
+				margin: 10px auto;
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+		<form method="get" action="/" >
+			<input type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" />
+			<input type="submit" value="search" />
+			<select name="ss" id="ss" onchange="this.form.submit()">
+				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
+				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
+				<option value="300" {{ if eq .SnippetSize 300 }}selected{{ end }}>300</option>
+				<option value="400" {{ if eq .SnippetSize 400 }}selected{{ end }}>400</option>
+				<option value="500" {{ if eq .SnippetSize 500 }}selected{{ end }}>500</option>
+				<option value="600" {{ if eq .SnippetSize 600 }}selected{{ end }}>600</option>
+				<option value="700" {{ if eq .SnippetSize 700 }}selected{{ end }}>700</option>
+				<option value="800" {{ if eq .SnippetSize 800 }}selected{{ end }}>800</option>
+				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
+				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
+			</select>
+			<small>[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
+		</form>
+		</div>
+		<div style="display:flex;">
+			{{if .Results -}}
+			<div style="flex-grow: 4;">
+				<ul>
+					{{- range .Results }}
+					<li>
+						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
+						{{- range .Content }}
+							<pre>{{ . }}</pre>
+						{{- end }}
+					</li><small>[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to location</a>]</small>
+					{{- end }}
+				</ul>
+
+				<div>
+				{{- range .Pages }}
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}">{{ .Name }}</a>
+				{{- end }}
+				</div>
+			</div>
+			{{- end}}
+			{{if .ExtensionFacet }}
+			<div style="flex-grow: 1;">
+				<h4>extensions</h4>
+				<ol>
+				{{- range .ExtensionFacet }}
+					<li value="{{ .Count }}"><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}">{{ .Title }}</a></li>
+				{{- end }}
+				</ol>
+			</div>
+			{{- end }}
+		</div>
+	</body>
+</html>`
