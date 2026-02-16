@@ -15,6 +15,8 @@ const Version = "2.0.0"
 func main() {
 	cfg := DefaultConfig()
 
+	initLanguageDatabase()
+
 	rootCmd := &cobra.Command{
 		Use: "cs",
 		Long: "code spelunker (cs) code search.\n" +
@@ -117,6 +119,13 @@ func main() {
 		"i",
 		[]string{},
 		"limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]",
+	)
+	flags.StringSliceVarP(
+		&cfg.LanguageTypes,
+		"type",
+		"t",
+		[]string{},
+		"limit to language types [comma separated list: e.g. Go,Java,Python]",
 	)
 	flags.BoolVarP(
 		&cfg.FindRoot,

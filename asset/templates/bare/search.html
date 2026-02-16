@@ -46,7 +46,7 @@
 				<ul>
 					{{- range .Results }}
 					<li>
-						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
+						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <small>({{ .Language }})</small>{{ end }}</h4>
 						{{ if .IsLineMode }}<pre>{{ range .LineResults }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
 {{ end }}</pre>{{ else }}{{- range .Content }}
 							<pre>{{ . }}</pre>

@@ -146,7 +146,6 @@ Searches by default use AND boolean syntax for all terms
 
 Searches can fuzzy match which files are searched by adding
 the following syntax
-
  - test file:test
  - stuff filename:.go
 

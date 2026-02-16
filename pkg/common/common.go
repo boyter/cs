@@ -13,4 +13,5 @@ type FileJob struct {
 	Score          float64
 	MatchLocations map[string][][]int
 	Minified       bool
+	Language       string
 }

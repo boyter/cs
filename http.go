@@ -52,6 +52,7 @@ type httpSearchResult struct {
 	Score       float64
 	IsLineMode  bool
 	LineResults []httpLineResult
+	Language    string
 }
 
 type httpFileDisplay struct {
@@ -244,6 +245,7 @@ func StartHttpServer(cfg *Config) {
 					EndPos:      endPos,
 					IsLineMode:  true,
 					LineResults: httpLines,
+					Language:    res.Language,
 				})
 			} else {
 				snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
@@ -285,6 +287,7 @@ func StartHttpServer(cfg *Config) {
 					StartPos: v3.StartPos,
 					EndPos:   v3.EndPos,
 					Score:    res.Score,
+					Language: res.Language,
 				})
 			}
 		}

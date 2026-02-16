@@ -31,6 +31,7 @@ type Config struct {
 	Directory              string
 	FindRoot               bool
 	AllowListExtensions    []string
+	LanguageTypes          []string
 	PathDenylist           []string
 	LocationExcludePattern []string
 	IgnoreGitIgnore        bool

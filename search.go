@@ -44,6 +44,12 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 	ast, _ = transformer.TransformAST(ast)
 	ast = search.PlanAST(ast)
 
+	// Resolve language types to extensions
+	if len(cfg.LanguageTypes) > 0 {
+		langExts := languageExtensions(cfg.LanguageTypes)
+		cfg.AllowListExtensions = append(cfg.AllowListExtensions, langExts...)
+	}
+
 	// Determine walk directory
 	dir := "."
 	if strings.TrimSpace(cfg.Directory) != "" {
@@ -177,6 +183,7 @@ startWorkers:
 					Content:        content,
 					Bytes:          len(content),
 					MatchLocations: matchLocations,
+					Language:       detectLanguage(f.Filename, content),
 				}
 
 				select {

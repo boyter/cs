@@ -25,6 +25,7 @@ type searchResult struct {
 	SnippetLocs [][]int              // match positions within Snippet [start, end]
 	Lines       string               // line range info
 	LineResults []snippet.LineResult // per-line results with positions (lines mode)
+	Language    string
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -225,6 +226,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Score:       fj.Score,
 							LineResults: lineResults,
 							Lines:       lineRange,
+							Language:    fj.Language,
 						})
 					} else {
 						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
@@ -244,6 +246,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Snippet:     snippetText,
 							SnippetLocs: sLocs,
 							Lines:       lineRange,
+							Language:    fj.Language,
 						})
 					}
 				}
@@ -420,6 +423,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Location:    fj.Location,
 				LineResults: lineResults,
 				Lines:       lineRange,
+				Language:    fj.Language,
 			}
 		} else {
 			docFreq := make(map[string]int, len(fj.MatchLocations))
@@ -441,6 +445,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Snippet:     snippetText,
 				SnippetLocs: sLocs,
 				Lines:       lineRange,
+				Language:    fj.Language,
 			}
 		}
 
@@ -632,8 +637,13 @@ func (m model) View() string {
 func (m model) renderResult(r searchResult, isSelected bool) string {
 	var b strings.Builder
 
-	// Title line: indicator + filename (score)
-	titleText := fmt.Sprintf("%s (%0.4f) [%s]", r.Filename, r.Score, r.Lines)
+	// Title line: indicator + filename (language) (score)
+	var titleText string
+	if r.Language != "" {
+		titleText = fmt.Sprintf("%s (%s) (%0.4f) [%s]", r.Filename, r.Language, r.Score, r.Lines)
+	} else {
+		titleText = fmt.Sprintf("%s (%0.4f) [%s]", r.Filename, r.Score, r.Lines)
+	}
 
 	if isSelected {
 		b.WriteString(selectedIndicator.String())

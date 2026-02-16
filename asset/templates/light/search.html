@@ -143,7 +143,7 @@
 			<div class="results-main">
 				{{- range .Results }}
 				<div class="result-item">
-					<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
+					<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <span style="color:#656d76;font-size:12px">({{ .Language }})</span>{{ end }}</h4>
 					{{ if .IsLineMode }}<pre>{{ range .LineResults }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
 {{ end }}</pre>{{ else }}{{- range .Content }}
 					<pre>{{ . }}</pre>

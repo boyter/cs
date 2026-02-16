@@ -48,7 +48,20 @@ for f := range fileListQueue {
 The above by default will recursively add files to the fileListQueue respecting both .ignore and .gitignore files if found, and
 only adding files with the go extension into the queue.
 
-All code is dual-licenced as either MIT or Unlicence.
+You can also run the walker in parallel with the results intermixed if required,
+
+```go
+fileListQueue := make(chan *gocodewalker.File, 100)
+
+fileWalker := gocodewalker.NewParallelFileWalker([]string{".", "someotherdir"}, fileListQueue)
+go fileWalker.Start()
+
+for f := range fileListQueue {
+    fmt.Println(f.Location)
+}
+```
+
+All code is licenced as MIT.
 
 ### Error Handler
 
@@ -84,10 +97,26 @@ errorHandler := func(e error) bool {
 fileWalker.SetErrorHandler(errorHandler)
 ```
 
+### Binary Checking
 
-### Package
+You can ask it to ignore binary files for you by setting `IgnoreBinaryFiles` to true and optionally 
+`IgnoreBinaryFileBytes` to the number of bytes you want to check which by default is set to 1,000.
 
-Packaging is done through https://goreleaser.com/ 
+This will have a performance impact as gocodewalker will open each file, so you may want to do this check yourself
+if performance is your goal.
+
+```go
+fileListQueue := make(chan *gocodewalker.File, 100)
+
+fileWalker := gocodewalker.NewFileWalker(".", fileListQueue)
+
+// set to ignore binary files
+fileWalker.IgnoreBinaryFiles = true
+fileWalker.IgnoreBinaryFileBytes = 500
+```
+
+The check itself looks for a null byte `if b == 0 {` which is a fast mostly accurate way of checking for 
+a binary file.
 
 ### Testing
 

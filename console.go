@@ -74,7 +74,11 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				continue
 			}
 			lines := fmt.Sprintf("%d-%d", lineResults[0].LineNumber, lineResults[len(lineResults)-1].LineNumber)
-			color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)", res.Location, lines, res.Score))
+			if res.Language != "" {
+				color.Magenta(fmt.Sprintf("%s (%s) Lines %s (%.3f)", res.Location, res.Language, lines, res.Score))
+			} else {
+				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)", res.Location, lines, res.Score))
+			}
 			for _, lr := range lineResults {
 				displayContent := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
 				fmt.Printf("%4d %s\n", lr.LineNumber, displayContent)
@@ -91,7 +95,11 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				lines += fmt.Sprintf("%d-%d ", snippets[i].LineStart, snippets[i].LineEnd)
 			}
 
-			color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)", res.Location, lines, res.Score))
+			if res.Language != "" {
+				color.Magenta(fmt.Sprintf("%s (%s) Lines %s(%.3f)", res.Location, res.Language, lines, res.Score))
+			} else {
+				color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)", res.Location, lines, res.Score))
+			}
 
 			for i := 0; i < len(snippets); i++ {
 				// Get all match locations that fall within this snippet
@@ -140,6 +148,7 @@ type jsonResult struct {
 	Score          float64          `json:"score"`
 	MatchLocations [][]int          `json:"matchlocations,omitempty"`
 	Lines          []jsonLineResult `json:"lines,omitempty"`
+	Language       string           `json:"language,omitempty"`
 }
 
 func formatJSON(cfg *Config, results []*common.FileJob) {
@@ -168,6 +177,7 @@ func formatJSON(cfg *Config, results []*common.FileJob) {
 				Location: res.Location,
 				Score:    res.Score,
 				Lines:    jLines,
+				Language: res.Language,
 			})
 		} else {
 			snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
@@ -194,6 +204,7 @@ func formatJSON(cfg *Config, results []*common.FileJob) {
 				Content:        v3.Content,
 				Score:          res.Score,
 				MatchLocations: l,
+				Language:       res.Language,
 			})
 		}
 	}
