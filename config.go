@@ -46,6 +46,7 @@ type Config struct {
 	Format     string
 	FileOutput string
 	Verbose    bool
+	NoSyntax   bool // disable syntax highlighting
 
 	// HTTP
 	Address         string

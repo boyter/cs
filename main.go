@@ -241,6 +241,12 @@ func main() {
 		"dark",
 		"built-in theme for the HTTP server UI [dark, light, bare]",
 	)
+	flags.BoolVar(
+		&cfg.NoSyntax,
+		"no-syntax",
+		false,
+		"disable syntax highlighting in output",
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

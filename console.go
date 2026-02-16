@@ -81,7 +81,12 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)%s", res.Location, lines, res.Score, codeStats))
 			}
 			for _, lr := range lineResults {
-				displayContent := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
+				var displayContent string
+				if !noColor && !cfg.NoSyntax {
+					displayContent = RenderANSILine(lr.Content, lr.Locs)
+				} else {
+					displayContent = str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
+				}
 				fmt.Printf("%4d %s\n", lr.LineNumber, displayContent)
 			}
 			fmt.Println("")
@@ -121,7 +126,11 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 
 				// Highlight if we have positions to highlight
 				if !(snippets[i].StartPos == 0 && snippets[i].EndPos == 0) {
-					displayContent = str.HighlightString(snippets[i].Content, l, fmtBegin, fmtEnd)
+					if !noColor && !cfg.NoSyntax {
+						displayContent = RenderANSILine(snippets[i].Content, l)
+					} else {
+						displayContent = str.HighlightString(snippets[i].Content, l, fmtBegin, fmtEnd)
+					}
 				}
 
 				fmt.Println(displayContent)

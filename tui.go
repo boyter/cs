@@ -733,6 +733,14 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 }
 
 func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) string {
+	if !m.cfg.NoSyntax {
+		return RenderLipglossLine(line, locs, isSelected)
+	}
+	return highlightMatchOnly(line, locs, isSelected)
+}
+
+// highlightMatchOnly is the original match-only highlighting (no syntax colors).
+func highlightMatchOnly(line string, locs [][]int, isSelected bool) string {
 	normal := snippetStyle
 	highlight := matchStyle
 	if isSelected {
