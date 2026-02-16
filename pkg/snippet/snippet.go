@@ -279,6 +279,9 @@ func convertToRelevant(res *common.FileJob) []relevantV3 {
 	var rv3 []relevantV3
 
 	for k, v := range res.MatchLocations {
+		if len(k) < minTermLen {
+			continue
+		}
 		for _, i := range v {
 			rv3 = append(rv3, relevantV3{
 				Word:  k,

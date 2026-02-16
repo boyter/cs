@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -25,11 +26,12 @@ import (
 
 // searchResult represents a single search result
 type searchResult struct {
-	Filename string
-	Location string
-	Score    float64
-	Snippet  string // plain text snippet
-	Lines    string // line range info
+	Filename    string
+	Location    string
+	Score       float64
+	Snippet     string                // plain text snippet (snippet mode)
+	Lines       string                // line range info
+	LineResults []snippet.LineResult  // per-line results with positions (lines mode)
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -107,9 +109,10 @@ type model struct {
 	lastQuery     string               // query that produced current results
 	fileCount     int                  // total files scanned (for status line)
 	textFileCount int                  // non-binary, successfully read files (for BM25 ranking)
+	snippetMode   string               // "snippet" or "lines"
 }
 
-func initialModel() model {
+func initialModel(snippetMode string) model {
 	si := textinput.New()
 	si.Placeholder = "search query..."
 	si.Prompt = "> "
@@ -127,6 +130,7 @@ func initialModel() model {
 		searchInput:  si,
 		snippetInput: sn,
 		focusIndex:   0,
+		snippetMode:  snippetMode,
 	}
 }
 
@@ -177,7 +181,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fileCount = 0
 		ch := make(chan searchResultsMsg, 1)
 		m.searchResults = ch
-		go realSearch(ctx, m.searchSeq, query, snippetLen, ch)
+		go realSearch(ctx, m.searchSeq, query, snippetLen, m.snippetMode, ch)
 		return m, listenForResults(ch)
 
 	case searchResultsMsg:
@@ -208,22 +212,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				var newResults []searchResult
 				for _, fj := range ranked {
-					snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
-					snippetText := ""
-					lineRange := ""
-					if len(snippets) > 0 {
-						snippetText = snippets[0].Content
-						lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+					fileMode := resolveSnippetMode(m.snippetMode, fj.Filename)
+					if fileMode == "lines" {
+						lineResults := snippet.FindMatchingLines(fj, 2)
+						lineRange := ""
+						if len(lineResults) > 0 {
+							lineRange = fmt.Sprintf("%d-%d",
+								lineResults[0].LineNumber,
+								lineResults[len(lineResults)-1].LineNumber)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename:    fj.Location,
+							Location:    fj.Location,
+							Score:       fj.Score,
+							LineResults: lineResults,
+							Lines:       lineRange,
+						})
+					} else {
+						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+						snippetText := ""
+						lineRange := ""
+						if len(snippets) > 0 {
+							snippetText = snippets[0].Content
+							lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename: fj.Location,
+							Location: fj.Location,
+							Score:    fj.Score,
+							Snippet:  snippetText,
+							Lines:    lineRange,
+						})
 					}
-					fj.Content = nil // free memory after final extraction
-
-					newResults = append(newResults, searchResult{
-						Filename: fj.Location,
-						Location: fj.Location,
-						Score:    fj.Score,
-						Snippet:  snippetText,
-						Lines:    lineRange,
-					})
 				}
 				m.results = newResults
 				m.fileJobs = nil
@@ -356,9 +378,18 @@ func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
 	}
 }
 
+// resolveSnippetMode returns the effective snippet mode for a file.
+// If globalMode is "auto", it selects based on the file extension.
+func resolveSnippetMode(globalMode, filename string) string {
+	if globalMode != "auto" {
+		return globalMode
+	}
+	return snippet.SnippetModeForExtension(gocodewalker.GetExtension(filename))
+}
+
 // realSearch performs a streaming search using gocodewalker for file discovery
 // and pkg/search for AST-based query evaluation against each file.
-func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch chan<- searchResultsMsg) {
+func realSearch(ctx context.Context, seq int, query string, snippetLen int, snippetMode string, ch chan<- searchResultsMsg) {
 	defer close(ch)
 
 	// Parse query into AST
@@ -433,38 +464,58 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 					continue
 				}
 
+				snippet.AddPhraseMatchLocations(content, query, matchLocations)
+
 				// Build FileJob for snippet extraction and later ranking
 				fj := &common.FileJob{
 					Filename:       f.Filename,
+					Extension:      gocodewalker.GetExtension(f.Filename),
 					Location:       f.Location,
 					Content:        content,
 					Bytes:          len(content),
 					MatchLocations: matchLocations,
 				}
 
-				// Build per-file document frequencies for initial snippet scoring
-				docFreq := make(map[string]int, len(matchLocations))
-				for k, v := range matchLocations {
-					docFreq[k] = len(v)
-				}
-
-				// Extract snippet
-				snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
-				snippetText := ""
-				lineRange := ""
-				if len(snippets) > 0 {
-					snippetText = snippets[0].Content
-					lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
-				}
-
-				select {
-				case matches <- matchResult{
-					sr: searchResult{
+				// Extract snippet or matching lines depending on mode
+				fileMode := resolveSnippetMode(snippetMode, f.Filename)
+				var sr searchResult
+				if fileMode == "lines" {
+					lineResults := snippet.FindMatchingLines(fj, 2)
+					lineRange := ""
+					if len(lineResults) > 0 {
+						lineRange = fmt.Sprintf("%d-%d",
+							lineResults[0].LineNumber,
+							lineResults[len(lineResults)-1].LineNumber)
+					}
+					sr = searchResult{
+						Filename:    f.Location,
+						Location:    f.Location,
+						LineResults: lineResults,
+						Lines:       lineRange,
+					}
+				} else {
+					docFreq := make(map[string]int, len(matchLocations))
+					for k, v := range matchLocations {
+						docFreq[k] = len(v)
+					}
+					snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
+					snippetText := ""
+					lineRange := ""
+					if len(snippets) > 0 {
+						snippetText = snippets[0].Content
+						lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+					}
+					sr = searchResult{
 						Filename: f.Location,
 						Location: f.Location,
 						Snippet:  snippetText,
 						Lines:    lineRange,
-					},
+					}
+				}
+
+				select {
+				case matches <- matchResult{
+					sr: sr,
 					fj: fj,
 				}:
 				case <-ctx.Done():
@@ -513,6 +564,9 @@ func realSearch(ctx context.Context, seq int, query string, snippetLen int, ch c
 
 // resultHeight returns the number of terminal lines a result takes up
 func resultHeight(r searchResult) int {
+	if len(r.LineResults) > 0 {
+		return 1 + len(r.LineResults) + 1
+	}
 	// 1 for title + lines in snippet + 1 blank line separator
 	lines := strings.Count(r.Snippet, "\n") + 1
 	return 1 + lines + 1
@@ -669,20 +723,73 @@ func (m model) renderResult(r searchResult, isSelected bool, query string) strin
 	}
 	b.WriteString("\n")
 
-	// Snippet lines with match highlighting
-	snippetLines := strings.Split(r.Snippet, "\n")
-	for _, line := range snippetLines {
-		prefix := "  "
-		if isSelected {
-			prefix = selectedIndicator.String() + " "
+	// Render content: line-based or snippet-based
+	if len(r.LineResults) > 0 {
+		for _, lr := range r.LineResults {
+			prefix := "  "
+			if isSelected {
+				prefix = selectedIndicator.String() + " "
+			}
+			lineNum := snippetLabelStyle.Render(fmt.Sprintf("%4d ", lr.LineNumber))
+			highlighted := m.highlightWithLocs(lr.Content, lr.Locs, isSelected)
+			b.WriteString(prefix + lineNum + highlighted)
+			b.WriteString("\n")
 		}
+	} else {
+		snippetLines := strings.Split(r.Snippet, "\n")
+		for _, line := range snippetLines {
+			prefix := "  "
+			if isSelected {
+				prefix = selectedIndicator.String() + " "
+			}
 
-		highlighted := m.highlightMatches(line, query, isSelected)
-		b.WriteString(prefix + highlighted)
-		b.WriteString("\n")
+			highlighted := m.highlightMatches(line, query, isSelected)
+			b.WriteString(prefix + highlighted)
+			b.WriteString("\n")
+		}
 	}
 
 	return b.String()
+}
+
+func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) string {
+	normal := snippetStyle
+	highlight := matchStyle
+	if isSelected {
+		normal = selectedSnippetStyle
+		highlight = selectedMatchStyle
+	}
+
+	if len(locs) == 0 {
+		return normal.Render(line)
+	}
+
+	marked := make([]bool, len(line))
+	for _, loc := range locs {
+		for i := loc[0]; i < loc[1] && i < len(marked); i++ {
+			marked[i] = true
+		}
+	}
+
+	var result strings.Builder
+	inMatch := false
+	segStart := 0
+
+	for i := 0; i <= len(line); i++ {
+		currentMatch := i < len(line) && marked[i]
+		if i == len(line) || currentMatch != inMatch {
+			seg := line[segStart:i]
+			if inMatch {
+				result.WriteString(highlight.Render(seg))
+			} else {
+				result.WriteString(normal.Render(seg))
+			}
+			segStart = i
+			inMatch = currentMatch
+		}
+	}
+
+	return result.String()
 }
 
 func (m model) highlightMatches(line string, query string, isSelected bool) string {
@@ -765,7 +872,10 @@ func (m model) highlightMatches(line string, query string, isSelected bool) stri
 }
 
 func main() {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen(), tea.WithOutput(os.Stderr))
+	mode := flag.String("mode", "auto", "snippet extraction mode: auto, snippet, or lines")
+	flag.Parse()
+
+	p := tea.NewProgram(initialModel(*mode), tea.WithAltScreen(), tea.WithOutput(os.Stderr))
 	m, err := p.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
