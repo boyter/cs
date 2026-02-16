@@ -97,6 +97,10 @@ func TestExecutor(t *testing.T) {
 		{"Multi-Value Filter with Complex Conditions", "(lang=go OR lang=python) AND complexity>=5", false, []string{"file2.go", "file4.py"}},
 		{"Multi-Value Filter Case Sensitivity", "lang=GO,PYTHON", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
 		{"Search for Numbers", "254 255", false, []string{"file6.txt"}},
+		{"Fuzzy Distance 1", "houss~1", false, []string{"file1.go"}}, // "houss" is distance 1 from "house" (only in file1)
+		{"Fuzzy Distance 1 No Match", "zzz~1", false, []string{}},
+		{"Fuzzy AND Keyword", "houss~1 AND brown", false, []string{"file1.go"}},
+		{"Fuzzy Distance 2", "hovze~2", false, []string{"file1.go"}}, // "hovze" is distance 2 from "house" (u→v, s→z), only in file1
 
 		// TODO: Add tests for NOT operator precedence and filter interaction.
 		// {"NOT Operator Precedence", "lazy AND NOT dog", false, []string{"file3.py"}},
@@ -263,6 +267,40 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
+			name:  "Fuzzy distance 1",
+			query: "cat~1",
+			want: []Token{
+				{Type: FUZZY, Literal: "cat~1"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
+			name:  "Fuzzy distance 2",
+			query: "wickham~2",
+			want: []Token{
+				{Type: FUZZY, Literal: "wickham~2"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
+			name:  "Fuzzy with other tokens",
+			query: "cat~1 AND dog",
+			want: []Token{
+				{Type: FUZZY, Literal: "cat~1"},
+				{Type: AND, Literal: "AND"},
+				{Type: IDENTIFIER, Literal: "dog"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
+			name:  "Tilde without valid distance is identifier",
+			query: "cat~3",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "cat~3"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
 			name:  "Parens and symbols",
 			query: "func(a *int)",
 			want: []Token{
@@ -322,6 +360,8 @@ func TestTermExtractor(t *testing.T) {
 		{"Mixed Types", `cat AND "lazy dog" AND /[a-z]/`, []string{"cat", "lazy dog", "[a-z]"}},
 		{"Nested NOT", `cat AND NOT (dog OR fox)`, []string{"cat"}},
 		{"Complex Nested", `(cat AND NOT dog) OR (fox AND NOT bird)`, []string{"cat", "fox"}},
+		{"Fuzzy Term", "cat~1", []string{"cat"}},
+		{"Fuzzy with AND", "cat~1 AND dog", []string{"cat", "dog"}},
 		{"Filter Only", "lang=go", []string{}},
 		{"Filter with Keyword", "cat lang=go", []string{"cat"}},
 		{"Empty Query", "", nil},
@@ -674,28 +714,81 @@ func TestFuzzyNodeExtractTermsNotContext(t *testing.T) {
 }
 
 func TestFuzzyNodeEvaluate(t *testing.T) {
-	// FuzzyNode is a placeholder — should return no results in Search engine
 	docs := []*Document{
 		{Path: "a.go", Filename: "a.go", Content: []byte("hello world")},
+		{Path: "b.go", Filename: "b.go", Content: []byte("goodbye mars")},
 	}
 	se := NewSearchEngine(docs)
-	// Manually build AST with FuzzyNode since parser doesn't produce it
-	node := &FuzzyNode{Value: "hello", Distance: 1}
-	results := se.evaluate(node, se.documents, false)
-	if len(results) != 0 {
-		t.Errorf("FuzzyNode evaluate should return 0 results (placeholder), got %d", len(results))
-	}
+
+	t.Run("Exact match within distance", func(t *testing.T) {
+		node := &FuzzyNode{Value: "hello", Distance: 1}
+		results := se.evaluate(node, se.documents, false)
+		if len(results) != 1 {
+			t.Errorf("expected 1 result, got %d", len(results))
+		}
+		if len(results) == 1 && results[0].Path != "a.go" {
+			t.Errorf("expected a.go, got %s", results[0].Path)
+		}
+	})
+
+	t.Run("Fuzzy match distance 1", func(t *testing.T) {
+		// "hallo" is distance 1 from "hello"
+		node := &FuzzyNode{Value: "hallo", Distance: 1}
+		results := se.evaluate(node, se.documents, false)
+		if len(results) != 1 {
+			t.Errorf("expected 1 result for hallo~1, got %d", len(results))
+		}
+	})
+
+	t.Run("Fuzzy match distance 2", func(t *testing.T) {
+		// "hxllo" is distance 1 from "hello", "hxlly" is distance 2
+		node := &FuzzyNode{Value: "hxlly", Distance: 2}
+		results := se.evaluate(node, se.documents, false)
+		if len(results) != 1 {
+			t.Errorf("expected 1 result for hxlly~2, got %d", len(results))
+		}
+	})
+
+	t.Run("No match beyond distance", func(t *testing.T) {
+		// "zzzzz" is far from anything in docs
+		node := &FuzzyNode{Value: "zzzzz", Distance: 1}
+		results := se.evaluate(node, se.documents, false)
+		if len(results) != 0 {
+			t.Errorf("expected 0 results for zzzzz~1, got %d", len(results))
+		}
+	})
 }
 
 func TestFuzzyNodeEvaluateFile(t *testing.T) {
-	node := &FuzzyNode{Value: "hello", Distance: 1}
-	matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", false)
-	if matched {
-		t.Error("FuzzyNode in EvaluateFile should return false (placeholder)")
-	}
-	if len(locs) != 0 {
-		t.Errorf("FuzzyNode in EvaluateFile should return empty locations, got %v", locs)
-	}
+	t.Run("Exact match", func(t *testing.T) {
+		node := &FuzzyNode{Value: "hello", Distance: 1}
+		matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+		if !matched {
+			t.Error("FuzzyNode in EvaluateFile should match 'hello' in 'hello world'")
+		}
+		if len(locs) == 0 {
+			t.Error("expected locations for fuzzy match")
+		}
+	})
+
+	t.Run("Fuzzy match", func(t *testing.T) {
+		node := &FuzzyNode{Value: "hallo", Distance: 1}
+		matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+		if !matched {
+			t.Error("FuzzyNode should match 'hello' for query 'hallo~1'")
+		}
+		if _, ok := locs["hallo"]; !ok {
+			t.Errorf("expected locations under key 'hallo', got keys: %v", mapKeys(locs))
+		}
+	})
+
+	t.Run("No match", func(t *testing.T) {
+		node := &FuzzyNode{Value: "zzzzz", Distance: 1}
+		matched, _ := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+		if matched {
+			t.Error("FuzzyNode should not match 'zzzzz~1' in 'hello world'")
+		}
+	})
 }
 
 // --- Invalid regex tests ---

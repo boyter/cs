@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 )
 
 // Parser creates an AST from a stream of tokens.
@@ -63,7 +64,7 @@ func (p *Parser) getPrecedence() int {
 	case AND:
 		return 2
 	// These tokens can imply an AND if they appear after another expression.
-	case IDENTIFIER, PHRASE, REGEX, LPAREN, NOT:
+	case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT:
 		return 3
 	default:
 		return 0 // No precedence for other tokens like EOF, RPAREN
@@ -92,7 +93,7 @@ func (p *Parser) parseExpression(precedence int) Node {
 				return left
 			}
 			left = p.parseInfixExpression(left)
-					case IDENTIFIER, PHRASE, REGEX, LPAREN, NOT:			// An expression-starting token here means an implicit AND.
+					case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT:			// An expression-starting token here means an implicit AND.
 			left = p.parseImplicitAndExpression(left)
 		default:
 			// If the token can't be part of an infix expression, stop.
@@ -118,6 +119,13 @@ func (p *Parser) parsePrefix() Node {
 		node = &PhraseNode{Value: p.tok.Literal}
 	case REGEX:
 		node = &RegexNode{Pattern: p.tok.Literal}
+	case FUZZY:
+		// Parse "term~N" into FuzzyNode
+		literal := p.tok.Literal
+		idx := strings.LastIndex(literal, "~")
+		term := literal[:idx]
+		dist, _ := strconv.Atoi(literal[idx+1:])
+		node = &FuzzyNode{Value: term, Distance: dist}
 	case NOT:
 		p.nextToken()                               // Consume 'NOT'
 		expr := p.parseExpression(5) // High precedence for what NOT applies to

@@ -27,6 +27,7 @@ const (
 	NUMBER       // 5, 10
 	STRING_ALIAS // high, low
 	COMMA
+	FUZZY // term~1, term~2
 )
 
 // Token represents a single token from the query string.
@@ -134,6 +135,14 @@ func (l *Lexer) scanIdentifier() Token {
 
 	if isNumber(literal) {
 		return Token{Type: NUMBER, Literal: literal}
+	}
+
+	// Check for fuzzy syntax: term~1 or term~2
+	if idx := strings.LastIndex(literal, "~"); idx > 0 {
+		suffix := literal[idx+1:]
+		if suffix == "1" || suffix == "2" {
+			return Token{Type: FUZZY, Literal: literal}
+		}
 	}
 
 	if literal == "" {

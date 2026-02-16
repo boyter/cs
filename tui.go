@@ -22,6 +22,7 @@ type searchResult struct {
 	Location    string
 	Score       float64
 	Snippet     string               // plain text snippet (snippet mode)
+	SnippetLocs [][]int              // match positions within Snippet [start, end]
 	Lines       string               // line range info
 	LineResults []snippet.LineResult // per-line results with positions (lines mode)
 }
@@ -227,17 +228,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
 						snippetText := ""
 						lineRange := ""
+						var sLocs [][]int
 						if len(snippets) > 0 {
 							snippetText = snippets[0].Content
 							lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+							sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
 						}
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
-							Filename: fj.Location,
-							Location: fj.Location,
-							Score:    fj.Score,
-							Snippet:  snippetText,
-							Lines:    lineRange,
+							Filename:    fj.Location,
+							Location:    fj.Location,
+							Score:       fj.Score,
+							Snippet:     snippetText,
+							SnippetLocs: sLocs,
+							Lines:       lineRange,
 						})
 					}
 				}
@@ -423,15 +427,18 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 			snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
 			snippetText := ""
 			lineRange := ""
+			var sLocs [][]int
 			if len(snippets) > 0 {
 				snippetText = snippets[0].Content
 				lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
+				sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
 			}
 			sr = searchResult{
-				Filename: fj.Location,
-				Location: fj.Location,
-				Snippet:  snippetText,
-				Lines:    lineRange,
+				Filename:    fj.Location,
+				Location:    fj.Location,
+				Snippet:     snippetText,
+				SnippetLocs: sLocs,
+				Lines:       lineRange,
 			}
 		}
 
@@ -460,6 +467,23 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 	}:
 	case <-ctx.Done():
 	}
+}
+
+// snippetMatchLocs filters match locations to those within [startPos, endPos]
+// and adjusts them to be relative to startPos (matching console.go behavior).
+func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [][]int {
+	var locs [][]int
+	for _, value := range matchLocations {
+		for _, s := range value {
+			if s[0] >= startPos && s[1] <= endPos {
+				locs = append(locs, []int{
+					s[0] - startPos,
+					s[1] - startPos,
+				})
+			}
+		}
+	}
+	return locs
 }
 
 // resultHeight returns the number of terminal lines a result takes up
@@ -574,11 +598,7 @@ func (m model) View() string {
 		}
 
 		isSelected := i == m.selectedIndex
-		highlightQuery := m.lastQuery
-		if m.searching {
-			highlightQuery = query
-		}
-		resultStr := m.renderResult(r, isSelected, highlightQuery)
+		resultStr := m.renderResult(r, isSelected)
 		resultLines := strings.Split(resultStr, "\n")
 
 		// Handle partial rendering at top (scroll offset cuts into this result)
@@ -607,7 +627,7 @@ func (m model) View() string {
 	return b.String()
 }
 
-func (m model) renderResult(r searchResult, isSelected bool, query string) string {
+func (m model) renderResult(r searchResult, isSelected bool) string {
 	var b strings.Builder
 
 	// Title line: indicator + filename (score)
@@ -636,15 +656,35 @@ func (m model) renderResult(r searchResult, isSelected bool, query string) strin
 		}
 	} else {
 		snippetLines := strings.Split(r.Snippet, "\n")
+		offset := 0
 		for _, line := range snippetLines {
 			prefix := "  "
 			if isSelected {
 				prefix = selectedIndicator.String() + " "
 			}
 
-			highlighted := m.highlightMatches(line, query, isSelected)
+			// Compute per-line match locations from snippet-wide SnippetLocs
+			var lineLocs [][]int
+			lineEnd := offset + len(line)
+			for _, loc := range r.SnippetLocs {
+				if loc[1] <= offset || loc[0] >= lineEnd {
+					continue // outside this line
+				}
+				start := loc[0] - offset
+				end := loc[1] - offset
+				if start < 0 {
+					start = 0
+				}
+				if end > len(line) {
+					end = len(line)
+				}
+				lineLocs = append(lineLocs, []int{start, end})
+			}
+
+			highlighted := m.highlightWithLocs(line, lineLocs, isSelected)
 			b.WriteString(prefix + highlighted)
 			b.WriteString("\n")
+			offset = lineEnd + 1 // +1 for the \n
 		}
 	}
 
@@ -691,90 +731,3 @@ func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) str
 	return result.String()
 }
 
-func (m model) highlightMatches(line string, query string, isSelected bool) string {
-	if query == "" {
-		if isSelected {
-			return selectedSnippetStyle.Render(line)
-		}
-		return snippetStyle.Render(line)
-	}
-
-	// Strip surrounding quotes for phrase queries
-	stripped := strings.Trim(query, "\"")
-
-	terms := strings.Fields(strings.ToLower(stripped))
-	if len(terms) == 0 {
-		if isSelected {
-			return selectedSnippetStyle.Render(line)
-		}
-		return snippetStyle.Render(line)
-	}
-
-	// If it's a multi-word phrase, prepend the full phrase as a search term
-	// so the entire span gets highlighted together
-	if strings.Contains(stripped, " ") {
-		terms = append([]string{strings.ToLower(stripped)}, terms...)
-	}
-
-	// Find all match positions
-	type span struct {
-		start, end int
-	}
-	var matches []span
-	lower := strings.ToLower(line)
-	for _, term := range terms {
-		idx := 0
-		for {
-			pos := strings.Index(lower[idx:], term)
-			if pos == -1 {
-				break
-			}
-			matches = append(matches, span{idx + pos, idx + pos + len(term)})
-			idx += pos + len(term)
-		}
-	}
-
-	if len(matches) == 0 {
-		if isSelected {
-			return selectedSnippetStyle.Render(line)
-		}
-		return snippetStyle.Render(line)
-	}
-
-	// Sort and merge overlapping spans
-	// Simple approach: mark each character as matched or not
-	marked := make([]bool, len(line))
-	for _, m := range matches {
-		for i := m.start; i < m.end && i < len(marked); i++ {
-			marked[i] = true
-		}
-	}
-
-	// Build highlighted string
-	var result strings.Builder
-	inMatch := false
-	segStart := 0
-
-	normal := snippetStyle
-	highlight := matchStyle
-	if isSelected {
-		normal = selectedSnippetStyle
-		highlight = selectedMatchStyle
-	}
-
-	for i := 0; i <= len(line); i++ {
-		currentMatch := i < len(line) && marked[i]
-		if i == len(line) || currentMatch != inMatch {
-			seg := line[segStart:i]
-			if inMatch {
-				result.WriteString(highlight.Render(seg))
-			} else {
-				result.WriteString(normal.Render(seg))
-			}
-			segStart = i
-			inMatch = currentMatch
-		}
-	}
-
-	return result.String()
-}

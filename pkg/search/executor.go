@@ -130,8 +130,21 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 		}
 		return results
 	case *FuzzyNode:
-		// Placeholder: fuzzy matching not yet implemented
-		return []*Document{}
+		var results []*Document
+		termLen := len(n.Value)
+		for _, doc := range docs {
+			s := string(doc.Content)
+			if caseSensitive {
+				if fuzzyContains(s, n.Value, n.Distance, termLen) {
+					results = append(results, doc)
+				}
+			} else {
+				if fuzzyContains(strings.ToLower(s), strings.ToLower(n.Value), n.Distance, termLen) {
+					results = append(results, doc)
+				}
+			}
+		}
+		return results
 	case *FilterNode:
 		if handler, ok := se.filterHandlers[n.Field]; ok {
 			var results []*Document
@@ -218,14 +231,25 @@ func evalFile(node Node, content []byte, caseSensitive bool, locations map[strin
 		if err != nil {
 			return false
 		}
-		loc := re.FindIndex(content)
-		if loc != nil {
-			locations[n.Pattern] = [][]int{loc}
+		locs := re.FindAllIndex(content, -1)
+		if len(locs) > 0 {
+			locations[n.Pattern] = locs
 			return true
 		}
 		return false
 	case *FuzzyNode:
-		// Placeholder: fuzzy matching not yet implemented
+		s := string(content)
+		searchContent := s
+		searchTerm := n.Value
+		if !caseSensitive {
+			searchContent = strings.ToLower(s)
+			searchTerm = strings.ToLower(n.Value)
+		}
+		locs := fuzzyFind(searchContent, searchTerm, n.Distance, len(n.Value))
+		if len(locs) > 0 {
+			locations[n.Value] = locs
+			return true
+		}
 		return false
 	case *FilterNode:
 		// Filters pass through as true in per-file mode (no metadata available)
@@ -311,6 +335,90 @@ func handleExtensionFilter(op string, val interface{}, doc *Document) bool {
 		return exists == isEquality
 	}
 	return false
+}
+
+// --- Fuzzy matching helpers ---
+
+// levenshtein computes the Levenshtein edit distance between two strings.
+func levenshtein(a, b string) int {
+	la, lb := len(a), len(b)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+
+	// Use single row of DP table
+	prev := make([]int, lb+1)
+	for j := 0; j <= lb; j++ {
+		prev[j] = j
+	}
+
+	for i := 1; i <= la; i++ {
+		curr := make([]int, lb+1)
+		curr[0] = i
+		for j := 1; j <= lb; j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			del := prev[j] + 1
+			ins := curr[j-1] + 1
+			sub := prev[j-1] + cost
+			curr[j] = min3(del, ins, sub)
+		}
+		prev = curr
+	}
+	return prev[lb]
+}
+
+func min3(a, b, c int) int {
+	if a < b {
+		if a < c {
+			return a
+		}
+		return c
+	}
+	if b < c {
+		return b
+	}
+	return c
+}
+
+// fuzzyContains checks if any same-length substring of content matches
+// the term within the given edit distance (substitution-based matching).
+func fuzzyContains(content, term string, maxDist, termLen int) bool {
+	contentLen := len(content)
+	if contentLen == 0 || termLen == 0 || termLen > contentLen {
+		return false
+	}
+
+	for i := 0; i <= contentLen-termLen; i++ {
+		window := content[i : i+termLen]
+		if levenshtein(window, term) <= maxDist {
+			return true
+		}
+	}
+	return false
+}
+
+// fuzzyFind finds all match locations in content that are within the given
+// edit distance of the term. Returns [][]int where each entry is [start, end].
+func fuzzyFind(content, term string, maxDist, termLen int) [][]int {
+	contentLen := len(content)
+	if contentLen == 0 || termLen == 0 || termLen > contentLen {
+		return nil
+	}
+
+	var locs [][]int
+	for i := 0; i <= contentLen-termLen; i++ {
+		window := content[i : i+termLen]
+		if levenshtein(window, term) <= maxDist {
+			locs = append(locs, []int{i, i + termLen})
+		}
+	}
+	return locs
 }
 
 // --- Set helpers ---
