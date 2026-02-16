@@ -38,13 +38,20 @@ type httpSearch struct {
 	Ext                 string
 }
 
+type httpLineResult struct {
+	LineNumber int
+	Content    template.HTML
+}
+
 type httpSearchResult struct {
-	Title    string
-	Location string
-	Content  []template.HTML
-	StartPos int
-	EndPos   int
-	Score    float64
+	Title       string
+	Location    string
+	Content     []template.HTML
+	StartPos    int
+	EndPos      int
+	Score       float64
+	IsLineMode  bool
+	LineResults []httpLineResult
 }
 
 type httpFileDisplay struct {
@@ -187,46 +194,73 @@ func StartHttpServer(cfg *Config) {
 		}
 
 		for _, res := range displayResults {
-			snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
-			if len(snippets) == 0 {
-				continue
-			}
-			v3 := snippets[0]
+			fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-			// We have the snippet so now we need to highlight it
-			// we get all the locations that fall in the snippet length
-			// and then remove the length of the snippet cut which
-			// makes our location line up with the snippet size
-			var l [][]int
-			for _, value := range res.MatchLocations {
-				for _, s := range value {
-					if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-						s[0] = s[0] - v3.StartPos
-						s[1] = s[1] - v3.StartPos
-						l = append(l, s)
+			if fileMode == "lines" {
+				lineResults := snippet.FindMatchingLines(res, 2)
+				if len(lineResults) == 0 {
+					continue
+				}
+				var httpLines []httpLineResult
+				for _, lr := range lineResults {
+					coloredLine := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
+					coloredLine = html.EscapeString(coloredLine)
+					coloredLine = strings.Replace(coloredLine, fmtBegin, "<strong>", -1)
+					coloredLine = strings.Replace(coloredLine, fmtEnd, "</strong>", -1)
+					httpLines = append(httpLines, httpLineResult{
+						LineNumber: lr.LineNumber,
+						Content:    template.HTML(coloredLine),
+					})
+				}
+				searchResults = append(searchResults, httpSearchResult{
+					Title:       res.Location,
+					Location:    res.Location,
+					Score:       res.Score,
+					IsLineMode:  true,
+					LineResults: httpLines,
+				})
+			} else {
+				snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
+				if len(snippets) == 0 {
+					continue
+				}
+				v3 := snippets[0]
+
+				// We have the snippet so now we need to highlight it
+				// we get all the locations that fall in the snippet length
+				// and then remove the length of the snippet cut which
+				// makes our location line up with the snippet size
+				var l [][]int
+				for _, value := range res.MatchLocations {
+					for _, s := range value {
+						if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
+							s[0] = s[0] - v3.StartPos
+							s[1] = s[1] - v3.StartPos
+							l = append(l, s)
+						}
 					}
 				}
-			}
 
-			// We want to escape the output, so we highlight, then escape then replace
-			// our special start and end strings with actual HTML
-			coloredContent := v3.Content
-			// If endpos = 0 don't highlight anything because it means its a filename match
-			if v3.EndPos != 0 {
-				coloredContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
-				coloredContent = html.EscapeString(coloredContent)
-				coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
-				coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
-			}
+				// We want to escape the output, so we highlight, then escape then replace
+				// our special start and end strings with actual HTML
+				coloredContent := v3.Content
+				// If endpos = 0 don't highlight anything because it means its a filename match
+				if v3.EndPos != 0 {
+					coloredContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
+					coloredContent = html.EscapeString(coloredContent)
+					coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
+					coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
+				}
 
-			searchResults = append(searchResults, httpSearchResult{
-				Title:    res.Location,
-				Location: res.Location,
-				Content:  []template.HTML{template.HTML(coloredContent)},
-				StartPos: v3.StartPos,
-				EndPos:   v3.EndPos,
-				Score:    res.Score,
-			})
+				searchResults = append(searchResults, httpSearchResult{
+					Title:    res.Location,
+					Location: res.Location,
+					Content:  []template.HTML{template.HTML(coloredContent)},
+					StartPos: v3.StartPos,
+					EndPos:   v3.EndPos,
+					Score:    res.Score,
+				})
+			}
 		}
 
 		err := searchTmpl.Execute(w, httpSearch{

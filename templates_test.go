@@ -180,6 +180,53 @@ func TestCustomTemplateOverride(t *testing.T) {
 	})
 }
 
+func TestSearchTemplateExecution_LineMode(t *testing.T) {
+	for _, style := range validStyles {
+		t.Run(style, func(t *testing.T) {
+			cfg := &Config{TemplateStyle: style}
+			tmpl, err := resolveSearchTemplate(cfg)
+			if err != nil {
+				t.Fatalf("resolve error: %v", err)
+			}
+
+			data := httpSearch{
+				SearchTerm:          "test query",
+				SnippetSize:         300,
+				ResultsCount:        1,
+				RuntimeMilliseconds: 42,
+				ProcessedFileCount:  100,
+				Results: []httpSearchResult{
+					{
+						Title:      "main.go",
+						Location:   "main.go",
+						Score:      1.5,
+						IsLineMode: true,
+						LineResults: []httpLineResult{
+							{LineNumber: 10, Content: "func <strong>main</strong>() {"},
+							{LineNumber: 11, Content: "    fmt.Println()"},
+							{LineNumber: 12, Content: "}"},
+						},
+					},
+				},
+				ExtensionFacet: []httpFacetResult{
+					{Title: "go", Count: 5, SearchTerm: "test query", SnippetSize: 300},
+				},
+				Pages: []httpPageResult{
+					{SearchTerm: "test query", SnippetSize: 300, Value: 0, Name: "1"},
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				t.Fatalf("execute error: %v", err)
+			}
+			if buf.Len() == 0 {
+				t.Fatal("template produced empty output")
+			}
+		})
+	}
+}
+
 func TestIsValidStyle(t *testing.T) {
 	tests := []struct {
 		style string

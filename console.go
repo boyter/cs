@@ -66,57 +66,80 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 	documentFrequency := ranker.CalculateDocumentTermFrequency(results)
 
 	for _, res := range results {
-		snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
-		if len(snippets) > cfg.SnippetCount {
-			snippets = snippets[:cfg.SnippetCount]
-		}
+		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-		lines := ""
-		for i := 0; i < len(snippets); i++ {
-			lines += fmt.Sprintf("%d-%d ", snippets[i].LineStart, snippets[i].LineEnd)
-		}
+		if fileMode == "lines" {
+			lineResults := snippet.FindMatchingLines(res, 2)
+			if len(lineResults) == 0 {
+				continue
+			}
+			lines := fmt.Sprintf("%d-%d", lineResults[0].LineNumber, lineResults[len(lineResults)-1].LineNumber)
+			color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)", res.Location, lines, res.Score))
+			for _, lr := range lineResults {
+				displayContent := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
+				fmt.Printf("%4d %s\n", lr.LineNumber, displayContent)
+			}
+			fmt.Println("")
+		} else {
+			snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
+			if len(snippets) > cfg.SnippetCount {
+				snippets = snippets[:cfg.SnippetCount]
+			}
 
-		color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)", res.Location, lines, res.Score))
+			lines := ""
+			for i := 0; i < len(snippets); i++ {
+				lines += fmt.Sprintf("%d-%d ", snippets[i].LineStart, snippets[i].LineEnd)
+			}
 
-		for i := 0; i < len(snippets); i++ {
-			// Get all match locations that fall within this snippet
-			var l [][]int
-			for _, value := range res.MatchLocations {
-				for _, s := range value {
-					if s[0] >= snippets[i].StartPos && s[1] <= snippets[i].EndPos {
-						l = append(l, []int{
-							s[0] - snippets[i].StartPos,
-							s[1] - snippets[i].StartPos,
-						})
+			color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)", res.Location, lines, res.Score))
+
+			for i := 0; i < len(snippets); i++ {
+				// Get all match locations that fall within this snippet
+				var l [][]int
+				for _, value := range res.MatchLocations {
+					for _, s := range value {
+						if s[0] >= snippets[i].StartPos && s[1] <= snippets[i].EndPos {
+							l = append(l, []int{
+								s[0] - snippets[i].StartPos,
+								s[1] - snippets[i].StartPos,
+							})
+						}
 					}
 				}
-			}
 
-			displayContent := snippets[i].Content
+				displayContent := snippets[i].Content
 
-			// Highlight if we have positions to highlight
-			if !(snippets[i].StartPos == 0 && snippets[i].EndPos == 0) {
-				displayContent = str.HighlightString(snippets[i].Content, l, fmtBegin, fmtEnd)
-			}
+				// Highlight if we have positions to highlight
+				if !(snippets[i].StartPos == 0 && snippets[i].EndPos == 0) {
+					displayContent = str.HighlightString(snippets[i].Content, l, fmtBegin, fmtEnd)
+				}
 
-			fmt.Println(displayContent)
-			if i == len(snippets)-1 {
-				fmt.Println("")
-			} else {
-				fmt.Println("")
-				fmt.Println("\u001B[1;37m……………snip……………\u001B[0m")
-				fmt.Println("")
+				fmt.Println(displayContent)
+				if i == len(snippets)-1 {
+					fmt.Println("")
+				} else {
+					fmt.Println("")
+					fmt.Println("\u001B[1;37m……………snip……………\u001B[0m")
+					fmt.Println("")
+				}
 			}
 		}
 	}
 }
 
+type jsonLineResult struct {
+	LineNumber int     `json:"line_number"`
+	Content    string  `json:"content"`
+	Locs       [][]int `json:"match_positions,omitempty"`
+}
+
 type jsonResult struct {
-	Filename       string  `json:"filename"`
-	Location       string  `json:"location"`
-	Content        string  `json:"content"`
-	Score          float64 `json:"score"`
-	MatchLocations [][]int `json:"matchlocations"`
+	Filename       string           `json:"filename"`
+	Location       string           `json:"location"`
+	Content        string           `json:"content,omitempty"`
+	Score          float64          `json:"score"`
+	MatchLocations [][]int          `json:"matchlocations,omitempty"`
+	Lines          []jsonLineResult `json:"lines,omitempty"`
 }
 
 func formatJSON(cfg *Config, results []*common.FileJob) {
@@ -125,31 +148,54 @@ func formatJSON(cfg *Config, results []*common.FileJob) {
 	documentFrequency := ranker.CalculateDocumentTermFrequency(results)
 
 	for _, res := range results {
-		snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
-		if len(snippets) == 0 {
-			continue
-		}
-		v3 := snippets[0]
+		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-		var l [][]int
-		for _, value := range res.MatchLocations {
-			for _, s := range value {
-				if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-					l = append(l, []int{
-						s[0] - v3.StartPos,
-						s[1] - v3.StartPos,
-					})
+		if fileMode == "lines" {
+			lineResults := snippet.FindMatchingLines(res, 2)
+			if len(lineResults) == 0 {
+				continue
+			}
+			var jLines []jsonLineResult
+			for _, lr := range lineResults {
+				jLines = append(jLines, jsonLineResult{
+					LineNumber: lr.LineNumber,
+					Content:    lr.Content,
+					Locs:       lr.Locs,
+				})
+			}
+			jsonResults = append(jsonResults, jsonResult{
+				Filename: res.Filename,
+				Location: res.Location,
+				Score:    res.Score,
+				Lines:    jLines,
+			})
+		} else {
+			snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
+			if len(snippets) == 0 {
+				continue
+			}
+			v3 := snippets[0]
+
+			var l [][]int
+			for _, value := range res.MatchLocations {
+				for _, s := range value {
+					if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
+						l = append(l, []int{
+							s[0] - v3.StartPos,
+							s[1] - v3.StartPos,
+						})
+					}
 				}
 			}
-		}
 
-		jsonResults = append(jsonResults, jsonResult{
-			Filename:       res.Filename,
-			Location:       res.Location,
-			Content:        v3.Content,
-			Score:          res.Score,
-			MatchLocations: l,
-		})
+			jsonResults = append(jsonResults, jsonResult{
+				Filename:       res.Filename,
+				Location:       res.Location,
+				Content:        v3.Content,
+				Score:          res.Score,
+				MatchLocations: l,
+			})
+		}
 	}
 
 	jsonString, _ := json.Marshal(jsonResults)
@@ -167,15 +213,30 @@ func formatVimGrep(cfg *Config, results []*common.FileJob) {
 
 	var vimGrepOutput []string
 	for _, res := range results {
-		snippets := snippet.ExtractRelevant(res, documentFrequency, snippetLen)
-		if len(snippets) > cfg.SnippetCount {
-			snippets = snippets[:cfg.SnippetCount]
-		}
+		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-		for _, snip := range snippets {
-			hint := strings.ReplaceAll(snip.Content, "\n", "\\n")
-			line := fmt.Sprintf("%v:%v:%v:%v", res.Location, snip.LineStart, snip.StartPos, hint)
-			vimGrepOutput = append(vimGrepOutput, line)
+		if fileMode == "lines" {
+			lineResults := snippet.FindMatchingLines(res, 0)
+			for _, lr := range lineResults {
+				col := 1
+				if len(lr.Locs) > 0 {
+					col = lr.Locs[0][0] + 1
+				}
+				hint := strings.ReplaceAll(lr.Content, "\n", "\\n")
+				line := fmt.Sprintf("%v:%v:%v:%v", res.Location, lr.LineNumber, col, hint)
+				vimGrepOutput = append(vimGrepOutput, line)
+			}
+		} else {
+			snippets := snippet.ExtractRelevant(res, documentFrequency, snippetLen)
+			if len(snippets) > cfg.SnippetCount {
+				snippets = snippets[:cfg.SnippetCount]
+			}
+
+			for _, snip := range snippets {
+				hint := strings.ReplaceAll(snip.Content, "\n", "\\n")
+				line := fmt.Sprintf("%v:%v:%v:%v", res.Location, snip.LineStart, snip.StartPos, hint)
+				vimGrepOutput = append(vimGrepOutput, line)
+			}
 		}
 	}
 

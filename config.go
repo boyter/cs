@@ -2,6 +2,20 @@
 
 package main
 
+import (
+	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/gocodewalker"
+)
+
+// resolveSnippetMode returns the effective snippet mode for a file.
+// If globalMode is "auto", it selects based on the file extension.
+func resolveSnippetMode(globalMode, filename string) string {
+	if globalMode != "auto" {
+		return globalMode
+	}
+	return snippet.SnippetModeForExtension(gocodewalker.GetExtension(filename))
+}
+
 // Config holds all CLI-configurable fields for the search tool.
 type Config struct {
 	// Search

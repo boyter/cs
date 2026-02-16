@@ -11,7 +11,6 @@ import (
 	"github.com/boyter/cs/pkg/common"
 	"github.com/boyter/cs/pkg/ranker"
 	"github.com/boyter/cs/pkg/snippet"
-	"github.com/boyter/gocodewalker"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -387,15 +386,6 @@ func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
 		}
 		return msg
 	}
-}
-
-// resolveSnippetMode returns the effective snippet mode for a file.
-// If globalMode is "auto", it selects based on the file extension.
-func resolveSnippetMode(globalMode, filename string) string {
-	if globalMode != "auto" {
-		return globalMode
-	}
-	return snippet.SnippetModeForExtension(gocodewalker.GetExtension(filename))
 }
 
 // realSearch wraps DoSearch for TUI use, streaming results in batches via the channel.

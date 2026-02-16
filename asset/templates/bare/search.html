@@ -47,9 +47,10 @@
 					{{- range .Results }}
 					<li>
 						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a></h4>
-						{{- range .Content }}
+						{{ if .IsLineMode }}<pre>{{ range .LineResults }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
+{{ end }}</pre>{{ else }}{{- range .Content }}
 							<pre>{{ . }}</pre>
-						{{- end }}
+						{{- end }}{{ end }}
 					</li><small>[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to location</a>]</small>
 					{{- end }}
 				</ul>
