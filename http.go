@@ -212,10 +212,35 @@ func StartHttpServer(cfg *Config) {
 						Content:    template.HTML(coloredLine),
 					})
 				}
+				// Compute byte range covering the displayed lines for click-through highlighting
+				var startPos, endPos int
+				if len(lineResults) > 0 {
+					firstLine := lineResults[0].LineNumber
+					lastLine := lineResults[len(lineResults)-1].LineNumber
+					line := 1
+					for i := 0; i < len(res.Content); i++ {
+						if line == firstLine && (i == 0 || res.Content[i-1] == '\n') {
+							startPos = i
+						}
+						if res.Content[i] == '\n' && line == lastLine {
+							endPos = i
+							break
+						}
+						if res.Content[i] == '\n' {
+							line++
+						}
+					}
+					if endPos == 0 {
+						endPos = len(res.Content)
+					}
+				}
+
 				searchResults = append(searchResults, httpSearchResult{
 					Title:       res.Location,
 					Location:    res.Location,
 					Score:       res.Score,
+					StartPos:    startPos,
+					EndPos:      endPos,
 					IsLineMode:  true,
 					LineResults: httpLines,
 				})

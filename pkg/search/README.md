@@ -1,6 +1,3 @@
-Of course. Creating solid documentation is just as important as writing the code itself. Here is a comprehensive `README.md` file that explains the architecture, the flow, and exactly how to extend the system, complete with diagrams, as we discussed.
-
----
 
 # Go In-Memory Search Engine
 
@@ -15,7 +12,8 @@ This project is a robust, extensible, in-memory search engine written in Go. It 
     -   **Regex Search**: Pattern matching using `/.../` syntax (e.g., `/[cb]at/`).
 -   **Structured Metadata Filtering**:
     -   Filter on metadata fields using operators: `=`, `!=`, `>=`, `<=`.
-    -   Example: `complexity>=5 AND author="jane"`.
+    -   Multi-value filtering with commas: `lang=go,python`.
+    -   Example: `complexity>=5 AND lang=go`.
 -   **Semantic Aliases**:
     -   Define user-friendly aliases that are transformed into concrete queries.
     -   Example: `complexity=high` is automatically rewritten to `complexity>=8`.
@@ -26,18 +24,38 @@ This project is a robust, extensible, in-memory search engine written in Go. It 
 -   **Optimized Execution**:
     -   A simplified query planner reorders clauses to execute the most restrictive filters first, ensuring better performance.
 
-## How to Run
+## How to Use
 
-The project is self-contained and can be run directly from the source.
+This is a library package. Import it and use the `SearchEngine` API:
 
-1.  Ensure all the Go files (`main.go`, `document.go`, `ast.go`, `lexer.go`, `parser.go`, `transformer.go`, `planner.go`, `executor.go`) are in the same directory.
-2.  Run the main program from your terminal:
+```go
+import "github.com/boyter/cs/pkg/search"
 
-    ```bash
-    go run .
-    ```
+// Create documents to search over.
+docs := []*search.Document{
+    {
+        Path:       "/src/main.go",
+        Filename:   "main.go",
+        Language:   "Go",
+        Extension:  "go",
+        Content:    []byte("package main\nfunc main() {}"),
+        Complexity: 2,
+    },
+}
 
-3.  This will execute the example queries defined in `main.go` and print the results to the console.
+// Create a search engine and run a query.
+engine := search.NewSearchEngine(docs)
+result, err := engine.Search("main AND lang=go", false) // false = case-insensitive
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, doc := range result.Documents {
+    fmt.Println(doc.Path)
+}
+// result.Notices contains any parser warnings/corrections.
+// result.TermsToHighlight contains terms for highlighting in output.
+```
 
 ## Architecture and Flow
 
@@ -46,22 +64,21 @@ The search engine processes a query through a multi-stage pipeline. This decoupl
 ### Architectural Diagram
 
 ```
-+---------------+      +-------------+      +-------------------+      +-------------+      +------------------+      +------------------+
-|  Query String |----->|    Lexer    |----->|      Parser       |----->| Transformer |----->|     Planner     |----->|     Executor     |
-| "cat AND > 5" |      | (Tokens)    |      | (Initial AST)     |      | (Final AST) |      | (Optimized AST) |      | (Filtering Data) |
-+---------------+      +-------------+      +-------------------+      +-------------+      +------------------+      +------------------+
-                                                                                                                           |
-                                                                                                                           |
-                                                                                                                           V
-                                                                                                                +--------------------+
-                                                                                                                |   Search Results   |
-                                                                                                                +--------------------+
++---------------+      +-------------+      +-------------------+      +-------------+      +------------------+      +------------------+      +------------------+
+|  Query String |----->|    Lexer    |----->|      Parser       |----->| Transformer |----->|     Planner     |----->|     Executor     |----->|    Extractor     |
+| "cat AND > 5" |      | (Tokens)    |      | (Initial AST)     |      | (Final AST) |      | (Optimized AST) |      | (Filtering Data) |      | (Highlight Terms)|
++---------------+      +-------------+      +-------------------+      +-------------+      +------------------+      +------------------+      +------------------+
+                                                                                                                                                       |
+                                                                                                                                                       V
+                                                                                                                                              +--------------------+
+                                                                                                                                              |   Search Results   |
+                                                                                                                                              +--------------------+
 ```
 
 ### Breakdown of Stages
 
 1.  **Lexer (Tokenizer)** - `lexer.go`
-    -   **Responsibility**: Scans the raw query string and breaks it down into a sequence of "tokens" (e.g., `KEYWORD`, `AND`, `OPERATOR`, `NUMBER`). It has no understanding of grammar; it only identifies the pieces.
+    -   **Responsibility**: Scans the raw query string and breaks it down into a sequence of "tokens" (e.g., `KEYWORD`, `AND`, `OPERATOR`, `NUMBER`, `COMMA`). It has no understanding of grammar; it only identifies the pieces.
 
 2.  **Parser** - `parser.go`
     -   **Responsibility**: Takes the stream of tokens from the Lexer and builds an **Abstract Syntax Tree (AST)** based on a defined grammar. The AST is a tree structure that represents the logical meaning of the query.
@@ -77,83 +94,84 @@ The search engine processes a query through a multi-stage pipeline. This decoupl
 
 5.  **Executor** - `executor.go`
     -   **Responsibility**: This is the engine's workhorse. It walks the final, optimized AST and executes the search logic against the in-memory slice of `Document` structs.
-    -   **Core Search Logic**: The `evaluate` function contains the `switch` statement that handles each node type (e.g., `AndNode`, `KeywordNode`, `FilterNode`). The actual text matching (`strings.Contains`, `regexp.MatchString`) happens here.
+    -   **Core Search Logic**: The `evaluate` function contains the `switch` statement that handles each node type (e.g., `AndNode`, `KeywordNode`, `FilterNode`). The actual text matching (`strings.Contains`, `regexp.Match`) happens here.
+
+6.  **Extractor** - `extractor.go`
+    -   **Responsibility**: Walks the AST to extract positive search terms for highlighting in results. It skips terms inside `NOT` subtrees so that negated terms are not highlighted.
+
+## Built-in Filters
+
+The engine ships with the following metadata filters, registered in `executor.go`:
+
+| Filter Name          | Aliases              | Type    | Operators        | Multi-value | Description                         |
+|----------------------|----------------------|---------|------------------|-------------|-------------------------------------|
+| `complexity`         | —                    | Numeric | `=` `!=` `>=` `<=` | No       | Matches `Document.Complexity`       |
+| `lang` / `language`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Language` (case-insensitive) |
+| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Filename` (case-insensitive) |
+| `ext` / `extension`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Extension` (case-insensitive) |
+
+**Semantic alias**: `complexity=high` is rewritten to `complexity>=8`.
+
+**Multi-value syntax**: Filters that support multi-value accept comma-separated lists (e.g., `lang=go,python`, `ext=ts,tsx`). This works like an `IN` clause — the document matches if its value is any of the listed values.
 
 ## How to Extend the Engine
 
 The engine was designed to be easily extended. Here are guides for the most common modifications.
 
-### Scenario 1: Adding a New Metadata Filter (e.g., `author="jane"`)
+### Scenario 1: Adding a New Metadata Filter (e.g., path prefix)
 
-Let's add the ability to filter on a new `Author` string field.
+Let's add the ability to filter on a path prefix, so users can write `pathprefix="/src"`.
 
-**Step 1: Update the Document Struct**
+**Step 1: Implement the Filter Handler**
 
-In `document.go`, add the new field to your data structure.
-
-```go
-// in document.go
-type Document struct {
-    ID         int
-    Content    string
-    Complexity int
-    Author     string // <-- ADD THIS LINE
-}
-```
-
-**Step 2: Implement the Filter Handler**
-
-In `executor.go`, create a new function that contains the logic for filtering by author.
+In `executor.go`, create a new function that matches the `FilterHandler` signature. Each handler receives a single document and returns whether it matches.
 
 ```go
 // in executor.go
 
-// handleAuthorFilter filters documents by the Author field.
-// It only supports '=' and '!=' for strings.
-func (se *SearchEngine) handleAuthorFilter(op string, val interface{}, docs []Document) []Document {
-	authorName, ok := val.(string)
+// handlePathPrefixFilter filters documents by their path prefix.
+func handlePathPrefixFilter(op string, val interface{}, doc *Document) bool {
+	prefix, ok := val.(string)
 	if !ok {
-		return []Document{} // Value is not a string, return no results.
+		return false
 	}
+	prefix = strings.ToLower(prefix)
 
-	var results []Document
-	for _, doc := range docs {
-		match := false
-		switch op {
-		case "=":
-			if doc.Author == authorName {
-				match = true
-			}
-		case "!=":
-			if doc.Author != authorName {
-				match = true
-			}
-		}
-		if match {
-			results = append(results, doc)
-		}
+	switch op {
+	case "=":
+		return strings.HasPrefix(strings.ToLower(doc.Path), prefix)
+	case "!=":
+		return !strings.HasPrefix(strings.ToLower(doc.Path), prefix)
 	}
-	return results
+	return false
 }
 ```
 
-**Step 3: Register the New Handler**
+**Step 2: Register the New Handler**
 
-In `executor.go`, inside the `registerFilterHandlers` function, map the field name "author" to your new handler function.
+In `executor.go`, inside the `registerFilterHandlers` function, map the field name to your new handler function.
 
 ```go
 // in executor.go
 
 func (se *SearchEngine) registerFilterHandlers() {
 	se.filterHandlers = make(map[string]FilterHandler)
-	se.filterHandlers["complexity"] = se.handleComplexityFilter
-	se.filterHandlers["author"] = se.handleAuthorFilter // <-- ADD THIS LINE
+	se.filterHandlers["complexity"] = handleComplexityFilter
+	se.filterHandlers["lang"] = handleLanguageFilter
+	se.filterHandlers["language"] = handleLanguageFilter
+	se.filterHandlers["file"] = handleFilenameFilter
+	se.filterHandlers["filename"] = handleFilenameFilter
+	se.filterHandlers["ext"] = handleExtensionFilter
+	se.filterHandlers["extension"] = handleExtensionFilter
+	se.filterHandlers["pathprefix"] = handlePathPrefixFilter // <-- ADD THIS LINE
 }
 ```
 
-**That's it!** The parser is already generic enough to understand `author="jane"`. Now the executor knows how to handle it. Remember to add `Author` data to your sample documents in `main.go` to test it.
+**That's it!** The parser is already generic enough to understand `pathprefix="/src"`. Now the executor knows how to handle it. Add tests in `search_test.go` to verify.
 
 ### Scenario 2: Adding a New Semantic Alias (e.g., `complexity=low`)
+
+Currently only `complexity=high` is implemented (rewritten to `complexity>=8`). Let's add `complexity=low`.
 
 **Step 1: Implement the Transformation Logic**
 
@@ -166,12 +184,20 @@ func (t *Transformer) transformFilterNode(node *FilterNode) Node {
 	if node.Field == "complexity" && node.Operator == "=" {
 		if val, ok := node.Value.(string); ok {
 			valLower := strings.ToLower(val)
-			
+
 			if valLower == "high" {
-				// ... existing code for high ...
+				// Existing code: 'high' is defined as 8 or more
+				newNode := &FilterNode{
+					Field:    "complexity",
+					Operator: ">=",
+					Value:    8,
+				}
+				notice := fmt.Sprintf("Notice: '%s=%s' was interpreted as 'complexity >= 8'.", node.Field, val)
+				t.notices = append(t.notices, notice)
+				return newNode
 			}
 
-            // v-- ADD THIS LOGIC --v
+			// v-- ADD THIS LOGIC --v
 			if valLower == "low" {
 				newNode := &FilterNode{
 					Field:    "complexity",
@@ -182,210 +208,168 @@ func (t *Transformer) transformFilterNode(node *FilterNode) Node {
 				t.notices = append(t.notices, notice)
 				return newNode
 			}
-            // ^-- END OF NEW LOGIC --^
+			// ^-- END OF NEW LOGIC --^
 		}
 	}
 	return node
 }
 ```
 
-### Scenario 3: Changing the Core Search Logic
+### Scenario 3: Implementing Fuzzy Matching
 
-The core logic for how a keyword or phrase matches content is located in the `evaluate` function in `executor.go`.
+The `FuzzyNode` AST type is already defined but the executor currently has a placeholder that returns no results. Let's implement fuzzy matching using Levenshtein distance.
 
-For example, to change the keyword search from **case-sensitive** to **case-insensitive**:
+**Step 1: Add a Distance Function**
+
+In `executor.go`, add a Levenshtein distance helper:
 
 ```go
 // in executor.go
 
-func (se *SearchEngine) evaluate(node Node, docs []Document) []Document {
-	// ... other cases
-	case *KeywordNode:
-		var results []Document
-		// Convert search term to lower once
-		lowerValue := strings.ToLower(n.Value) 
-		for _, doc := range docs {
-            // Convert content to lower for comparison
-			if strings.Contains(strings.ToLower(doc.Content), lowerValue) { // <-- MODIFIED LINE
+func levenshtein(a, b string) int {
+	la, lb := len(a), len(b)
+	d := make([][]int, la+1)
+	for i := range d {
+		d[i] = make([]int, lb+1)
+		d[i][0] = i
+	}
+	for j := 1; j <= lb; j++ {
+		d[0][j] = j
+	}
+	for i := 1; i <= la; i++ {
+		for j := 1; j <= lb; j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			d[i][j] = min(d[i-1][j]+1, min(d[i][j-1]+1, d[i-1][j-1]+cost))
+		}
+	}
+	return d[la][lb]
+}
+```
+
+**Step 2: Replace the Placeholder in `evaluate`**
+
+In `executor.go`, find the `FuzzyNode` case (which currently returns `[]*Document{}`) and replace it:
+
+```go
+	case *FuzzyNode:
+		var results []*Document
+		content := strings.ToLower(string(doc.Content))
+		term := strings.ToLower(n.Value)
+		termLen := len(term)
+		// Slide a window over the content to find near-matches
+		for i := 0; i <= len(content)-termLen; i++ {
+			window := content[i : i+termLen]
+			if levenshtein(term, window) <= n.Distance {
 				results = append(results, doc)
+				break
 			}
 		}
-		return results
-	// ... other cases
+```
+
+## API Reference
+
+### Types
+
+```go
+// Document represents a single file to be searched.
+type Document struct {
+    Path       string
+    Filename   string
+    Language   string
+    Extension  string
+    Content    []byte
+    Complexity int64
 }
+
+// SearchResult holds the outcome of a search operation.
+type SearchResult struct {
+    Documents        []*Document   // Matching documents
+    Notices          []string      // Parser warnings and transformation notices
+    TermsToHighlight []string      // Positive search terms for highlighting
+}
+
+// FilterHandler is a function that checks whether a single document matches a filter.
+type FilterHandler func(op string, val interface{}, doc *Document) bool
+```
+
+### Functions
+
+```go
+// NewSearchEngine creates a new engine with built-in filters registered.
+func NewSearchEngine(docs []*Document) *SearchEngine
+
+// Search runs a query against the engine's documents.
+// caseSensitive controls whether keyword/phrase matching is case-sensitive.
+func (se *SearchEngine) Search(query string, caseSensitive bool) (*SearchResult, error)
+
+// EvaluateFile evaluates a parsed AST against a single file's content.
+// Returns whether the file matches and a map of term → match locations.
+func EvaluateFile(node Node, content []byte, filename string, caseSensitive bool) (bool, map[string][][]int)
+
+// ExtractTerms traverses the AST and returns terms for highlighting,
+// excluding terms inside NOT subtrees.
+func ExtractTerms(node Node) []string
 ```
 
 ## Project Structure
 
 ```
 .
-├── ast.go              # Defines the Abstract Syntax Tree structures
+├── ast.go              # Defines the Abstract Syntax Tree node types (And, Or, Not, Keyword, Phrase, Regex, Filter, Fuzzy)
 ├── document.go         # Defines Document and SearchResult structs
-├── executor.go         # The main engine; executes the AST against data
+├── executor.go         # The main engine; executes the AST against data, contains filter handlers
+├── extractor.go        # Walks AST to extract positive search terms for highlighting
 ├── lexer.go            # The tokenizer; turns strings into tokens
-├── main.go             # Example usage and entry point
-├── parser.go           # The parser; turns tokens into an AST, handles errors
-├── planner.go          # The query optimizer; reorders the AST
+├── parser.go           # The parser; turns tokens into an AST, handles self-healing
+├── planner.go          # The query optimizer; reorders AND clauses by cost
 ├── README.md           # This file
+├── search_fuzz_test.go # Fuzz tests for the search engine
 ├── search_test.go      # Unit tests for all components
 └── transformer.go      # Transforms the AST for semantic aliases
 ```
 
+## How Multi-Value Filtering Works
 
+The engine supports multi-value `IN`-style filtering with comma syntax (e.g., `lang=go,python`). This feature spans three pipeline stages:
 
-## Extending the Engine: A Practical Example
+### Lexer
 
-To showcase the power and extensibility of the architecture, this guide provides a step-by-step walkthrough for adding a new, advanced feature: a multi-value `IN` clause for filters.
+The lexer recognizes `,` as a `COMMA` token (see `lexer.go`). This allows comma-separated values to be tokenized individually.
 
-The goal is to enable queries like `category=doc,pdf,csv`, which should match any document whose category is one of "doc", "pdf", or "csv".
+### Parser
 
-This requires touching three layers of the pipeline: the **Lexer**, the **Parser**, and the **Executor**.
+In `parser.go`, the `parseFilterExpression` function collects values in a loop. After consuming the operator, it reads values separated by `COMMA` tokens:
 
-### Step 1: Update the Document Struct
+- If only one value is found, `FilterNode.Value` is stored directly (e.g., `"go"` or `5`).
+- If multiple values are found, `FilterNode.Value` is stored as a `[]interface{}` slice (e.g., `["go", "python"]`).
 
-First, we need a field to filter on. We'll add a `Category` field to our main `Document` struct.
+### Executor
 
-**File: `document.go`**
+Filter handlers use a type switch on the `val` parameter to handle both cases:
 
 ```go
-type Document struct {
-    ID         int
-    Content    string
-    Complexity int
-    Category   string // <-- Add this field
+func handleLanguageFilter(op string, val interface{}, doc *Document) bool {
+    isEquality := (op == "=")
+
+    switch v := val.(type) {
+    case string: // Single value: lang=go
+        lang := strings.ToLower(v)
+        return (strings.ToLower(doc.Language) == lang) == isEquality
+    case []interface{}: // Multiple values: lang=go,python
+        valueSet := make(map[string]bool)
+        for _, item := range v {
+            if strItem, ok := item.(string); ok {
+                valueSet[strings.ToLower(strItem)] = true
+            }
+        }
+        _, exists := valueSet[strings.ToLower(doc.Language)]
+        return exists == isEquality
+    }
+    return false
 }
 ```
 
-### Step 2: Teach the Lexer about Commas (`,`)
-
-The lexer must be able to recognize the comma as a distinct token that separates values.
-
-**File: `lexer.go`**
-
-1.  Add a new `COMMA` token type to the `const` block.
-
-    ```go
-    const (
-        // ... existing token types
-        STRING_ALIAS
-        COMMA // <-- Add this line
-    )
-    ```
-
-2.  In the main `scan()` function, add a `case` to handle the comma character.
-
-    ```go
-    func (l *Lexer) scan() Token {
-        // ... existing code
-        switch ch {
-        // ... existing cases
-        case ')':
-            return Token{Type: RPAREN, Literal: string(ch)}
-        case ',': // <-- Add this case
-            return Token{Type: COMMA, Literal: string(ch)}
-        case '=', '!', '>', '<':
-        // ... existing code
-        }
-        // ...
-    }
-    ```
-
-### Step 3: Teach the Parser the List Syntax
-
-This is the most significant change. We will upgrade the `parseFilterExpression` function to understand that a value can be a single item or a comma-separated list of items.
-
-**File: `parser.go`**
-
-```go
-func (p *Parser) parseFilterExpression() Node {
-	node := &FilterNode{Field: p.tok.Literal}
-	p.nextToken() // Consume field
-	node.Operator = p.tok.Literal
-	p.nextToken() // Consume operator
-
-	// Check if the next token is a valid value type.
-	if p.tok.Type != NUMBER && p.tok.Type != STRING_ALIAS && p.tok.Type != KEYWORD && p.tok.Type != IDENTIFIER {
-		return nil // Error: expected a value.
-	}
-	
-	// Collect one or more values.
-	var values []interface{}
-	for {
-		// Add the current value to our list.
-		switch p.tok.Type {
-		case NUMBER:
-			val, _ := strconv.Atoi(p.tok.Literal)
-			values = append(values, val)
-		case STRING_ALIAS, KEYWORD, IDENTIFIER:
-			values = append(values, p.tok.Literal)
-		}
-		p.nextToken() // Consume the value token
-
-		// If the next token is not a comma, the list is finished.
-		if p.tok.Type != COMMA {
-			break
-		}
-		p.nextToken() // Consume the comma and loop again.
-	}
-
-	// If we only found one value, store it directly for simple filters (e.g., complexity=5).
-	// Otherwise, store the entire slice for multi-value filters.
-	if len(values) == 1 {
-		node.Value = values[0]
-	} else {
-		node.Value = values
-	}
-	
-	return node
-}
-```
-
-### Step 4: Implement and Register the Execution Logic
-
-Finally, we implement the handler in the executor. This function must be able to process both a single value (a `string`) and a list of values (a `[]interface{}`). For efficiency, we convert the list into a map for fast lookups.
-
-**File: `executor.go`**
-
-1.  Create the new `handleCategoryFilter` function.
-
-    ```go
-    func (se *SearchEngine) handleCategoryFilter(op string, val interface{}, docs []Document) []Document {
-        var results []Document
-        isEquality := (op == "=") // Also handles '!=' by inverting the result
-
-        switch v := val.(type) {
-        case string: // Handles single value: category=doc
-            for _, doc := range docs {
-                if (doc.Category == v) == isEquality {
-                    results = append(results, doc)
-                }
-            }
-        case []interface{}: // Handles multiple values: category=doc,pdf
-            valueSet := make(map[string]bool)
-            for _, item := range v {
-                if strItem, ok := item.(string); ok {
-                    valueSet[strItem] = true
-                }
-            }
-            for _, doc := range docs {
-                _, exists := valueSet[doc.Category]
-                if exists == isEquality {
-                    results = append(results, doc)
-                }
-            }
-        }
-        return results
-    }
-    ```
-
-2.  Register the new handler in the `registerFilterHandlers` function.
-
-    ```go
-    func (se *SearchEngine) registerFilterHandlers() {
-        se.filterHandlers = make(map[string]FilterHandler)
-        se.filterHandlers["complexity"] = se.handleComplexityFilter
-        se.filterHandlers["category"] = se.handleCategoryFilter // <-- Add this line
-    }
-    ```
-
-With these changes, the engine is now fully equipped to handle multi-value `IN` and `NOT IN` queries on the `category` field, demonstrating the clean separation of concerns and extensibility of the architecture.
+With `=`, the document matches if its value is **any** of the listed values. With `!=`, the document matches if its value is **none** of the listed values.
