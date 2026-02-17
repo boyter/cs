@@ -118,17 +118,13 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.10
 ## explicit; go 1.12
 github.com/spf13/pflag
-<<<<<<< HEAD
-# golang.org/x/crypto v0.45.0
-=======
 # github.com/wk8/go-ordered-map/v2 v2.1.8
 ## explicit; go 1.18
 github.com/wk8/go-ordered-map/v2
 # github.com/yosida95/uritemplate/v3 v3.0.2
 ## explicit; go 1.14
 github.com/yosida95/uritemplate/v3
-# golang.org/x/crypto v0.43.0
->>>>>>> 51660c8 (add in mcp)
+# golang.org/x/crypto v0.45.0
 ## explicit; go 1.24.0
 golang.org/x/crypto/blake2b
 # golang.org/x/sync v0.18.0
