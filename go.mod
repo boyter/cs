@@ -5,6 +5,7 @@ go 1.25.2
 require (
 	github.com/boyter/go-string v1.0.5
 	github.com/boyter/gocodewalker v1.5.1
+	github.com/boyter/scc/v3 v3.6.0
 	github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
@@ -18,7 +19,6 @@ require (
 	github.com/agnivade/levenshtein v1.2.2-0.20250519083737-420867539855 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/boyter/scc/v3 v3.6.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
