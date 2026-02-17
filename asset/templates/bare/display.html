@@ -43,6 +43,7 @@
 		<div>
 			<h4>{{ .Location }}</h4>
 			<small>[<a href="/file/raw/{{ .Location }}">raw file</a>]</small>
+			{{ if .Language }}<br><small>{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</small>{{ end }}
 			<pre>{{ .Content }}</pre>
 		</div>
 	</body>

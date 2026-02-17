@@ -18,6 +18,17 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// mcpFileResult is the JSON response for the get_file tool.
+type mcpFileResult struct {
+	Language   string `json:"language,omitempty"`
+	Lines      int64  `json:"lines,omitempty"`
+	Code       int64  `json:"code,omitempty"`
+	Comment    int64  `json:"comment,omitempty"`
+	Blank      int64  `json:"blank,omitempty"`
+	Complexity int64  `json:"complexity,omitempty"`
+	Content    string `json:"content"`
+}
+
 // StartMCPServer starts an MCP server over stdio, exposing a "search" tool
 // that uses the same DoSearch pipeline as console and HTTP modes.
 func StartMCPServer(cfg *Config) {
@@ -58,7 +69,7 @@ func StartMCPServer(cfg *Config) {
 	mcpServer.AddTool(searchTool, mcpSearchHandler(cfg, cache))
 
 	getFileTool := mcp.NewTool("get_file",
-		mcp.WithDescription("Read the contents of a file within the project directory. Returns content with line numbers."),
+		mcp.WithDescription("Read the contents of a file within the project directory. Returns JSON with 'content' (line-numbered file text) and, for recognised source files, 'language', 'lines', 'code', 'comment', 'blank', 'complexity' fields."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("path",
 			mcp.Description("File path relative to the project directory, or absolute path within the project."),
@@ -127,6 +138,9 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("file appears to be binary"), nil
 		}
 
+		// Detect language and compute code stats
+		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(filepath.Base(absResolved), content)
+
 		lines := strings.Split(string(content), "\n")
 
 		// Apply optional line range
@@ -153,13 +167,28 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("start_line %d is greater than end_line %d", startLine, endLine)), nil
 		}
 
-		// Format output with line numbers
+		// Format line-numbered content
 		var sb strings.Builder
 		for i := startLine; i <= endLine; i++ {
 			fmt.Fprintf(&sb, "%d\t%s\n", i, lines[i-1])
 		}
 
-		return mcp.NewToolResultText(sb.String()), nil
+		result := mcpFileResult{
+			Content: sb.String(),
+		}
+		if lang != "" {
+			result.Language = lang
+			result.Lines = sccLines
+			result.Code = sccCode
+			result.Comment = sccComment
+			result.Blank = sccBlank
+			result.Complexity = sccComplexity
+		}
+		jsonResult, err := mcp.NewToolResultJSON(result)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("failed to marshal result: %v", err)), nil
+		}
+		return jsonResult, nil
 	}
 }
 

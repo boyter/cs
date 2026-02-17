@@ -208,19 +208,20 @@ func TestMCPGetFileHandlerFileNotFound(t *testing.T) {
 }
 
 func TestMCPGetFileHandlerReadsFile(t *testing.T) {
+	initLanguageDatabase()
 	dir := t.TempDir()
 	cfg := DefaultConfig()
 	cfg.Directory = dir
 
-	content := "line one\nline two\nline three\n"
-	if err := os.WriteFile(filepath.Join(dir, "test.txt"), []byte(content), 0644); err != nil {
+	content := "package main\n\nfunc main() {\n\tprintln(\"hello\")\n}\n"
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	handler := mcpGetFileHandler(&cfg)
 	req := mcp.CallToolRequest{}
 	req.Params.Arguments = map[string]any{
-		"path": "test.txt",
+		"path": "main.go",
 	}
 	result, err := handler(context.Background(), req)
 	if err != nil {
@@ -234,11 +235,61 @@ func TestMCPGetFileHandlerReadsFile(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected TextContent, got %T", result.Content[0])
 	}
-	if !strings.Contains(text.Text, "1\tline one") {
-		t.Errorf("expected line-numbered output, got: %s", text.Text)
+	var fr mcpFileResult
+	if err := json.Unmarshal([]byte(text.Text), &fr); err != nil {
+		t.Fatalf("expected JSON response, got error: %v\ntext: %s", err, text.Text)
 	}
-	if !strings.Contains(text.Text, "2\tline two") {
-		t.Errorf("expected line 2 in output, got: %s", text.Text)
+	if fr.Language != "Go" {
+		t.Errorf("expected language Go, got %s", fr.Language)
+	}
+	if fr.Lines <= 0 {
+		t.Errorf("expected lines > 0, got %d", fr.Lines)
+	}
+	if fr.Code <= 0 {
+		t.Errorf("expected code > 0, got %d", fr.Code)
+	}
+	if !strings.Contains(fr.Content, "1\tpackage main") {
+		t.Errorf("expected line-numbered output in content, got: %s", fr.Content)
+	}
+}
+
+func TestMCPGetFileHandlerNoLanguageHeader(t *testing.T) {
+	initLanguageDatabase()
+	dir := t.TempDir()
+	cfg := DefaultConfig()
+	cfg.Directory = dir
+
+	content := "line one\nline two\nline three\n"
+	if err := os.WriteFile(filepath.Join(dir, "test.zzzzz"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := mcpGetFileHandler(&cfg)
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]any{
+		"path": "test.zzzzz",
+	}
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", result)
+	}
+
+	text, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected TextContent, got %T", result.Content[0])
+	}
+	var fr mcpFileResult
+	if err := json.Unmarshal([]byte(text.Text), &fr); err != nil {
+		t.Fatalf("expected JSON response, got error: %v\ntext: %s", err, text.Text)
+	}
+	if fr.Language != "" {
+		t.Errorf("expected empty language for unknown extension, got %s", fr.Language)
+	}
+	if !strings.Contains(fr.Content, "1\tline one") {
+		t.Errorf("expected line-numbered output in content, got: %s", fr.Content)
 	}
 }
 
@@ -268,17 +319,21 @@ func TestMCPGetFileHandlerLineRange(t *testing.T) {
 	}
 
 	text := result.Content[0].(mcp.TextContent).Text
-	if !strings.Contains(text, "2\tbeta") {
-		t.Errorf("expected line 2 beta, got: %s", text)
+	var fr mcpFileResult
+	if err := json.Unmarshal([]byte(text), &fr); err != nil {
+		t.Fatalf("expected JSON response, got error: %v\ntext: %s", err, text)
 	}
-	if !strings.Contains(text, "4\tdelta") {
-		t.Errorf("expected line 4 delta, got: %s", text)
+	if !strings.Contains(fr.Content, "2\tbeta") {
+		t.Errorf("expected line 2 beta, got: %s", fr.Content)
 	}
-	if strings.Contains(text, "1\talpha") {
-		t.Errorf("should not contain line 1, got: %s", text)
+	if !strings.Contains(fr.Content, "4\tdelta") {
+		t.Errorf("expected line 4 delta, got: %s", fr.Content)
 	}
-	if strings.Contains(text, "5\tepsilon") {
-		t.Errorf("should not contain line 5, got: %s", text)
+	if strings.Contains(fr.Content, "1\talpha") {
+		t.Errorf("should not contain line 1, got: %s", fr.Content)
+	}
+	if strings.Contains(fr.Content, "5\tepsilon") {
+		t.Errorf("should not contain line 5, got: %s", fr.Content)
 	}
 }
 
