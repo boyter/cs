@@ -55,7 +55,9 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.SearchString = args
 
-			if cfg.HttpServer {
+			if cfg.MCPServer {
+				StartMCPServer(&cfg)
+			} else if cfg.HttpServer {
 				StartHttpServer(&cfg)
 			} else if len(cfg.SearchString) != 0 {
 				ConsoleSearch(&cfg)
@@ -209,6 +211,12 @@ func main() {
 		"result-limit",
 		-1,
 		"maximum number of results to return (-1 for unlimited)",
+	)
+	flags.BoolVar(
+		&cfg.MCPServer,
+		"mcp",
+		false,
+		"start as an MCP (Model Context Protocol) server over stdio",
 	)
 	flags.BoolVarP(
 		&cfg.HttpServer,

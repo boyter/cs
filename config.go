@@ -48,6 +48,9 @@ type Config struct {
 	Verbose    bool
 	NoSyntax   bool // disable syntax highlighting
 
+	// MCP
+	MCPServer bool
+
 	// HTTP
 	Address         string
 	HttpServer      bool

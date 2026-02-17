@@ -121,6 +121,59 @@ cs -d --template-style light
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 ```
 
+### MCP Server Mode
+
+`cs` can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server over stdio, allowing LLM tools like Claude Desktop, Claude Code, Cursor, and others to use it as a code search tool.
+
+```shell
+cs --mcp --dir /path/to/codebase
+```
+
+#### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "codespelunker": {
+      "command": "/path/to/cs",
+      "args": ["--mcp", "--dir", "/path/to/codebase"]
+    }
+  }
+}
+```
+
+#### Claude Code Configuration
+
+Add to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "codespelunker": {
+      "command": "/path/to/cs",
+      "args": ["--mcp", "--dir", "/path/to/codebase"]
+    }
+  }
+}
+```
+
+#### Exposed Tool
+
+The MCP server exposes a single `search` tool with the following parameters:
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | yes | Search query (supports boolean logic, quotes, regex, fuzzy) |
+| `max_results` | number | no | Maximum results to return (default 20) |
+| `snippet_length` | number | no | Snippet size in characters |
+| `case_sensitive` | boolean | no | Case sensitive search |
+| `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`) |
+| `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
+
+Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
+
 ### Usage
 
 Command line usage of `cs` is designed to be as simple as possible.

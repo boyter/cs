@@ -176,7 +176,9 @@ type jsonResult struct {
 	Complexity     int64            `json:"complexity"`
 }
 
-func formatJSON(cfg *Config, results []*common.FileJob) {
+// buildJSONResults converts ranked FileJob results into a slice of jsonResult
+// suitable for JSON serialization. Used by both formatJSON and the MCP server.
+func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 	var jsonResults []jsonResult
 
 	documentFrequency := ranker.CalculateDocumentTermFrequency(results)
@@ -244,6 +246,11 @@ func formatJSON(cfg *Config, results []*common.FileJob) {
 		}
 	}
 
+	return jsonResults
+}
+
+func formatJSON(cfg *Config, results []*common.FileJob) {
+	jsonResults := buildJSONResults(cfg, results)
 	jsonString, _ := json.Marshal(jsonResults)
 	if cfg.FileOutput == "" {
 		fmt.Println(string(jsonString))
