@@ -105,6 +105,7 @@
 		<div class="file-header">
 			<h4>{{ .Location }}</h4>
 			<small>[<a href="/file/raw/{{ .Location }}">raw file</a>]</small>
+			{{ if .Language }}<br><small class="stats">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</small>{{ end }}
 		</div>
 		<pre>{{ .Content }}</pre>
 	</div>

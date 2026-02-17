@@ -16,7 +16,6 @@ import (
 	"github.com/boyter/cs/pkg/search"
 	"github.com/boyter/cs/pkg/snippet"
 	"github.com/boyter/gocodewalker"
-	"github.com/boyter/scc/v3/processor"
 )
 
 // SearchStats holds counters readable after the search channel drains.
@@ -177,7 +176,7 @@ startWorkers:
 
 				snippet.AddPhraseMatchLocations(content, strings.Trim(query, "\""), matchLocations)
 
-				lang := detectLanguage(f.Filename, content)
+				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(f.Filename, content)
 
 				fj := &common.FileJob{
 					Filename:       f.Filename,
@@ -187,22 +186,11 @@ startWorkers:
 					Bytes:          len(content),
 					MatchLocations: matchLocations,
 					Language:       lang,
-				}
-
-				// Count code stats using SCC
-				if lang != "" {
-					sccJob := &processor.FileJob{
-						Filename: f.Filename,
-						Language: lang,
-						Content:  content,
-						Bytes:    int64(len(content)),
-					}
-					processor.CountStats(sccJob)
-					fj.Lines = sccJob.Lines
-					fj.Code = sccJob.Code
-					fj.Comment = sccJob.Comment
-					fj.Blank = sccJob.Blank
-					fj.Complexity = sccJob.Complexity
+					Lines:          sccLines,
+					Code:           sccCode,
+					Comment:        sccComment,
+					Blank:          sccBlank,
+					Complexity:     sccComplexity,
 				}
 
 				select {

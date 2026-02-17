@@ -47,6 +47,7 @@
 					{{- range .Results }}
 					<li>
 						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <small>({{ .Language }})</small>{{ end }}</h4>
+						{{ if .Lines }}<small style="color:#808080">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</small>{{ end }}
 						{{ if .IsLineMode }}<pre>{{ range .LineResults }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
 {{ end }}</pre>{{ else }}{{- range .Content }}
 							<pre>{{ . }}</pre>

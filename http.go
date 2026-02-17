@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -64,6 +65,12 @@ type httpFileDisplay struct {
 	Location            string
 	Content             template.HTML
 	RuntimeMilliseconds int64
+	Language            string
+	Lines               int64
+	Code                int64
+	Comment             int64
+	Blank               int64
+	Complexity          int64
 }
 
 type httpFacetResult struct {
@@ -127,10 +134,18 @@ func StartHttpServer(cfg *Config) {
 		coloredContent = strings.Replace(coloredContent, fmtBegin, fmt.Sprintf(`<strong id="%d">`, startPos), -1)
 		coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 
+		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(filepath.Base(path), content)
+
 		err = displayTmpl.Execute(w, httpFileDisplay{
 			Location:            path,
 			Content:             template.HTML(coloredContent),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
+			Language:            lang,
+			Lines:               sccLines,
+			Code:                sccCode,
+			Comment:             sccComment,
+			Blank:               sccBlank,
+			Complexity:          sccComplexity,
 		})
 		if err != nil {
 			log.Printf("template execute error: %v", err)
