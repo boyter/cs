@@ -18,7 +18,7 @@ import (
 )
 
 // Version indicates the version of the application
-var Version = "3.6.0"
+var Version = "3.7.0"
 
 // Flags set via the CLI which control how the output is displayed
 
@@ -483,6 +483,12 @@ func processFlags() {
 	printDebugF("IncludeSymLinks: %t", IncludeSymLinks)
 	printDebugF("Uloc: %t", UlocMode)
 	printDebugF("Dryness: %t", Dryness)
+}
+
+// LanguageDatabase provides access to the internal language database
+// useful for consuming applications wanting to consume and use
+func LanguageDatabase() map[string]Language {
+	return languageDatabase
 }
 
 func printLanguages() {

@@ -5,7 +5,7 @@ go 1.25.2
 require (
 	github.com/boyter/go-string v1.0.5
 	github.com/boyter/gocodewalker v1.5.1
-	github.com/boyter/scc/v3 v3.6.0
+	github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964
 	github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
@@ -44,6 +44,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect

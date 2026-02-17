@@ -17,7 +17,7 @@ github.com/boyter/go-string
 ## explicit; go 1.23.0
 github.com/boyter/gocodewalker
 github.com/boyter/gocodewalker/go-gitignore
-# github.com/boyter/scc/v3 v3.6.0
+# github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964
 ## explicit; go 1.25.2
 github.com/boyter/scc/v3/processor
 # github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
@@ -124,6 +124,9 @@ github.com/wk8/go-ordered-map/v2
 # github.com/yosida95/uritemplate/v3 v3.0.2
 ## explicit; go 1.14
 github.com/yosida95/uritemplate/v3
+# go.yaml.in/yaml/v2 v2.4.3
+## explicit; go 1.15
+go.yaml.in/yaml/v2
 # golang.org/x/crypto v0.45.0
 ## explicit; go 1.24.0
 golang.org/x/crypto/blake2b
@@ -156,7 +159,6 @@ golang.org/x/text/message/catalog
 golang.org/x/text/transform
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
-gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
