@@ -159,9 +159,11 @@ Add to your `.mcp.json`:
 }
 ```
 
-#### Exposed Tool
+#### Exposed Tools
 
-The MCP server exposes a single `search` tool with the following parameters:
+The MCP server exposes two tools:
+
+**`search`** — Search code files recursively with relevance ranking.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -173,6 +175,16 @@ The MCP server exposes a single `search` tool with the following parameters:
 | `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
 
 Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
+
+**`get_file`** — Read the contents of a file within the project directory.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | File path relative to the project directory, or absolute path within the project |
+| `start_line` | number | no | 1-based start line number (reads from beginning if omitted) |
+| `end_line` | number | no | 1-based end line number, inclusive (reads to end if omitted) |
+
+Returns JSON with line-numbered file content and, for recognised source files, language, lines, code, comment, blank, and complexity fields.
 
 ### Usage
 
