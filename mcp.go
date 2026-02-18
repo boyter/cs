@@ -67,6 +67,9 @@ func StartMCPServer(cfg *Config) {
 		mcp.WithString("gravity",
 			mcp.Description("Complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0). Controls how much cyclomatic complexity boosts ranking."),
 		),
+		mcp.WithString("code_filter",
+			mcp.Description("Content type filter: 'only-code' (matches in code only), 'only-comments' (matches in comments only), 'only-strings' (matches in string literals only). Default: no filter (all content types)."),
+		),
 	)
 
 	mcpServer.AddTool(searchTool, mcpSearchHandler(cfg, cache))
@@ -240,6 +243,21 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		if v, ok := request.GetArguments()["gravity"]; ok {
 			if s, ok := v.(string); ok && s != "" {
 				searchCfg.GravityIntent = s
+			}
+		}
+		if v, ok := request.GetArguments()["code_filter"]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				switch s {
+				case "only-code":
+					searchCfg.OnlyCode = true
+				case "only-comments":
+					searchCfg.OnlyComments = true
+				case "only-strings":
+					searchCfg.OnlyStrings = true
+				}
+				if searchCfg.HasContentFilter() {
+					searchCfg.Ranker = "structural"
+				}
 			}
 		}
 

@@ -54,6 +54,7 @@ type Config struct {
 	WeightString  float64
 	OnlyCode      bool
 	OnlyComments  bool
+	OnlyStrings   bool
 
 	// Output
 	Format     string
@@ -104,6 +105,26 @@ func (c *Config) StructuralRankerConfig() *ranker.StructuralConfig {
 		WeightString:  c.WeightString,
 		OnlyCode:      c.OnlyCode,
 		OnlyComments:  c.OnlyComments,
+		OnlyStrings:   c.OnlyStrings,
+	}
+}
+
+// HasContentFilter returns true if any content-type filter is active.
+func (c *Config) HasContentFilter() bool {
+	return c.OnlyCode || c.OnlyComments || c.OnlyStrings
+}
+
+// ContentFilterCachePrefix returns a cache key prefix for the active content filter.
+func (c *Config) ContentFilterCachePrefix() string {
+	switch {
+	case c.OnlyCode:
+		return "[[only-code]]"
+	case c.OnlyComments:
+		return "[[only-comments]]"
+	case c.OnlyStrings:
+		return "[[only-strings]]"
+	default:
+		return ""
 	}
 }
 

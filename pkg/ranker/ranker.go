@@ -29,6 +29,7 @@ type StructuralConfig struct {
 	WeightString  float64
 	OnlyCode      bool
 	OnlyComments  bool
+	OnlyStrings   bool
 }
 
 // DefaultStructuralConfig returns a StructuralConfig with sensible defaults.
@@ -240,28 +241,31 @@ func maxInt(a, b int) int {
 // (unrecognised language) or the offset is out of bounds.
 func matchWeight(contentByteType []byte, startByte int, cfg StructuralConfig) float64 {
 	if contentByteType == nil || startByte < 0 || startByte >= len(contentByteType) {
+		if cfg.OnlyComments || cfg.OnlyStrings {
+			return 0
+		}
 		return cfg.WeightCode
 	}
 
 	switch contentByteType[startByte] {
 	case processor.ByteTypeComment:
-		if cfg.OnlyCode {
+		if cfg.OnlyCode || cfg.OnlyStrings {
 			return 0
 		}
 		return cfg.WeightComment
 	case processor.ByteTypeString:
-		if cfg.OnlyCode {
+		if cfg.OnlyCode || cfg.OnlyComments {
 			return 0
 		}
 		return cfg.WeightString
 	case processor.ByteTypeCode:
-		if cfg.OnlyComments {
+		if cfg.OnlyComments || cfg.OnlyStrings {
 			return 0
 		}
 		return cfg.WeightCode
 	default:
 		// ByteTypeBlank or unknown — treat as code
-		if cfg.OnlyComments {
+		if cfg.OnlyComments || cfg.OnlyStrings {
 			return 0
 		}
 		return cfg.WeightCode

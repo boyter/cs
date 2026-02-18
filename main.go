@@ -51,15 +51,31 @@ func main() {
 			"- CTRL+k to clear from the cursor location forward\n" +
 			"\n" +
 			"- F1 cycle ranker (simple/tfidf/tfidf2/bm25/structural)\n" +
-			"- F2 cycle code filter (default/only-code/only-comments)\n" +
+			"- F2 cycle code filter (default/only-code/only-comments/only-strings)\n" +
 			"- F3 cycle gravity (off/low/default/logic/brain)\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.SearchString = args
 
-			// Auto-select structural ranker when only-code or only-comments is set
-			if (cfg.OnlyCode || cfg.OnlyComments) && cfg.Ranker != "structural" {
-				fmt.Fprintf(os.Stderr, "warning: --only-code/--only-comments requires structural ranker, setting --ranker=structural\n")
+			// Mutual exclusivity check
+			count := 0
+			if cfg.OnlyCode {
+				count++
+			}
+			if cfg.OnlyComments {
+				count++
+			}
+			if cfg.OnlyStrings {
+				count++
+			}
+			if count > 1 {
+				fmt.Fprintf(os.Stderr, "error: --only-code, --only-comments, and --only-strings are mutually exclusive\n")
+				os.Exit(1)
+			}
+
+			// Auto-select structural ranker when a content filter is set
+			if cfg.HasContentFilter() && cfg.Ranker != "structural" {
+				fmt.Fprintf(os.Stderr, "warning: --only-code/--only-comments/--only-strings requires structural ranker, setting --ranker=structural\n")
 				cfg.Ranker = "structural"
 			}
 
@@ -310,6 +326,12 @@ func main() {
 		"only-comments",
 		false,
 		"only rank matches in comments (auto-selects structural ranker)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyStrings,
+		"only-strings",
+		false,
+		"only rank matches in string literals (auto-selects structural ranker)",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

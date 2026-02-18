@@ -590,21 +590,28 @@ func (m *model) cycleRanker() {
 	m.cfg.Ranker = "simple"
 }
 
-// cycleCodeFilter cycles: default → only-code → only-comments → default…
+// cycleCodeFilter cycles: default → only-code → only-comments → only-strings → default…
 // Auto-switches ranker to "structural" when a filter is active.
 func (m *model) cycleCodeFilter() {
 	switch {
-	case !m.cfg.OnlyCode && !m.cfg.OnlyComments:
+	case !m.cfg.OnlyCode && !m.cfg.OnlyComments && !m.cfg.OnlyStrings:
 		m.cfg.OnlyCode = true
 		m.cfg.OnlyComments = false
+		m.cfg.OnlyStrings = false
 	case m.cfg.OnlyCode:
 		m.cfg.OnlyCode = false
 		m.cfg.OnlyComments = true
+		m.cfg.OnlyStrings = false
+	case m.cfg.OnlyComments:
+		m.cfg.OnlyCode = false
+		m.cfg.OnlyComments = false
+		m.cfg.OnlyStrings = true
 	default:
 		m.cfg.OnlyCode = false
 		m.cfg.OnlyComments = false
+		m.cfg.OnlyStrings = false
 	}
-	if m.cfg.OnlyCode || m.cfg.OnlyComments {
+	if m.cfg.HasContentFilter() {
 		m.cfg.Ranker = "structural"
 	}
 }
@@ -646,6 +653,8 @@ func (m *model) codeFilterLabel() string {
 		return "only-code"
 	case m.cfg.OnlyComments:
 		return "only-comments"
+	case m.cfg.OnlyStrings:
+		return "only-strings"
 	default:
 		return "default"
 	}

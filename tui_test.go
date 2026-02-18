@@ -36,21 +36,28 @@ func TestCycleCodeFilter(t *testing.T) {
 	// default → only-code
 	m.cfg.OnlyCode = false
 	m.cfg.OnlyComments = false
+	m.cfg.OnlyStrings = false
 	m.cycleCodeFilter()
-	if !m.cfg.OnlyCode || m.cfg.OnlyComments {
-		t.Errorf("step 1: expected OnlyCode=true, OnlyComments=false")
+	if !m.cfg.OnlyCode || m.cfg.OnlyComments || m.cfg.OnlyStrings {
+		t.Errorf("step 1: expected OnlyCode=true, OnlyComments=false, OnlyStrings=false")
 	}
 
 	// only-code → only-comments
 	m.cycleCodeFilter()
-	if m.cfg.OnlyCode || !m.cfg.OnlyComments {
-		t.Errorf("step 2: expected OnlyCode=false, OnlyComments=true")
+	if m.cfg.OnlyCode || !m.cfg.OnlyComments || m.cfg.OnlyStrings {
+		t.Errorf("step 2: expected OnlyCode=false, OnlyComments=true, OnlyStrings=false")
 	}
 
-	// only-comments → default
+	// only-comments → only-strings
 	m.cycleCodeFilter()
-	if m.cfg.OnlyCode || m.cfg.OnlyComments {
-		t.Errorf("step 3: expected OnlyCode=false, OnlyComments=false")
+	if m.cfg.OnlyCode || m.cfg.OnlyComments || !m.cfg.OnlyStrings {
+		t.Errorf("step 3: expected OnlyCode=false, OnlyComments=false, OnlyStrings=true")
+	}
+
+	// only-strings → default
+	m.cycleCodeFilter()
+	if m.cfg.OnlyCode || m.cfg.OnlyComments || m.cfg.OnlyStrings {
+		t.Errorf("step 4: expected OnlyCode=false, OnlyComments=false, OnlyStrings=false")
 	}
 }
 
@@ -98,6 +105,7 @@ func TestCodeFilterLabel(t *testing.T) {
 
 	m.cfg.OnlyCode = false
 	m.cfg.OnlyComments = false
+	m.cfg.OnlyStrings = false
 	if got := m.codeFilterLabel(); got != "default" {
 		t.Errorf("expected 'default', got %q", got)
 	}
@@ -111,5 +119,11 @@ func TestCodeFilterLabel(t *testing.T) {
 	m.cfg.OnlyComments = true
 	if got := m.codeFilterLabel(); got != "only-comments" {
 		t.Errorf("expected 'only-comments', got %q", got)
+	}
+
+	m.cfg.OnlyComments = false
+	m.cfg.OnlyStrings = true
+	if got := m.codeFilterLabel(); got != "only-strings" {
+		t.Errorf("expected 'only-strings', got %q", got)
 	}
 }

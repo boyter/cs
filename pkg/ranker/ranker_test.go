@@ -105,6 +105,64 @@ func TestMatchWeight_OnlyComments_KeepsComments(t *testing.T) {
 	}
 }
 
+func TestMatchWeight_OnlyStrings_ZerosCode(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyStrings = true
+	bt := []byte{processor.ByteTypeCode}
+	w := matchWeight(bt, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for code with OnlyStrings, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyStrings_ZerosComments(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyStrings = true
+	bt := []byte{processor.ByteTypeComment}
+	w := matchWeight(bt, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for comment with OnlyStrings, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyStrings_KeepsStrings(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyStrings = true
+	bt := []byte{processor.ByteTypeString}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightString {
+		t.Errorf("expected %f for string with OnlyStrings, got %f", cfg.WeightString, w)
+	}
+}
+
+func TestMatchWeight_OnlyStrings_ZerosBlank(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyStrings = true
+	bt := []byte{processor.ByteTypeBlank}
+	w := matchWeight(bt, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for blank with OnlyStrings, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyStrings_NilByteType_ReturnsZero(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyStrings = true
+	w := matchWeight(nil, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for nil byte type with OnlyStrings, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyComments_NilByteType_ReturnsZero(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyComments = true
+	w := matchWeight(nil, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for nil byte type with OnlyComments, got %f", w)
+	}
+}
+
 func TestMatchWeight_OutOfBounds_FallbackToCode(t *testing.T) {
 	cfg := DefaultStructuralConfig()
 	bt := []byte{processor.ByteTypeComment}

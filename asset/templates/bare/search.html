@@ -38,6 +38,7 @@
 				<option value="default" {{ if eq .CodeFilter "default" }}selected{{ end }}>all</option>
 				<option value="only-code" {{ if eq .CodeFilter "only-code" }}selected{{ end }}>only-code</option>
 				<option value="only-comments" {{ if eq .CodeFilter "only-comments" }}selected{{ end }}>only-comments</option>
+				<option value="only-strings" {{ if eq .CodeFilter "only-strings" }}selected{{ end }}>only-strings</option>
 			</select>
 			<select name="gv" onchange="this.form.submit()">
 				<option value="off" {{ if eq .Gravity "off" }}selected{{ end }}>gravity: off</option>

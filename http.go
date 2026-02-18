@@ -218,15 +218,22 @@ func StartHttpServer(cfg *Config) {
 			case "only-code":
 				searchCfg.OnlyCode = true
 				searchCfg.OnlyComments = false
+				searchCfg.OnlyStrings = false
 			case "only-comments":
 				searchCfg.OnlyCode = false
 				searchCfg.OnlyComments = true
+				searchCfg.OnlyStrings = false
+			case "only-strings":
+				searchCfg.OnlyCode = false
+				searchCfg.OnlyComments = false
+				searchCfg.OnlyStrings = true
 			default:
 				searchCfg.OnlyCode = false
 				searchCfg.OnlyComments = false
+				searchCfg.OnlyStrings = false
 			}
 			// Auto-switch ranker to structural when code filter is active (matches TUI behavior)
-			if searchCfg.OnlyCode || searchCfg.OnlyComments {
+			if searchCfg.HasContentFilter() {
 				searchCfg.Ranker = "structural"
 				rankerParam = "structural"
 			}
