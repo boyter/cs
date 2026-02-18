@@ -30,7 +30,6 @@
 			<select name="rk" onchange="this.form.submit()">
 				<option value="simple" {{ if eq .Ranker "simple" }}selected{{ end }}>simple</option>
 				<option value="tfidf" {{ if eq .Ranker "tfidf" }}selected{{ end }}>tfidf</option>
-				<option value="tfidf2" {{ if eq .Ranker "tfidf2" }}selected{{ end }}>tfidf2</option>
 				<option value="bm25" {{ if eq .Ranker "bm25" }}selected{{ end }}>bm25</option>
 				<option value="structural" {{ if eq .Ranker "structural" }}selected{{ end }}>structural</option>
 			</select>

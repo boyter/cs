@@ -239,10 +239,6 @@ the following syntax
  - file:test              (substring match on filename)
  - filename:.go           (substring match on filename)
  - path:pkg/search        (substring match on full file path)
- - ext:go                 (filter by file extension)
- - lang:Go                (filter by detected language)
- - lang:Go,Python         (filter by multiple languages)
- - complexity:>=50        (filter by cyclomatic complexity)
 
 Example search that uses all current functionality
  - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/ file:test path:pkg
@@ -251,6 +247,10 @@ The default input field in tui mode supports some nano commands
 - CTRL+a move to the beginning of the input
 - CTRL+e move to the end of the input
 - CTRL+k to clear from the cursor location forward
+
+- F1 cycle ranker (simple/tfidf/bm25/structural)
+- F2 cycle code filter (default/only-code/only-comments/only-strings)
+- F3 cycle gravity (off/low/default/logic/brain)
 
 Usage:
   cs [flags]
@@ -270,13 +270,18 @@ Flags:
   -d, --http-server               start the HTTP server
   -i, --include-ext strings       limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]
       --max-read-size-bytes int   number of bytes to read into a file with the remaining content ignored (default 1000000)
+      --mcp                       start as an MCP (Model Context Protocol) server over stdio
       --min                       include minified files
       --min-line-length int       number of bytes per average line for file to be considered minified (default 255)
       --no-gitignore              disables .gitignore file logic
       --no-ignore                 disables .ignore file logic
       --no-syntax                 disable syntax highlighting in output
+      --noise string              noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off) (default "default")
+      --only-code                 only rank matches in code (auto-selects structural ranker)
+      --only-comments             only rank matches in comments (auto-selects structural ranker)
+      --only-strings              only rank matches in string literals (auto-selects structural ranker)
   -o, --output string             output filename (default stdout)
-      --ranker string             set ranking algorithm [simple, tfidf, tfidf2, bm25, structural] (default "bm25")
+      --ranker string             set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
   -s, --snippet-count int         number of snippets to display (default 1)
   -n, --snippet-length int        size of the snippet to display (default 300)
@@ -284,8 +289,12 @@ Flags:
       --template-display string   path to a custom display template
       --template-search string    path to a custom search template
       --template-style string     built-in theme for the HTTP server UI [dark, light, bare] (default "dark")
+      --test-penalty float        score multiplier for test files when query has no test intent (0.0-1.0, 1.0=disabled) (default 0.4)
   -t, --type strings              limit to language types [comma separated list: e.g. Go,Java,Python]
   -v, --version                   version for cs
+      --weight-code float         structural ranker: weight for matches in code (default 1.0) (default 1)
+      --weight-comment float      structural ranker: weight for matches in comments (default 0.2) (default 0.2)
+      --weight-string float       structural ranker: weight for matches in strings (default 0.5) (default 0.5)
 ```
 
 Searches work on single or multiple words with a logical AND applied between them. You can negate with NOT before a term.
