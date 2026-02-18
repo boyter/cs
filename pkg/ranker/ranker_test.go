@@ -236,7 +236,7 @@ func TestRankResults_StructuralCase(t *testing.T) {
 		MatchLocations:  map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0, 100.0)
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -254,7 +254,7 @@ func TestRankResults_BM25WithNilStructuralCfg(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0, 100.0)
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -344,7 +344,7 @@ func TestComplexityGravity_IntegrationWithBM25(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, 1.5, 100.0)
+	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, 1.5, 100.0, 1.0, false)
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -464,5 +464,181 @@ func TestCalculateDocumentFrequency(t *testing.T) {
 	}
 	if df["b"] != 1 {
 		t.Errorf("expected df[b]=1, got %d", df["b"])
+	}
+}
+
+// --- IsTestFile tests ---
+
+func TestIsTestFile_GoTestFile(t *testing.T) {
+	if !IsTestFile("foo_test.go") {
+		t.Error("expected foo_test.go to be a test file")
+	}
+}
+
+func TestIsTestFile_JsTestFile(t *testing.T) {
+	if !IsTestFile("foo.test.js") {
+		t.Error("expected foo.test.js to be a test file")
+	}
+}
+
+func TestIsTestFile_SpecFile(t *testing.T) {
+	if !IsTestFile("foo.spec.ts") {
+		t.Error("expected foo.spec.ts to be a test file")
+	}
+}
+
+func TestIsTestFile_TestPrefix(t *testing.T) {
+	if !IsTestFile("test_helper.py") {
+		t.Error("expected test_helper.py to be a test file")
+	}
+}
+
+func TestIsTestFile_JavaSuffix(t *testing.T) {
+	if !IsTestFile("UserServiceTest.java") {
+		t.Error("expected UserServiceTest.java to be a test file")
+	}
+}
+
+func TestIsTestFile_TestsDirectory(t *testing.T) {
+	if !IsTestFile("src/tests/foo.go") {
+		t.Error("expected src/tests/foo.go to be a test file")
+	}
+}
+
+func TestIsTestFile_JestDirectory(t *testing.T) {
+	if !IsTestFile("src/__tests__/foo.js") {
+		t.Error("expected src/__tests__/foo.js to be a test file")
+	}
+}
+
+func TestIsTestFile_RegularFile(t *testing.T) {
+	if IsTestFile("src/auth.go") {
+		t.Error("expected src/auth.go to NOT be a test file")
+	}
+}
+
+func TestIsTestFile_CaseInsensitive(t *testing.T) {
+	if !IsTestFile("Foo_Test.GO") {
+		t.Error("expected Foo_Test.GO to be a test file")
+	}
+}
+
+// --- HasTestIntent tests ---
+
+func TestHasTestIntent_WithTestKeyword(t *testing.T) {
+	if !HasTestIntent([]string{"auth", "test"}) {
+		t.Error("expected test intent with 'test' keyword")
+	}
+}
+
+func TestHasTestIntent_WithMockKeyword(t *testing.T) {
+	if !HasTestIntent([]string{"service", "mock"}) {
+		t.Error("expected test intent with 'mock' keyword")
+	}
+}
+
+func TestHasTestIntent_CaseInsensitive(t *testing.T) {
+	if !HasTestIntent([]string{"TEST"}) {
+		t.Error("expected test intent with 'TEST' (case insensitive)")
+	}
+}
+
+func TestHasTestIntent_NoIntentTerms(t *testing.T) {
+	if HasTestIntent([]string{"auth", "login"}) {
+		t.Error("expected no test intent for 'auth login'")
+	}
+}
+
+func TestHasTestIntent_EmptyInput(t *testing.T) {
+	if HasTestIntent([]string{}) {
+		t.Error("expected no test intent for empty input")
+	}
+}
+
+// --- rankResultsTestDampening tests ---
+
+func TestTestDampening_NonTestFileUnchanged(t *testing.T) {
+	file := &common.FileJob{
+		Location: "src/auth.go",
+		Score:    5.0,
+	}
+	rankResultsTestDampening([]*common.FileJob{file}, 0.4, false)
+	if file.Score != 5.0 {
+		t.Errorf("expected score 5.0 unchanged for non-test file, got %f", file.Score)
+	}
+}
+
+func TestTestDampening_TestFilePenalized(t *testing.T) {
+	file := &common.FileJob{
+		Location: "auth_test.go",
+		Score:    5.0,
+	}
+	rankResultsTestDampening([]*common.FileJob{file}, 0.4, false)
+	expected := 5.0 * 0.4
+	if file.Score != expected {
+		t.Errorf("expected score %f, got %f", expected, file.Score)
+	}
+}
+
+func TestTestDampening_TestFileBoosted(t *testing.T) {
+	file := &common.FileJob{
+		Location: "auth_test.go",
+		Score:    5.0,
+	}
+	rankResultsTestDampening([]*common.FileJob{file}, 0.4, true)
+	expected := 5.0 * 1.5
+	if file.Score != expected {
+		t.Errorf("expected score %f, got %f", expected, file.Score)
+	}
+}
+
+func TestTestDampening_ZeroScoreSkipped(t *testing.T) {
+	file := &common.FileJob{
+		Location: "auth_test.go",
+		Score:    0,
+	}
+	rankResultsTestDampening([]*common.FileJob{file}, 0.4, false)
+	if file.Score != 0 {
+		t.Errorf("expected score 0 unchanged, got %f", file.Score)
+	}
+}
+
+func TestTestDampening_NeutralPenaltyNoOp(t *testing.T) {
+	file := &common.FileJob{
+		Location: "auth_test.go",
+		Score:    5.0,
+	}
+	rankResultsTestDampening([]*common.FileJob{file}, 1.0, false)
+	if file.Score != 5.0 {
+		t.Errorf("expected score 5.0 unchanged with neutral penalty, got %f", file.Score)
+	}
+}
+
+func TestTestDampening_IntegrationWithBM25(t *testing.T) {
+	implFile := &common.FileJob{
+		Filename:       "auth.go",
+		Location:       "auth.go",
+		Content:        make([]byte, 100),
+		Bytes:          100,
+		Complexity:     10,
+		MatchLocations: map[string][][]int{"auth": {{0, 4}}},
+	}
+	testFile := &common.FileJob{
+		Filename:       "auth_test.go",
+		Location:       "auth_test.go",
+		Content:        make([]byte, 100),
+		Bytes:          100,
+		Complexity:     10,
+		MatchLocations: map[string][][]int{"auth": {{0, 4}, {10, 14}, {20, 24}}},
+	}
+
+	results := RankResults("bm25", 10, []*common.FileJob{implFile, testFile}, nil, 0.0, 100.0, 0.4, false)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	// With test dampening, the impl file should rank above the test file
+	if results[0].Location != "auth.go" {
+		t.Errorf("expected auth.go ranked first, got %s (scores: auth.go=%f, auth_test.go=%f)",
+			results[0].Location, implFile.Score, testFile.Score)
 	}
 }

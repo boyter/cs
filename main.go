@@ -207,6 +207,12 @@ func main() {
 		"default",
 		"noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off)",
 	)
+	flags.Float64Var(
+		&cfg.TestPenalty,
+		"test-penalty",
+		0.4,
+		"score multiplier for test files when query has no test intent (0.0-1.0, 1.0=disabled)",
+	)
 	flags.StringVarP(
 		&cfg.FileOutput,
 		"output",

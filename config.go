@@ -30,6 +30,7 @@ type Config struct {
 	Ranker        string
 	GravityIntent string
 	NoiseIntent   string
+	TestPenalty   float64
 	ResultLimit   int
 
 	// File walker
@@ -81,6 +82,7 @@ func DefaultConfig() Config {
 		Ranker:                 "bm25",
 		GravityIntent:          "default",
 		NoiseIntent:            "default",
+		TestPenalty:            0.4,
 		ResultLimit:            -1,
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,

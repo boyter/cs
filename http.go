@@ -50,20 +50,20 @@ type httpLineResult struct {
 }
 
 type httpSearchResult struct {
-	Title       string          `json:"title"`
-	Location    string          `json:"location"`
-	Content     []template.HTML `json:"content,omitempty"`
-	StartPos    int             `json:"startPos"`
-	EndPos      int             `json:"endPos"`
-	Score       float64         `json:"score"`
-	IsLineMode  bool            `json:"isLineMode,omitempty"`
+	Title       string           `json:"title"`
+	Location    string           `json:"location"`
+	Content     []template.HTML  `json:"content,omitempty"`
+	StartPos    int              `json:"startPos"`
+	EndPos      int              `json:"endPos"`
+	Score       float64          `json:"score"`
+	IsLineMode  bool             `json:"isLineMode,omitempty"`
 	LineResults []httpLineResult `json:"lineResults,omitempty"`
-	Language    string          `json:"language,omitempty"`
-	Lines       int64           `json:"lines,omitempty"`
-	Code        int64           `json:"code,omitempty"`
-	Comment     int64           `json:"comment,omitempty"`
-	Blank       int64           `json:"blank,omitempty"`
-	Complexity  int64           `json:"complexity,omitempty"`
+	Language    string           `json:"language,omitempty"`
+	Lines       int64            `json:"lines,omitempty"`
+	Code        int64            `json:"code,omitempty"`
+	Comment     int64            `json:"comment,omitempty"`
+	Blank       int64            `json:"blank,omitempty"`
+	Complexity  int64            `json:"complexity,omitempty"`
 }
 
 type httpFileDisplay struct {
@@ -191,6 +191,13 @@ func StartHttpServer(cfg *Config) {
 			noiseParam = cfg.NoiseIntent
 		}
 
+		testPenalty := cfg.TestPenalty
+		if tp := r.URL.Query().Get("tp"); tp != "" {
+			if v, err := strconv.ParseFloat(tp, 64); err == nil {
+				testPenalty = v
+			}
+		}
+
 		var results []*common.FileJob
 		var processedFileCount int64
 
@@ -232,7 +239,8 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			processedFileCount = stats.TextFileCount.Load()
-			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity())
+			testIntent := ranker.HasTestIntent(strings.Fields(query))
+			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), testPenalty, testIntent)
 		}
 
 		// Create a random str to define where the start and end of

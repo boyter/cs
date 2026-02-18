@@ -4,6 +4,7 @@ package ranker
 
 import (
 	"math"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -45,7 +46,7 @@ func DefaultStructuralConfig() StructuralConfig {
 // The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf2",
 // "structural", or anything else for classic TF-IDF.
 // structuralCfg is only used when rankerName is "structural" and may be nil otherwise.
-func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64, noiseSensitivity float64) []*common.FileJob {
+func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64, noiseSensitivity float64, testPenalty float64, testIntent bool) []*common.FileJob {
 	// needs to come first because it resets the scores
 	switch rankerName {
 	case "simple":
@@ -75,6 +76,7 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 	// The structural ranker will become the default in future, but until then this
 	// ensures the penalty is active regardless of ranker choice.
 	results = rankResultsNoisePenalty(results, noiseSensitivity)
+	results = rankResultsTestDampening(results, testPenalty, testIntent)
 
 	sortResults(results)
 	return results
@@ -303,6 +305,70 @@ func rankResultsNoisePenalty(results []*common.FileJob, sensitivity float64) []*
 		penalty := math.Min(1.0, signalRatio*sensitivity)
 
 		results[i].Score *= penalty
+	}
+	return results
+}
+
+// IsTestFile returns true if the file path looks like a test file based on
+// common naming conventions across languages.
+func IsTestFile(path string) bool {
+	lower := strings.ToLower(path)
+	base := strings.ToLower(filepath.Base(path))
+
+	// Directory patterns
+	if strings.Contains(lower, "/tests/") || strings.Contains(lower, "/test/") || strings.Contains(lower, "/__tests__/") {
+		return true
+	}
+
+	// Filename patterns: _test., .test., .spec., test_
+	if strings.Contains(base, "_test.") || strings.Contains(base, ".test.") || strings.Contains(base, ".spec.") || strings.HasPrefix(base, "test_") {
+		return true
+	}
+
+	// Base name (before extension) ends with "test" or "tests"
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+	if strings.HasSuffix(name, "test") || strings.HasSuffix(name, "tests") {
+		return true
+	}
+
+	return false
+}
+
+// HasTestIntent returns true if any of the query terms indicate the user is
+// searching for test-related code.
+func HasTestIntent(queryTerms []string) bool {
+	intentWords := map[string]struct{}{
+		"test": {}, "assert": {}, "expect": {}, "mock": {},
+		"stub": {}, "bench": {}, "suite": {}, "spec": {}, "should": {},
+	}
+	for _, term := range queryTerms {
+		if _, ok := intentWords[strings.ToLower(term)]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// rankResultsTestDampening adjusts scores for test files. When the query has
+// no test intent, test files are penalised by testPenalty (e.g. 0.4). When
+// the query has test intent, test files are boosted (×1.5).
+func rankResultsTestDampening(results []*common.FileJob, testPenalty float64, testIntent bool) []*common.FileJob {
+	if testPenalty == 1.0 && !testIntent {
+		return results
+	}
+	for i := 0; i < len(results); i++ {
+		if results[i].Score == 0 {
+			continue
+		}
+		if !IsTestFile(results[i].Location) {
+			continue
+		}
+		if testIntent {
+			results[i].Score *= 1.5
+		} else {
+			results[i].Score *= testPenalty
+		}
 	}
 	return results
 }
