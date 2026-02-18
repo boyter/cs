@@ -3,6 +3,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/boyter/cs/pkg/ranker"
 	"github.com/boyter/cs/pkg/snippet"
 	"github.com/boyter/gocodewalker"
@@ -26,6 +28,7 @@ type Config struct {
 	SnippetCount  int
 	SnippetMode   string
 	Ranker        string
+	GravityIntent string
 	ResultLimit   int
 
 	// File walker
@@ -75,6 +78,7 @@ func DefaultConfig() Config {
 		SnippetCount:           1,
 		SnippetMode:            "auto",
 		Ranker:                 "bm25",
+		GravityIntent:          "default",
 		ResultLimit:            -1,
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,
@@ -96,5 +100,23 @@ func (c *Config) StructuralRankerConfig() *ranker.StructuralConfig {
 		WeightString:  c.WeightString,
 		OnlyCode:      c.OnlyCode,
 		OnlyComments:  c.OnlyComments,
+	}
+}
+
+// ResolveGravityStrength maps the GravityIntent string to a numeric strength value.
+func (c *Config) ResolveGravityStrength() float64 {
+	switch strings.ToLower(c.GravityIntent) {
+	case "brain":
+		return 2.5
+	case "logic":
+		return 1.5
+	case "default", "":
+		return 1.0
+	case "low":
+		return 0.2
+	case "off":
+		return 0.0
+	default:
+		return 1.0
 	}
 }

@@ -193,6 +193,12 @@ func main() {
 		"bm25",
 		"set ranking algorithm [simple, tfidf, tfidf2, bm25, structural]",
 	)
+	flags.StringVar(
+		&cfg.GravityIntent,
+		"gravity",
+		"default",
+		"complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0)",
+	)
 	flags.StringVarP(
 		&cfg.FileOutput,
 		"output",

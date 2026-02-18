@@ -64,6 +64,9 @@ func StartMCPServer(cfg *Config) {
 		mcp.WithString("language",
 			mcp.Description("Comma-separated list of language types to search (e.g. \"Go,Python,JavaScript\")."),
 		),
+		mcp.WithString("gravity",
+			mcp.Description("Complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0). Controls how much cyclomatic complexity boosts ranking."),
+		),
 	)
 
 	mcpServer.AddTool(searchTool, mcpSearchHandler(cfg, cache))
@@ -234,6 +237,11 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 				searchCfg.LanguageTypes = strings.Split(s, ",")
 			}
 		}
+		if v, ok := request.GetArguments()["gravity"]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				searchCfg.GravityIntent = s
+			}
+		}
 
 		// Run search
 		ch, stats := DoSearch(ctx, &searchCfg, query, cache)
@@ -245,7 +253,7 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Rank results
 		textFileCount := int(stats.TextFileCount.Load())
-		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig())
+		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength())
 
 		// Apply max_results limit
 		if maxResults > 0 && len(results) > maxResults {

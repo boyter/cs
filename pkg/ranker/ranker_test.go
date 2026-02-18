@@ -236,7 +236,7 @@ func TestRankResults_StructuralCase(t *testing.T) {
 		MatchLocations:  map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("structural", 10, []*common.FileJob{file}, nil)
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -254,12 +254,103 @@ func TestRankResults_BM25WithNilStructuralCfg(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{file}, nil)
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 	if results[0].Score <= 0 {
 		t.Errorf("expected positive score for bm25, got %f", results[0].Score)
+	}
+}
+
+// --- rankResultsComplexityGravity tests ---
+
+func TestComplexityGravity_ZeroStrength_NoOp(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Complexity: 10,
+	}
+	results := rankResultsComplexityGravity([]*common.FileJob{file}, 0.0)
+	if results[0].Score != 5.0 {
+		t.Errorf("expected score 5.0 unchanged with zero strength, got %f", results[0].Score)
+	}
+}
+
+func TestComplexityGravity_ZeroComplexity_NoChange(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Complexity: 0,
+	}
+	results := rankResultsComplexityGravity([]*common.FileJob{file}, 1.0)
+	// ln(1+0) = 0, so boost = 0, score unchanged
+	if results[0].Score != 5.0 {
+		t.Errorf("expected score 5.0 unchanged with zero complexity, got %f", results[0].Score)
+	}
+}
+
+func TestComplexityGravity_PositiveComplexity_Boosts(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Complexity: 10,
+	}
+	original := file.Score
+	rankResultsComplexityGravity([]*common.FileJob{file}, 1.0)
+	if file.Score <= original {
+		t.Errorf("expected score > %f with positive complexity, got %f", original, file.Score)
+	}
+}
+
+func TestComplexityGravity_HigherComplexity_RanksHigher(t *testing.T) {
+	low := &common.FileJob{
+		Score:      5.0,
+		Complexity: 2,
+	}
+	high := &common.FileJob{
+		Score:      5.0,
+		Complexity: 50,
+	}
+	rankResultsComplexityGravity([]*common.FileJob{low, high}, 1.5)
+	if high.Score <= low.Score {
+		t.Errorf("expected high complexity score (%f) > low complexity score (%f)", high.Score, low.Score)
+	}
+}
+
+func TestComplexityGravity_ZeroScore_Skipped(t *testing.T) {
+	file := &common.FileJob{
+		Score:      0,
+		Complexity: 100,
+	}
+	rankResultsComplexityGravity([]*common.FileJob{file}, 2.5)
+	if file.Score != 0 {
+		t.Errorf("expected score 0 to remain unchanged, got %f", file.Score)
+	}
+}
+
+func TestComplexityGravity_IntegrationWithBM25(t *testing.T) {
+	lowComplexity := &common.FileJob{
+		Filename:       "simple.go",
+		Location:       "simple.go",
+		Content:        make([]byte, 100),
+		Bytes:          100,
+		Complexity:     1,
+		MatchLocations: map[string][][]int{"test": {{0, 4}}},
+	}
+	highComplexity := &common.FileJob{
+		Filename:       "complex.go",
+		Location:       "complex.go",
+		Content:        make([]byte, 100),
+		Bytes:          100,
+		Complexity:     50,
+		MatchLocations: map[string][][]int{"test": {{0, 4}}},
+	}
+
+	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, 1.5)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	// With gravity, the high complexity file should rank first
+	if results[0].Complexity != 50 {
+		t.Errorf("expected high complexity file ranked first, got complexity=%d", results[0].Complexity)
 	}
 }
 

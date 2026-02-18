@@ -95,6 +95,27 @@ Technically speaking it's not accurate because it calculates the weights based o
 but it works well enough in practice and is calculated on the fly. Try it out and report if something is not working as
 you expect?
 
+#### What is complexity gravity?
+
+Complexity gravity is a post-ranking boost that uses each file's cyclomatic complexity to influence result ordering.
+Complex source files (many branches, loops, conditions) get ranked higher than simple files or prose with the same
+text relevance score. This helps surface core logic files over boilerplate, configs, or documentation.
+
+The `--gravity` flag accepts a named intent:
+
+| Intent    | Strength | Purpose                                 |
+|-----------|----------|-----------------------------------------|
+| `brain`   | 2.5      | Aggressively surface complex core logic |
+| `logic`   | 1.5      | Standard boost toward complex code      |
+| `default` | 1.0      | Balanced (applied when flag not set)    |
+| `low`     | 0.2      | Flatten gravity, find simple boilerplate|
+| `off`     | 0.0      | Pure text relevance, no complexity boost|
+
+```shell
+cs --gravity=brain "search term"   # find complex implementations
+cs --gravity=off "search term"     # pure text relevance
+```
+
 #### How do you get the snippets?
 
 It's not fun... see https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go and https://github.com/boyter/cs/blob/master/pkg/snippet/snippet_lines.go 
@@ -173,6 +194,7 @@ The MCP server exposes two tools:
 | `case_sensitive` | boolean | no | Case sensitive search |
 | `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`) |
 | `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
+| `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off` |
 
 Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
 
@@ -238,6 +260,7 @@ Flags:
   -x, --exclude-pattern strings   file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]
   -r, --find-root                 attempts to find the root of this repository by traversing in reverse looking for .git or .hg
   -f, --format string             set output format [text, json, vimgrep] (default "text")
+      --gravity string            complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0) (default "default")
   -h, --help                      help for cs
       --hidden                    include hidden files
   -d, --http-server               start the HTTP server
@@ -249,7 +272,7 @@ Flags:
       --no-ignore                 disables .ignore file logic
       --no-syntax                 disable syntax highlighting in output
   -o, --output string             output filename (default stdout)
-      --ranker string             set ranking algorithm [simple, tfidf, tfidf2, bm25] (default "bm25")
+      --ranker string             set ranking algorithm [simple, tfidf, tfidf2, bm25, structural] (default "bm25")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
   -s, --snippet-count int         number of snippets to display (default 1)
   -n, --snippet-length int        size of the snippet to display (default 300)

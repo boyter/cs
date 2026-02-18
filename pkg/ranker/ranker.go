@@ -45,7 +45,7 @@ func DefaultStructuralConfig() StructuralConfig {
 // The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf2",
 // "structural", or anything else for classic TF-IDF.
 // structuralCfg is only used when rankerName is "structural" and may be nil otherwise.
-func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig) []*common.FileJob {
+func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64) []*common.FileJob {
 	// needs to come first because it resets the scores
 	switch rankerName {
 	case "simple":
@@ -67,6 +67,8 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 		results = rankResultsTFIDF(corpusCount, results, CalculateDocumentFrequency(results), true)
 		results = rankResultsLocation(results)
 	}
+
+	results = rankResultsComplexityGravity(results, gravityStrength)
 
 	sortResults(results)
 	return results
@@ -256,6 +258,23 @@ func matchWeight(contentByteType []byte, startByte int, cfg StructuralConfig) fl
 		}
 		return cfg.WeightCode
 	}
+}
+
+// rankResultsComplexityGravity applies a post-ranking boost based on each file's
+// cyclomatic complexity. Complex code files get boosted; prose/markdown (complexity=0)
+// are unaffected. Formula: Score_final = Score_base * (1 + (ln(1 + Complexity) * Strength))
+func rankResultsComplexityGravity(results []*common.FileJob, gravityStrength float64) []*common.FileJob {
+	if gravityStrength == 0 {
+		return results
+	}
+	for i := 0; i < len(results); i++ {
+		if results[i].Score == 0 {
+			continue
+		}
+		boost := math.Log1p(float64(results[i].Complexity))
+		results[i].Score *= (1.0 + (boost * gravityStrength))
+	}
+	return results
 }
 
 // rankResultsStructural is a BM25 variant that weights term frequency by the
