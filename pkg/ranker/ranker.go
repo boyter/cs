@@ -45,7 +45,7 @@ func DefaultStructuralConfig() StructuralConfig {
 // The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf2",
 // "structural", or anything else for classic TF-IDF.
 // structuralCfg is only used when rankerName is "structural" and may be nil otherwise.
-func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64) []*common.FileJob {
+func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64, noiseSensitivity float64) []*common.FileJob {
 	// needs to come first because it resets the scores
 	switch rankerName {
 	case "simple":
@@ -69,6 +69,12 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 	}
 
 	results = rankResultsComplexityGravity(results, gravityStrength)
+
+	// Noise penalty applies to all rankers (not just structural) because it is
+	// a file-level property (size vs complexity), not a term-frequency calculation.
+	// The structural ranker will become the default in future, but until then this
+	// ensures the penalty is active regardless of ranker choice.
+	results = rankResultsNoisePenalty(results, noiseSensitivity)
 
 	sortResults(results)
 	return results
@@ -273,6 +279,30 @@ func rankResultsComplexityGravity(results []*common.FileJob, gravityStrength flo
 		}
 		boost := math.Log1p(float64(results[i].Complexity))
 		results[i].Score *= (1.0 + (boost * gravityStrength))
+	}
+	return results
+}
+
+// rankResultsNoisePenalty dampens scores for files with low information density
+// (large size but little logical complexity). Files like minified JS, JSON blobs,
+// SQL dumps, and logs get penalised while clean code files are left untouched.
+// Formula: SignalRatio = (Complexity + 1) / log10(Bytes), Penalty = min(1.0, SignalRatio * Sensitivity)
+func rankResultsNoisePenalty(results []*common.FileJob, sensitivity float64) []*common.FileJob {
+	if sensitivity >= 100.0 {
+		return results
+	}
+	for i := 0; i < len(results); i++ {
+		if results[i].Score == 0 {
+			continue
+		}
+
+		safeBytes := math.Max(10, float64(results[i].Bytes))
+		fileSizeLog := math.Log10(safeBytes)
+
+		signalRatio := (float64(results[i].Complexity) + 1.0) / fileSizeLog
+		penalty := math.Min(1.0, signalRatio*sensitivity)
+
+		results[i].Score *= penalty
 	}
 	return results
 }

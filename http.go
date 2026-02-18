@@ -180,7 +180,7 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			processedFileCount = stats.TextFileCount.Load()
-			results = ranker.RankResults(cfg.Ranker, int(processedFileCount), results, cfg.StructuralRankerConfig(), cfg.ResolveGravityStrength())
+			results = ranker.RankResults(cfg.Ranker, int(processedFileCount), results, cfg.StructuralRankerConfig(), cfg.ResolveGravityStrength(), cfg.ResolveNoiseSensitivity())
 		}
 
 		// Create a random str to define where the start and end of

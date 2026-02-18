@@ -253,7 +253,7 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Rank results
 		textFileCount := int(stats.TextFileCount.Load())
-		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength())
+		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity())
 
 		// Apply max_results limit
 		if maxResults > 0 && len(results) > maxResults {

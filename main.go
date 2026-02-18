@@ -197,6 +197,12 @@ func main() {
 		"default",
 		"complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0)",
 	)
+	flags.StringVar(
+		&cfg.NoiseIntent,
+		"noise",
+		"default",
+		"noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off)",
+	)
 	flags.StringVarP(
 		&cfg.FileOutput,
 		"output",

@@ -29,6 +29,7 @@ type Config struct {
 	SnippetMode   string
 	Ranker        string
 	GravityIntent string
+	NoiseIntent   string
 	ResultLimit   int
 
 	// File walker
@@ -79,6 +80,7 @@ func DefaultConfig() Config {
 		SnippetMode:            "auto",
 		Ranker:                 "bm25",
 		GravityIntent:          "default",
+		NoiseIntent:            "default",
 		ResultLimit:            -1,
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,
@@ -100,6 +102,25 @@ func (c *Config) StructuralRankerConfig() *ranker.StructuralConfig {
 		WeightString:  c.WeightString,
 		OnlyCode:      c.OnlyCode,
 		OnlyComments:  c.OnlyComments,
+	}
+}
+
+// ResolveNoiseSensitivity maps the NoiseIntent string to a numeric sensitivity value
+// used by the signal-to-noise penalty.
+func (c *Config) ResolveNoiseSensitivity() float64 {
+	switch strings.ToLower(c.NoiseIntent) {
+	case "silence":
+		return 0.1
+	case "quiet":
+		return 0.5
+	case "default", "":
+		return 1.0
+	case "loud":
+		return 2.0
+	case "raw":
+		return 100.0
+	default:
+		return 1.0
 	}
 }
 

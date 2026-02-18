@@ -236,7 +236,7 @@ func TestRankResults_StructuralCase(t *testing.T) {
 		MatchLocations:  map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0)
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0, 100.0)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -254,7 +254,7 @@ func TestRankResults_BM25WithNilStructuralCfg(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0)
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0, 100.0)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -344,13 +344,109 @@ func TestComplexityGravity_IntegrationWithBM25(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, 1.5)
+	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, 1.5, 100.0)
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	// With gravity, the high complexity file should rank first
 	if results[0].Complexity != 50 {
 		t.Errorf("expected high complexity file ranked first, got complexity=%d", results[0].Complexity)
+	}
+}
+
+// --- rankResultsNoisePenalty tests ---
+
+func TestNoisePenalty_RawSensitivity_NoOp(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Bytes:      1_000_000,
+		Complexity: 0,
+	}
+	rankResultsNoisePenalty([]*common.FileJob{file}, 100.0)
+	if file.Score != 5.0 {
+		t.Errorf("expected score 5.0 unchanged with raw sensitivity, got %f", file.Score)
+	}
+}
+
+func TestNoisePenalty_LargeFileZeroComplexity_Penalised(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Bytes:      1_000_000, // log10 = 6
+		Complexity: 0,         // signal = 1/6 ≈ 0.167
+	}
+	rankResultsNoisePenalty([]*common.FileJob{file}, 1.0)
+	if file.Score >= 5.0 {
+		t.Errorf("expected score < 5.0 for large zero-complexity file, got %f", file.Score)
+	}
+	if file.Score <= 0 {
+		t.Errorf("expected positive score, got %f", file.Score)
+	}
+}
+
+func TestNoisePenalty_HighComplexitySmallFile_Untouched(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Bytes:      5000,  // log10 ≈ 3.7
+		Complexity: 20,    // signal = 21/3.7 ≈ 5.67, clamped to 1.0
+	}
+	rankResultsNoisePenalty([]*common.FileJob{file}, 1.0)
+	if file.Score != 5.0 {
+		t.Errorf("expected score 5.0 unchanged for high-complexity file, got %f", file.Score)
+	}
+}
+
+func TestNoisePenalty_ZeroScore_Skipped(t *testing.T) {
+	file := &common.FileJob{
+		Score:      0,
+		Bytes:      1_000_000,
+		Complexity: 0,
+	}
+	rankResultsNoisePenalty([]*common.FileJob{file}, 1.0)
+	if file.Score != 0 {
+		t.Errorf("expected score 0 unchanged, got %f", file.Score)
+	}
+}
+
+func TestNoisePenalty_SilenceSeverePenalty(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Bytes:      100_000,
+		Complexity: 0,
+	}
+	rankResultsNoisePenalty([]*common.FileJob{file}, 0.1) // silence
+	// signal = 1/5 = 0.2, penalty = min(1.0, 0.2*0.1) = 0.02
+	if file.Score >= 1.0 {
+		t.Errorf("expected severe penalty with silence sensitivity, got %f", file.Score)
+	}
+}
+
+func TestNoisePenalty_SmallBytesFloor(t *testing.T) {
+	file := &common.FileJob{
+		Score:      5.0,
+		Bytes:      0, // should be floored to 10
+		Complexity: 5,
+	}
+	rankResultsNoisePenalty([]*common.FileJob{file}, 1.0)
+	// safeBytes = 10, log10(10) = 1, signal = 6/1 = 6, clamped to 1.0
+	if file.Score != 5.0 {
+		t.Errorf("expected score unchanged when bytes floored to 10, got %f", file.Score)
+	}
+}
+
+func TestNoisePenalty_DataFileRankedBelowCodeFile(t *testing.T) {
+	jsonFile := &common.FileJob{
+		Score:      5.0,
+		Bytes:      500_000,
+		Complexity: 0,
+	}
+	goFile := &common.FileJob{
+		Score:      5.0,
+		Bytes:      5000,
+		Complexity: 20,
+	}
+	rankResultsNoisePenalty([]*common.FileJob{jsonFile, goFile}, 1.0)
+	if jsonFile.Score >= goFile.Score {
+		t.Errorf("expected JSON file score (%f) < Go file score (%f)", jsonFile.Score, goFile.Score)
 	}
 }
 
