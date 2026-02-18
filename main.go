@@ -188,7 +188,7 @@ func main() {
 	flags.StringVar(
 		&cfg.Ranker,
 		"ranker",
-		"bm25",
+		"structural",
 		"set ranking algorithm [simple, tfidf, tfidf2, bm25, structural]",
 	)
 	flags.StringVar(
