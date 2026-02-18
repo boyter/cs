@@ -1,78 +1,51 @@
-<html>
-	<head>
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>{{ .SearchTerm }}</title>
-		<style>
-			strong {
-				background-color: #FFFF00;
-			}
-			pre {
-				white-space: pre-wrap;
-				white-space: -moz-pre-wrap;
-				white-space: -pre-wrap;
-				white-space: -o-pre-wrap;
-				word-wrap: break-word;
-			}
-			body {
-				width: 80%;
-				margin: 10px auto;
-				display: block;
-			}
-		</style>
-	</head>
-	<body>
-		<div>
-		<form method="get" action="/" >
-			<input type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" />
-			<input type="submit" value="search" />
-			<select name="ss" id="ss" onchange="this.form.submit()">
-				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
-				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
-				<option value="300" {{ if eq .SnippetSize 300 }}selected{{ end }}>300</option>
-				<option value="400" {{ if eq .SnippetSize 400 }}selected{{ end }}>400</option>
-				<option value="500" {{ if eq .SnippetSize 500 }}selected{{ end }}>500</option>
-				<option value="600" {{ if eq .SnippetSize 600 }}selected{{ end }}>600</option>
-				<option value="700" {{ if eq .SnippetSize 700 }}selected{{ end }}>700</option>
-				<option value="800" {{ if eq .SnippetSize 800 }}selected{{ end }}>800</option>
-				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
-				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
-			</select>
-			<small>[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
-		</form>
-		</div>
-		<div style="display:flex;">
-			{{if .Results -}}
-			<div style="flex-grow: 4;">
-				<ul>
-					{{- range .Results }}
-					<li>
-						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <small>({{ .Language }})</small>{{ end }}</h4>
-						{{ if .Lines }}<small style="color:#808080">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</small>{{ end }}
-						{{ if .IsLineMode }}<pre>{{ range .LineResults }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
-{{ end }}</pre>{{ else }}{{- range .Content }}
-							<pre>{{ . }}</pre>
-						{{- end }}{{ end }}
-					</li><small>[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to location</a>]</small>
-					{{- end }}
-				</ul>
-
-				<div>
-				{{- range .Pages }}
-					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}">{{ .Name }}</a>
-				{{- end }}
-				</div>
-			</div>
-			{{- end}}
-			{{if .ExtensionFacet }}
-			<div style="flex-grow: 1;">
-				<h4>extensions</h4>
-				<ol>
-				{{- range .ExtensionFacet }}
-					<li value="{{ .Count }}"><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}">{{ .Title }}</a></li>
-				{{- end }}
-				</ol>
-			</div>
-			{{- end }}
-		</div>
-	</body>
-</html>
+{{ define "searchStyles" }}<style>
+strong { background-color: #FFFF00; }
+strong strong { background-color: #FFFF00; }
+pre, .cs-result-linepre, .cs-snippet { white-space: pre-wrap; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; word-wrap: break-word; }
+.cs-search-body {
+	width: 80%;
+	margin: 10px auto;
+	display: block;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	overflow-y: scroll;
+	min-height: 100vh;
+}
+.cs-search-form {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+.cs-search-input { flex: 1; min-width: 0; flex: 1 1 auto; }
+.cs-search-submit { flex: 0 0 auto; }
+.cs-search-select { flex: 0 0 auto; }
+.cs-stats {
+	color: inherit;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-variant-numeric: tabular-nums;
+	flex: 0 0 24ch;
+	min-width: 24ch;
+}
+.cs-results-layout { display: flex; }
+.cs-results-main { flex-grow: 1; min-width: 0; }
+.cs-results-sidebar { flex: 0 0 14rem; min-width: 14rem; }
+.cs-result-item {
+	padding: 10px 0;
+	border-bottom: 1px solid #ddd;
+}
+.cs-result-item h4 { margin: 0; }
+.cs-result-item h4 a { color: #0000EE; }
+.cs-result-item pre,
+.cs-result-linepre,
+.cs-snippet { background: inherit; }
+.cs-result-language { color: #808080; }
+.cs-result-meta { color: #808080; }
+.cs-result-lineno { color: #808080; user-select: none; }
+.cs-facet-list { padding-left: 24px; margin: 0; }
+.cs-facet-list li {
+	padding: 3px 0;
+}
+</style>{{ end }}

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ .SearchTerm }} - cs search</title>
+	{{ template "searchStyles" . }}
+</head>
+<body class="cs-search-body">
+	<div class="cs-container">
+		<form class="cs-search-form" method="get" action="/">
+			<input class="cs-search-input" type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" placeholder="Search..." />
+			<input class="cs-search-submit" type="submit" value="{{ if eq .TemplateStyle "bare" }}search{{ else }}Search{{ end }}" />
+			<select class="cs-search-select" name="ss" id="ss" onchange="this.form.submit()">
+				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
+				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
+				<option value="300" {{ if eq .SnippetSize 300 }}selected{{ end }}>300</option>
+				<option value="400" {{ if eq .SnippetSize 400 }}selected{{ end }}>400</option>
+				<option value="500" {{ if eq .SnippetSize 500 }}selected{{ end }}>500</option>
+				<option value="600" {{ if eq .SnippetSize 600 }}selected{{ end }}>600</option>
+				<option value="700" {{ if eq .SnippetSize 700 }}selected{{ end }}>700</option>
+				<option value="800" {{ if eq .SnippetSize 800 }}selected{{ end }}>800</option>
+				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
+				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
+			</select>
+			<span id="cs-stats" class="cs-stats">[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} ms]</span>
+		</form>
+
+			<div id="cs-results" class="cs-results-layout">
+				{{if .Results -}}
+				<div class="cs-results-main">
+					{{- range .Results }}
+					<div class="cs-result-item">
+						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <span class="cs-result-language">({{ .Language }})</span>{{ end }}</h4>
+						{{ if .Lines }}<div class="cs-result-meta">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</div>{{ end }}
+						{{ if .IsLineMode }}<pre class="cs-result-linepre">{{ range .LineResults }}<span class="cs-result-lineno">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
+{{ end }}</pre>{{ else }}{{- range .Content }}
+						<pre class="cs-snippet">{{ . }}</pre>
+						{{- end }}{{ end }}
+						<span class="cs-jump-link">[<a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}#{{ .StartPos }}">jump to match</a>]</span>
+					</div>
+					{{- end }}
+
+					<div class="cs-pages">
+					{{- range .Pages }}
+						<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}">{{ .Name }}</a>
+					{{- end }}
+					</div>
+					</div>
+					<div class="cs-results-sidebar">
+						{{if .ExtensionFacet }}
+							<div class="cs-sidebar-heading">Extensions</div>
+							<ul class="cs-facet-list">
+						{{- range .ExtensionFacet }}
+							<li><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}">{{ .Title }}</a> <span class="cs-facet-count">({{ .Count }})</span></li>
+						{{- end }}
+						</ul>
+						{{- end }}
+					</div>
+					{{- end}}
+				</div>
+	</div>
+	<script>
+		(function () {
+			var searchForm = document.querySelector('form[method="get"][action="/"]');
+			if (!searchForm) {
+				return;
+			}
+			var queryInput = searchForm.querySelector('input[name="q"]');
+			if (!queryInput) {
+				return;
+			}
+			var resultsContainer = document.getElementById('cs-results');
+			var statsElement = document.getElementById('cs-stats');
+
+			if (!resultsContainer || !statsElement) {
+				return;
+			}
+
+			var timer;
+			var lastQuery = queryInput.value;
+			var inFlight;
+			var parser = new DOMParser();
+			var delayMs = 50;
+			var doSearch = function () {
+				var nextQuery = queryInput.value;
+				if (nextQuery === lastQuery) {
+					return;
+				}
+				lastQuery = nextQuery;
+				clearTimeout(timer);
+				timer = setTimeout(function () {
+					var params = new URLSearchParams(new FormData(searchForm));
+					params.set('q', nextQuery);
+					params.delete('p');
+					params.set('_ajax', '1');
+
+					if (inFlight) {
+						inFlight.abort();
+					}
+					inFlight = new AbortController();
+					var requestUrl = '/?' + params.toString();
+
+					fetch(requestUrl, {
+						method: 'GET',
+						signal: inFlight.signal,
+					}).then(function (response) {
+						if (!response.ok) {
+							throw new Error('search request failed');
+						}
+						return response.text();
+					}).then(function (responseHTML) {
+						if (inFlight.signal.aborted) {
+							return;
+						}
+
+						var doc = parser.parseFromString(responseHTML, 'text/html');
+						var newResults = doc.getElementById('cs-results');
+						var newStats = doc.getElementById('cs-stats');
+
+						if (newResults) {
+							resultsContainer.innerHTML = newResults.innerHTML;
+						} else {
+							resultsContainer.innerHTML = '';
+						}
+
+						if (newStats) {
+							statsElement.innerHTML = newStats.innerHTML;
+						}
+
+						params.delete('_ajax');
+						if (history.replaceState) {
+							var nextLocation = '/';
+							var nextQuery = params.toString();
+							if (nextQuery) {
+								nextLocation = nextLocation + '?' + nextQuery;
+							}
+							history.replaceState({}, '', nextLocation);
+						}
+					}).catch(function (err) {
+						if (err && err.name === 'AbortError') {
+							return;
+						}
+						console.error('search request failed', err);
+					});
+				}, delayMs);
+			};
+
+			queryInput.addEventListener('input', doSearch);
+		})();
+	</script>
+</body>
+</html>

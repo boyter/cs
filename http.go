@@ -30,6 +30,7 @@ import (
 type httpSearch struct {
 	SearchTerm          string
 	SnippetSize         int
+	TemplateStyle       string
 	Results             []httpSearchResult
 	ResultsCount        int
 	RuntimeMilliseconds int64
@@ -325,6 +326,7 @@ func StartHttpServer(cfg *Config) {
 		err := searchTmpl.Execute(w, httpSearch{
 			SearchTerm:          query,
 			SnippetSize:         snippetLength,
+			TemplateStyle:       cfg.TemplateStyle,
 			Results:             searchResults,
 			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
@@ -338,8 +340,21 @@ func StartHttpServer(cfg *Config) {
 		}
 	})
 
-	fmt.Printf("starting HTTP server on %s\n", cfg.Address)
+	fmt.Printf("starting HTTP server on %s\n", resolveDisplayAddress(cfg.Address))
 	log.Fatal(http.ListenAndServe(cfg.Address, nil))
+}
+
+func resolveDisplayAddress(address string) string {
+	switch {
+	case strings.HasPrefix(address, "http://") || strings.HasPrefix(address, "https://"):
+		return address
+	case strings.HasPrefix(address, ":"):
+		return "http://localhost" + address
+	case strings.TrimSpace(address) == "":
+		return "http://localhost:8080"
+	default:
+		return "http://" + address
+	}
 }
 
 func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int) []httpFacetResult {

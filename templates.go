@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-//go:embed asset/templates/bare/*.html asset/templates/dark/*.html asset/templates/light/*.html
+//go:embed asset/templates/base/*.html asset/templates/bare/*.html asset/templates/dark/*.html asset/templates/light/*.html
 var templateFS embed.FS
 
 var validStyles = []string{"dark", "light", "bare"}
@@ -29,12 +29,24 @@ func resolveSearchTemplate(cfg *Config) (*template.Template, error) {
 		return nil, fmt.Errorf("unknown template style %q (valid: dark, light, bare)", cfg.TemplateStyle)
 	}
 
+	basePath := "asset/templates/base/search.html"
+	baseData, err := templateFS.ReadFile(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded base search template: %w", err)
+	}
+
 	path := fmt.Sprintf("asset/templates/%s/search.html", cfg.TemplateStyle)
 	data, err := templateFS.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading embedded search template for style %q: %w", cfg.TemplateStyle, err)
 	}
-	return template.New("search").Parse(string(data))
+
+	tmpl, err := template.New("search").Parse(string(baseData))
+	if err != nil {
+		return nil, fmt.Errorf("parsing base search template: %w", err)
+	}
+
+	return tmpl.Parse(string(data))
 }
 
 // resolveDisplayTemplate returns the parsed display template. Custom file override
