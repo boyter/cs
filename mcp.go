@@ -57,7 +57,15 @@ func StartMCPServer(cfg *Config) {
 			"- ext:value — filter by extension: ext:go, ext=ts,tsx\n\n"+
 			"Filter operators: = != (e.g. lang!=python, file!=test)\n"+
 			"Negation: NOT file:test, file!=test, NOT path:vendor, path!=vendor\n\n"+
-			"Combined example: 'jwt middleware lang:go NOT path:vendor ext:go'"),
+			"Content type filter (code_filter parameter):\n"+
+			"- 'only-code': matches in code only, skipping comments and strings — e.g. find where a function is called, not just mentioned\n"+
+			"- 'only-strings': matches in string literals only — find SQL queries, error messages, config values, connection strings\n"+
+			"- 'only-comments': matches in comments only — find TODOs, developer explanations, annotations\n\n"+
+			"Combined examples:\n"+
+			"- 'jwt middleware lang:go NOT path:vendor' — find Go JWT middleware outside vendor\n"+
+			"- query='dense_rank' code_filter='only-strings' — find the actual SQL string, not code references\n"+
+			"- query='middleware' code_filter='only-code' path filter='NOT path:vendor' — find middleware implementations\n"+
+			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow"),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
 			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
@@ -87,10 +95,15 @@ func StartMCPServer(cfg *Config) {
 				"default (1.0) — balanced, low (0.2) — mostly ignore complexity, off (0.0) — pure text relevance only."),
 		),
 		mcp.WithString("code_filter",
-			mcp.Description("Content type filter: 'only-code' (find matches in code only, skip comments/strings), "+
-				"'only-comments' (find TODOs, annotations, doc comments), "+
-				"'only-strings' (find hardcoded strings, error messages, log messages). "+
-				"Default: no filter (all content types)."),
+			mcp.Description("Content type filter — narrows matches to a specific part of the source file.\n"+
+				"Values:\n"+
+				"- 'only-code': match only in executable code lines (skip comments and string literals). "+
+				"Use when searching for function calls, variable usage, or control flow.\n"+
+				"- 'only-strings': match only in string literals. "+
+				"Use when searching for SQL queries (e.g. 'dense_rank'), error messages, log messages, config keys, dependency names, or connection strings.\n"+
+				"- 'only-comments': match only in comments. "+
+				"Use when searching for TODOs, FIXMEs, developer explanations of complex logic, or doc annotations.\n"+
+				"Default: no filter (searches all content types)."),
 		),
 	)
 
