@@ -43,10 +43,12 @@ func StartMCPServer(cfg *Config) {
 	searchTool := mcp.NewTool("search",
 		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking. "+
 			"Supports: exact match with quotes, fuzzy match (term~1, term~2), NOT operator, regex (/pattern/), "+
-			"file filtering (file:test, filename:.go), path filtering (path:pkg/search)."),
+			"file filtering (file:test, filename:.go), path filtering (path:pkg/search). "+
+			"Examples: 'NOT path:vendor' excludes vendor directories, 'path:src' scopes to src/, "+
+			"'jwt middleware path:platform NOT path:vendor file:.go' combines filters."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
-			mcp.Description("The search query. Supports boolean logic (AND/OR/NOT), quoted phrases, regex (/pattern/), fuzzy matching (term~1), file filtering (file:name), and path filtering (path:dir)."),
+			mcp.Description("The search query. Supports boolean logic (AND/OR/NOT), quoted phrases, regex (/pattern/), fuzzy matching (term~1), file filtering (file:name), and path filtering (path:dir). Use 'NOT path:vendor' to exclude directories by path. Use 'path:subdir' to scope to a subdirectory. Note: 'file:' matches filename only; 'path:' matches the full directory path."),
 			mcp.Required(),
 		),
 		mcp.WithNumber("max_results",
