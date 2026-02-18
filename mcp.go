@@ -41,15 +41,29 @@ func StartMCPServer(cfg *Config) {
 	)
 
 	searchTool := mcp.NewTool("search",
-		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking. "+
-			"Supports: exact match with quotes, fuzzy match (term~1, term~2), NOT operator, regex (/pattern/), "+
-			"file filtering (file:test, filename:.go), path filtering (path:pkg/search). "+
-			"Glob patterns supported in file: and path: filters: file:*.go, file:*_test.go, path:*/pkg/*, NOT path:vendor/*/*. "+
-			"Examples: 'NOT path:vendor' excludes vendor directories, 'path:src' scopes to src/, "+
-			"'jwt middleware path:platform NOT path:vendor file:*.go' combines filters."),
+		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking.\n\n"+
+			"Query syntax:\n"+
+			"- Keywords: terms are ANDed by default (e.g. 'jwt middleware' finds files with both terms)\n"+
+			"- OR: 'error OR exception' matches either term\n"+
+			"- NOT: 'NOT path:vendor' excludes matches\n"+
+			"- Grouping: '(auth OR login) AND handler'\n"+
+			"- Phrases: '\"exact phrase\"' for exact match\n"+
+			"- Regex: '/pattern/' (e.g. '/func\\s+Test/')\n"+
+			"- Fuzzy: 'term~1' or 'term~2' for typo-tolerant matching (Levenshtein distance 1 or 2)\n\n"+
+			"Filters (in-query):\n"+
+			"- file:pattern — match filename (substring or glob: file:*.go, file:*_test.go)\n"+
+			"- path:pattern — match full path (substring or glob: path:*/pkg/*, NOT path:vendor/*/*)\n"+
+			"- lang:value — filter by language: lang:go, lang=go,python (multi-value with commas)\n"+
+			"- ext:value — filter by extension: ext:go, ext=ts,tsx\n\n"+
+			"Filter operators: = != (e.g. lang!=python, file!=test)\n"+
+			"Negation: NOT file:test, file!=test, NOT path:vendor, path!=vendor\n\n"+
+			"Combined example: 'jwt middleware lang:go NOT path:vendor ext:go'"),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
-			mcp.Description("The search query. Supports boolean logic (AND/OR/NOT), quoted phrases, regex (/pattern/), fuzzy matching (term~1), file filtering (file:name), and path filtering (path:dir). Use 'NOT path:vendor' to exclude directories by path. Use 'path:subdir' to scope to a subdirectory. Note: 'file:' matches filename only; 'path:' matches the full directory path."),
+			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
+				"grouping ('(auth OR login) AND handler'), quoted phrases ('\"exact match\"'), regex (/pattern/), fuzzy (term~1, term~2). "+
+				"In-query filters: file:name, path:dir, lang:go, ext:ts. Operators: = != (lang!=python, file!=test). "+
+				"Multi-value: lang=go,python, ext=ts,tsx. 'file:' matches filename only; 'path:' matches the full directory path."),
 			mcp.Required(),
 		),
 		mcp.WithNumber("max_results",
@@ -62,16 +76,21 @@ func StartMCPServer(cfg *Config) {
 			mcp.Description("Make the search case sensitive."),
 		),
 		mcp.WithString("include_ext",
-			mcp.Description("Comma-separated list of file extensions to search (e.g. \"go,js,py\")."),
+			mcp.Description("Comma-separated list of file extensions to search (e.g. \"go,js,py\"). Convenience parameter equivalent to in-query 'ext:go,js,py' filter."),
 		),
 		mcp.WithString("language",
-			mcp.Description("Comma-separated list of language types to search (e.g. \"Go,Python,JavaScript\")."),
+			mcp.Description("Comma-separated list of language types to search (e.g. \"Go,Python,JavaScript\"). Convenience parameter equivalent to in-query 'lang:Go,Python' filter."),
 		),
 		mcp.WithString("gravity",
-			mcp.Description("Complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0). Controls how much cyclomatic complexity boosts ranking."),
+			mcp.Description("Complexity gravity intent controlling how much cyclomatic complexity boosts ranking. "+
+				"Values: brain (2.5) — find complex algorithmic code, logic (1.5) — prefer branching/control flow, "+
+				"default (1.0) — balanced, low (0.2) — mostly ignore complexity, off (0.0) — pure text relevance only."),
 		),
 		mcp.WithString("code_filter",
-			mcp.Description("Content type filter: 'only-code' (matches in code only), 'only-comments' (matches in comments only), 'only-strings' (matches in string literals only). Default: no filter (all content types)."),
+			mcp.Description("Content type filter: 'only-code' (find matches in code only, skip comments/strings), "+
+				"'only-comments' (find TODOs, annotations, doc comments), "+
+				"'only-strings' (find hardcoded strings, error messages, log messages). "+
+				"Default: no filter (all content types)."),
 		),
 	)
 
