@@ -326,6 +326,7 @@ func rankResultsStructural(corpusCount int, results []*common.FileJob, documentF
 	for i := 0; i < len(results); i++ {
 		var weight float64
 		words := float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
+		allStop := AllStopwords(results[i].Language, results[i].MatchLocations)
 
 		for word, wordLocs := range results[i].MatchLocations {
 			var weightedTf float64
@@ -338,7 +339,11 @@ func rankResultsStructural(corpusCount int, results []*common.FileJob, documentF
 			step1 := idf * weightedTf * (k1 + 1)
 			step2 := weightedTf + k1*(1-b+(b*words/averageDocumentWords))
 
-			weight += step1 / step2
+			termScore := step1 / step2
+			if !allStop && IsStopword(results[i].Language, word) {
+				termScore *= StopwordDampenFactor
+			}
+			weight += termScore
 		}
 
 		results[i].Score = weight
