@@ -386,8 +386,8 @@ func TestNoisePenalty_LargeFileZeroComplexity_Penalised(t *testing.T) {
 func TestNoisePenalty_HighComplexitySmallFile_Untouched(t *testing.T) {
 	file := &common.FileJob{
 		Score:      5.0,
-		Bytes:      5000,  // log10 ≈ 3.7
-		Complexity: 20,    // signal = 21/3.7 ≈ 5.67, clamped to 1.0
+		Bytes:      5000, // log10 ≈ 3.7
+		Complexity: 20,   // signal = 21/3.7 ≈ 5.67, clamped to 1.0
 	}
 	rankResultsNoisePenalty([]*common.FileJob{file}, 1.0)
 	if file.Score != 5.0 {

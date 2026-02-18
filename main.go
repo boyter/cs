@@ -48,7 +48,11 @@ func main() {
 			"The default input field in tui mode supports some nano commands\n" +
 			"- CTRL+a move to the beginning of the input\n" +
 			"- CTRL+e move to the end of the input\n" +
-			"- CTRL+k to clear from the cursor location forward\n",
+			"- CTRL+k to clear from the cursor location forward\n" +
+			"\n" +
+			"- F1 cycle ranker (simple/tfidf/tfidf2/bm25/structural)\n" +
+			"- F2 cycle code filter (default/only-code/only-comments)\n" +
+			"- F3 cycle gravity (off/low/default/logic/brain)\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.SearchString = args
