@@ -29,19 +29,20 @@ func detectLanguage(filename string, content []byte) string {
 
 // fileCodeStats detects the language and computes SCC code stats for a file
 // in a single call. Returns empty language and zero stats for unrecognised files.
-func fileCodeStats(filename string, content []byte) (language string, lines, code, comment, blank, complexity int64) {
+func fileCodeStats(filename string, content []byte) (language string, lines, code, comment, blank, complexity int64, contentByteType []byte) {
 	language = detectLanguage(filename, content)
 	if language == "" {
 		return
 	}
 	sccJob := &processor.FileJob{
-		Filename: filename,
-		Language: language,
-		Content:  content,
-		Bytes:    int64(len(content)),
+		Filename:        filename,
+		Language:        language,
+		Content:         content,
+		Bytes:           int64(len(content)),
+		ClassifyContent: true,
 	}
 	processor.CountStats(sccJob)
-	return language, sccJob.Lines, sccJob.Code, sccJob.Comment, sccJob.Blank, sccJob.Complexity
+	return language, sccJob.Lines, sccJob.Code, sccJob.Comment, sccJob.Blank, sccJob.Complexity, sccJob.ContentByteType
 }
 
 // languageExtensions resolves language names to file extensions using the scc

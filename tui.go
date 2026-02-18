@@ -204,7 +204,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Rank all results with BM25 and re-extract snippets with global frequencies
 			if len(m.fileJobs) > 0 {
-				ranked := ranker.RankResults("bm25", m.textFileCount, m.fileJobs)
+				ranked := ranker.RankResults(m.cfg.Ranker, m.textFileCount, m.fileJobs, m.cfg.StructuralRankerConfig())
 				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
 
 				// Parse snippet length from input

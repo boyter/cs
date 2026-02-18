@@ -134,7 +134,7 @@ func StartHttpServer(cfg *Config) {
 		coloredContent = strings.Replace(coloredContent, fmtBegin, fmt.Sprintf(`<strong id="%d">`, startPos), -1)
 		coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
 
-		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(filepath.Base(path), content)
+		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, _ := fileCodeStats(filepath.Base(path), content)
 
 		err = displayTmpl.Execute(w, httpFileDisplay{
 			Location:            path,
@@ -180,7 +180,7 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			processedFileCount = stats.TextFileCount.Load()
-			results = ranker.RankResults(cfg.Ranker, int(processedFileCount), results)
+			results = ranker.RankResults(cfg.Ranker, int(processedFileCount), results, cfg.StructuralRankerConfig())
 		}
 
 		// Create a random str to define where the start and end of

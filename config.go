@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/boyter/cs/pkg/ranker"
 	"github.com/boyter/cs/pkg/snippet"
 	"github.com/boyter/gocodewalker"
 )
@@ -42,6 +43,13 @@ type Config struct {
 	MinifiedLineByteLength int
 	MaxReadSizeBytes       int64
 
+	// Structural ranker weights
+	WeightCode    float64
+	WeightComment float64
+	WeightString  float64
+	OnlyCode      bool
+	OnlyComments  bool
+
 	// Output
 	Format     string
 	FileOutput string
@@ -61,6 +69,7 @@ type Config struct {
 
 // DefaultConfig returns a Config with sensible defaults matching the root-level globals.
 func DefaultConfig() Config {
+	defaults := ranker.DefaultStructuralConfig()
 	return Config{
 		SnippetLength:          300,
 		SnippetCount:           1,
@@ -70,8 +79,22 @@ func DefaultConfig() Config {
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,
 		MaxReadSizeBytes:       1_000_000,
+		WeightCode:             defaults.WeightCode,
+		WeightComment:          defaults.WeightComment,
+		WeightString:           defaults.WeightString,
 		Format:                 "text",
 		Address:                ":8080",
 		TemplateStyle:          "dark",
+	}
+}
+
+// StructuralRankerConfig returns a StructuralConfig populated from this Config.
+func (c *Config) StructuralRankerConfig() *ranker.StructuralConfig {
+	return &ranker.StructuralConfig{
+		WeightCode:    c.WeightCode,
+		WeightComment: c.WeightComment,
+		WeightString:  c.WeightString,
+		OnlyCode:      c.OnlyCode,
+		OnlyComments:  c.OnlyComments,
 	}
 }

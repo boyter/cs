@@ -55,6 +55,12 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.SearchString = args
 
+			// Auto-select structural ranker when only-code or only-comments is set
+			if (cfg.OnlyCode || cfg.OnlyComments) && cfg.Ranker != "structural" {
+				fmt.Fprintf(os.Stderr, "warning: --only-code/--only-comments requires structural ranker, setting --ranker=structural\n")
+				cfg.Ranker = "structural"
+			}
+
 			if cfg.MCPServer {
 				StartMCPServer(&cfg)
 			} else if cfg.HttpServer {
@@ -185,7 +191,7 @@ func main() {
 		&cfg.Ranker,
 		"ranker",
 		"bm25",
-		"set ranking algorithm [simple, tfidf, tfidf2, bm25]",
+		"set ranking algorithm [simple, tfidf, tfidf2, bm25, structural]",
 	)
 	flags.StringVarP(
 		&cfg.FileOutput,
@@ -254,6 +260,36 @@ func main() {
 		"no-syntax",
 		false,
 		"disable syntax highlighting in output",
+	)
+	flags.Float64Var(
+		&cfg.WeightCode,
+		"weight-code",
+		1.0,
+		"structural ranker: weight for matches in code (default 1.0)",
+	)
+	flags.Float64Var(
+		&cfg.WeightComment,
+		"weight-comment",
+		0.2,
+		"structural ranker: weight for matches in comments (default 0.2)",
+	)
+	flags.Float64Var(
+		&cfg.WeightString,
+		"weight-string",
+		0.5,
+		"structural ranker: weight for matches in strings (default 0.5)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyCode,
+		"only-code",
+		false,
+		"only rank matches in code (auto-selects structural ranker)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyComments,
+		"only-comments",
+		false,
+		"only rank matches in comments (auto-selects structural ranker)",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

@@ -176,21 +176,22 @@ startWorkers:
 
 				snippet.AddPhraseMatchLocations(content, strings.Trim(query, "\""), matchLocations)
 
-				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(f.Filename, content)
+				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, contentByteType := fileCodeStats(f.Filename, content)
 
 				fj := &common.FileJob{
-					Filename:       f.Filename,
-					Extension:      gocodewalker.GetExtension(f.Filename),
-					Location:       f.Location,
-					Content:        content,
-					Bytes:          len(content),
-					MatchLocations: matchLocations,
-					Language:       lang,
-					Lines:          sccLines,
-					Code:           sccCode,
-					Comment:        sccComment,
-					Blank:          sccBlank,
-					Complexity:     sccComplexity,
+					Filename:        f.Filename,
+					Extension:       gocodewalker.GetExtension(f.Filename),
+					Location:        f.Location,
+					Content:         content,
+					ContentByteType: contentByteType,
+					Bytes:           len(content),
+					MatchLocations:  matchLocations,
+					Language:        lang,
+					Lines:           sccLines,
+					Code:            sccCode,
+					Comment:         sccComment,
+					Blank:           sccBlank,
+					Complexity:      sccComplexity,
 				}
 
 				select {

@@ -8,6 +8,7 @@ type FileJob struct {
 	Extension      string
 	Location       string
 	Content        []byte
+	ContentByteType []byte // Per-byte classification from scc (code/comment/string/blank)
 	Bytes          int
 	Binary         bool
 	Score          float64

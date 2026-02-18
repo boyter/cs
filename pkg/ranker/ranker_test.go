@@ -1,0 +1,281 @@
+// SPDX-License-Identifier: MIT
+
+package ranker
+
+import (
+	"testing"
+
+	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/scc/v3/processor"
+)
+
+// --- matchWeight tests ---
+
+func TestMatchWeight_NilByteType_FallbackToCode(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	w := matchWeight(nil, 0, cfg)
+	if w != cfg.WeightCode {
+		t.Errorf("expected %f, got %f", cfg.WeightCode, w)
+	}
+}
+
+func TestMatchWeight_CodeByte(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	bt := []byte{processor.ByteTypeCode}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightCode {
+		t.Errorf("expected %f, got %f", cfg.WeightCode, w)
+	}
+}
+
+func TestMatchWeight_CommentByte(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	bt := []byte{processor.ByteTypeComment}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightComment {
+		t.Errorf("expected %f, got %f", cfg.WeightComment, w)
+	}
+}
+
+func TestMatchWeight_StringByte(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	bt := []byte{processor.ByteTypeString}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightString {
+		t.Errorf("expected %f, got %f", cfg.WeightString, w)
+	}
+}
+
+func TestMatchWeight_BlankByte(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	bt := []byte{processor.ByteTypeBlank}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightCode {
+		t.Errorf("expected %f (blank treated as code), got %f", cfg.WeightCode, w)
+	}
+}
+
+func TestMatchWeight_OnlyCode_ZerosComments(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyCode = true
+	bt := []byte{processor.ByteTypeComment}
+	w := matchWeight(bt, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for comment with OnlyCode, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyCode_ZerosStrings(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyCode = true
+	bt := []byte{processor.ByteTypeString}
+	w := matchWeight(bt, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for string with OnlyCode, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyCode_KeepsCode(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyCode = true
+	bt := []byte{processor.ByteTypeCode}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightCode {
+		t.Errorf("expected %f for code with OnlyCode, got %f", cfg.WeightCode, w)
+	}
+}
+
+func TestMatchWeight_OnlyComments_ZerosCode(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyComments = true
+	bt := []byte{processor.ByteTypeCode}
+	w := matchWeight(bt, 0, cfg)
+	if w != 0 {
+		t.Errorf("expected 0 for code with OnlyComments, got %f", w)
+	}
+}
+
+func TestMatchWeight_OnlyComments_KeepsComments(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyComments = true
+	bt := []byte{processor.ByteTypeComment}
+	w := matchWeight(bt, 0, cfg)
+	if w != cfg.WeightComment {
+		t.Errorf("expected %f for comment with OnlyComments, got %f", cfg.WeightComment, w)
+	}
+}
+
+func TestMatchWeight_OutOfBounds_FallbackToCode(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	bt := []byte{processor.ByteTypeComment}
+	w := matchWeight(bt, 5, cfg) // offset 5 out of bounds for length 1
+	if w != cfg.WeightCode {
+		t.Errorf("expected %f (out of bounds fallback), got %f", cfg.WeightCode, w)
+	}
+}
+
+func TestMatchWeight_NegativeOffset_FallbackToCode(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	bt := []byte{processor.ByteTypeComment}
+	w := matchWeight(bt, -1, cfg)
+	if w != cfg.WeightCode {
+		t.Errorf("expected %f (negative offset fallback), got %f", cfg.WeightCode, w)
+	}
+}
+
+// --- rankResultsStructural tests ---
+
+func TestRankResultsStructural_EmptyResults(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	results := rankResultsStructural(100, nil, map[string]int{}, cfg)
+	if len(results) != 0 {
+		t.Errorf("expected empty results, got %d", len(results))
+	}
+}
+
+func TestRankResultsStructural_CodeMatchScoresHigherThanComment(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+
+	// File with match in code
+	codeByteType := make([]byte, 100)
+	for i := range codeByteType {
+		codeByteType[i] = processor.ByteTypeCode
+	}
+	codeFile := &common.FileJob{
+		Filename:        "code.go",
+		Location:        "code.go",
+		Content:         make([]byte, 100),
+		ContentByteType: codeByteType,
+		Bytes:           100,
+		MatchLocations:  map[string][][]int{"func": {{10, 14}}},
+	}
+
+	// File with match in comment
+	commentByteType := make([]byte, 100)
+	for i := range commentByteType {
+		commentByteType[i] = processor.ByteTypeComment
+	}
+	commentFile := &common.FileJob{
+		Filename:        "comment.go",
+		Location:        "comment.go",
+		Content:         make([]byte, 100),
+		ContentByteType: commentByteType,
+		Bytes:           100,
+		MatchLocations:  map[string][][]int{"func": {{10, 14}}},
+	}
+
+	results := []*common.FileJob{codeFile, commentFile}
+	df := CalculateDocumentFrequency(results)
+	rankResultsStructural(10, results, df, cfg)
+
+	if codeFile.Score <= commentFile.Score {
+		t.Errorf("expected code match score (%f) > comment match score (%f)", codeFile.Score, commentFile.Score)
+	}
+}
+
+func TestRankResultsStructural_OnlyCode_ZerosCommentOnlyFile(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+	cfg.OnlyCode = true
+
+	commentByteType := make([]byte, 100)
+	for i := range commentByteType {
+		commentByteType[i] = processor.ByteTypeComment
+	}
+	commentFile := &common.FileJob{
+		Filename:        "comment.go",
+		Location:        "comment.go",
+		Content:         make([]byte, 100),
+		ContentByteType: commentByteType,
+		Bytes:           100,
+		MatchLocations:  map[string][][]int{"TODO": {{5, 9}}},
+	}
+
+	results := []*common.FileJob{commentFile}
+	df := CalculateDocumentFrequency(results)
+	rankResultsStructural(10, results, df, cfg)
+
+	if commentFile.Score != 0 {
+		t.Errorf("expected score 0 for comment-only file with OnlyCode, got %f", commentFile.Score)
+	}
+}
+
+func TestRankResultsStructural_NilByteType_StillScored(t *testing.T) {
+	cfg := DefaultStructuralConfig()
+
+	file := &common.FileJob{
+		Filename:        "unknown.txt",
+		Location:        "unknown.txt",
+		Content:         make([]byte, 100),
+		ContentByteType: nil, // unrecognised language
+		Bytes:           100,
+		MatchLocations:  map[string][][]int{"hello": {{0, 5}}},
+	}
+
+	results := []*common.FileJob{file}
+	df := CalculateDocumentFrequency(results)
+	rankResultsStructural(10, results, df, cfg)
+
+	if file.Score <= 0 {
+		t.Errorf("expected positive score for nil ContentByteType fallback, got %f", file.Score)
+	}
+}
+
+// --- RankResults integration tests ---
+
+func TestRankResults_StructuralCase(t *testing.T) {
+	codeByteType := make([]byte, 50)
+	for i := range codeByteType {
+		codeByteType[i] = processor.ByteTypeCode
+	}
+	file := &common.FileJob{
+		Filename:        "test.go",
+		Location:        "test.go",
+		Content:         make([]byte, 50),
+		ContentByteType: codeByteType,
+		Bytes:           50,
+		MatchLocations:  map[string][][]int{"test": {{0, 4}}},
+	}
+
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Score <= 0 {
+		t.Errorf("expected positive score, got %f", results[0].Score)
+	}
+}
+
+func TestRankResults_BM25WithNilStructuralCfg(t *testing.T) {
+	file := &common.FileJob{
+		Filename:       "test.go",
+		Location:       "test.go",
+		Content:        make([]byte, 50),
+		Bytes:          50,
+		MatchLocations: map[string][][]int{"test": {{0, 4}}},
+	}
+
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Score <= 0 {
+		t.Errorf("expected positive score for bm25, got %f", results[0].Score)
+	}
+}
+
+// --- CalculateDocumentFrequency sanity check ---
+
+func TestCalculateDocumentFrequency(t *testing.T) {
+	results := []*common.FileJob{
+		{MatchLocations: map[string][][]int{"a": {{0, 1}}, "b": {{2, 3}}}},
+		{MatchLocations: map[string][][]int{"a": {{0, 1}}}},
+	}
+
+	df := CalculateDocumentFrequency(results)
+	if df["a"] != 2 {
+		t.Errorf("expected df[a]=2, got %d", df["a"])
+	}
+	if df["b"] != 1 {
+		t.Errorf("expected df[b]=1, got %d", df["b"])
+	}
+}

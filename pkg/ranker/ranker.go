@@ -10,6 +10,7 @@ import (
 	str "github.com/boyter/go-string"
 
 	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/scc/v3/processor"
 )
 
 // Base value used to determine how much location matches
@@ -20,16 +21,42 @@ const (
 	BytesWordDivisor   = 2
 )
 
+// StructuralConfig holds weights and filters for the structural ranker.
+type StructuralConfig struct {
+	WeightCode    float64
+	WeightComment float64
+	WeightString  float64
+	OnlyCode      bool
+	OnlyComments  bool
+}
+
+// DefaultStructuralConfig returns a StructuralConfig with sensible defaults.
+func DefaultStructuralConfig() StructuralConfig {
+	return StructuralConfig{
+		WeightCode:    1.0,
+		WeightComment: 0.2,
+		WeightString:  0.5,
+	}
+}
+
 // RankResults takes in the search results and applies chained
 // ranking over them to produce a score and then sort those results
 // and return them.
 // The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf2",
-// or anything else for classic TF-IDF.
-func RankResults(rankerName string, corpusCount int, results []*common.FileJob) []*common.FileJob {
+// "structural", or anything else for classic TF-IDF.
+// structuralCfg is only used when rankerName is "structural" and may be nil otherwise.
+func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig) []*common.FileJob {
 	// needs to come first because it resets the scores
 	switch rankerName {
 	case "simple":
 		// in this case the results are already ranked by the number of matches
+	case "structural":
+		cfg := DefaultStructuralConfig()
+		if structuralCfg != nil {
+			cfg = *structuralCfg
+		}
+		results = rankResultsStructural(corpusCount, results, CalculateDocumentFrequency(results), cfg)
+		results = rankResultsLocation(results)
 	case "bm25":
 		results = rankResultsBM25(corpusCount, results, CalculateDocumentFrequency(results))
 		results = rankResultsLocation(results)
@@ -196,4 +223,77 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// matchWeight returns the weight for a match at startByte based on the byte
+// type classification. Falls back to WeightCode when contentByteType is nil
+// (unrecognised language) or the offset is out of bounds.
+func matchWeight(contentByteType []byte, startByte int, cfg StructuralConfig) float64 {
+	if contentByteType == nil || startByte < 0 || startByte >= len(contentByteType) {
+		return cfg.WeightCode
+	}
+
+	switch contentByteType[startByte] {
+	case processor.ByteTypeComment:
+		if cfg.OnlyCode {
+			return 0
+		}
+		return cfg.WeightComment
+	case processor.ByteTypeString:
+		if cfg.OnlyCode {
+			return 0
+		}
+		return cfg.WeightString
+	case processor.ByteTypeCode:
+		if cfg.OnlyComments {
+			return 0
+		}
+		return cfg.WeightCode
+	default:
+		// ByteTypeBlank or unknown — treat as code
+		if cfg.OnlyComments {
+			return 0
+		}
+		return cfg.WeightCode
+	}
+}
+
+// rankResultsStructural is a BM25 variant that weights term frequency by the
+// structural type (code/comment/string) of each match location.
+func rankResultsStructural(corpusCount int, results []*common.FileJob, documentFrequencies map[string]int, cfg StructuralConfig) []*common.FileJob {
+	if len(results) == 0 {
+		return results
+	}
+
+	var averageDocumentWords float64
+	for i := 0; i < len(results); i++ {
+		averageDocumentWords += float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
+	}
+	averageDocumentWords = averageDocumentWords / float64(len(results))
+
+	k1 := 1.2
+	b := 0.75
+
+	for i := 0; i < len(results); i++ {
+		var weight float64
+		words := float64(maxInt(1, results[i].Bytes/BytesWordDivisor))
+
+		for word, wordLocs := range results[i].MatchLocations {
+			var weightedTf float64
+			for _, loc := range wordLocs {
+				weightedTf += matchWeight(results[i].ContentByteType, loc[0], cfg)
+			}
+
+			idf := math.Log10(1 + float64(corpusCount)/float64(documentFrequencies[word]))
+
+			step1 := idf * weightedTf * (k1 + 1)
+			step2 := weightedTf + k1*(1-b+(b*words/averageDocumentWords))
+
+			weight += step1 / step2
+		}
+
+		results[i].Score = weight
+	}
+
+	return results
 }

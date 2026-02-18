@@ -139,7 +139,7 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		// Detect language and compute code stats
-		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(filepath.Base(absResolved), content)
+		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, _ := fileCodeStats(filepath.Base(absResolved), content)
 
 		lines := strings.Split(string(content), "\n")
 
@@ -245,7 +245,7 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Rank results
 		textFileCount := int(stats.TextFileCount.Load())
-		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results)
+		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig())
 
 		// Apply max_results limit
 		if maxResults > 0 && len(results) > maxResults {
