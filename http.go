@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
@@ -28,37 +29,41 @@ import (
 
 // HTTP template types — prefixed with "http" to avoid collision with TUI's searchResult.
 type httpSearch struct {
-	SearchTerm          string
-	SnippetSize         int
-	Results             []httpSearchResult
-	ResultsCount        int
-	RuntimeMilliseconds int64
-	ProcessedFileCount  int64
-	ExtensionFacet      []httpFacetResult
-	Pages               []httpPageResult
-	Ext                 string
+	SearchTerm          string             `json:"searchTerm"`
+	SnippetSize         int                `json:"snippetSize"`
+	Results             []httpSearchResult `json:"results"`
+	ResultsCount        int                `json:"resultsCount"`
+	RuntimeMilliseconds int64              `json:"runtimeMilliseconds"`
+	ProcessedFileCount  int64              `json:"processedFileCount"`
+	ExtensionFacet      []httpFacetResult  `json:"extensionFacet,omitempty"`
+	Pages               []httpPageResult   `json:"pages,omitempty"`
+	Ext                 string             `json:"ext,omitempty"`
+	Ranker              string             `json:"ranker"`
+	CodeFilter          string             `json:"codeFilter"`
+	Gravity             string             `json:"gravity"`
+	Noise               string             `json:"noise"`
 }
 
 type httpLineResult struct {
-	LineNumber int
-	Content    template.HTML
+	LineNumber int           `json:"lineNumber"`
+	Content    template.HTML `json:"content"`
 }
 
 type httpSearchResult struct {
-	Title       string
-	Location    string
-	Content     []template.HTML
-	StartPos    int
-	EndPos      int
-	Score       float64
-	IsLineMode  bool
-	LineResults []httpLineResult
-	Language    string
-	Lines       int64
-	Code        int64
-	Comment     int64
-	Blank       int64
-	Complexity  int64
+	Title       string          `json:"title"`
+	Location    string          `json:"location"`
+	Content     []template.HTML `json:"content,omitempty"`
+	StartPos    int             `json:"startPos"`
+	EndPos      int             `json:"endPos"`
+	Score       float64         `json:"score"`
+	IsLineMode  bool            `json:"isLineMode,omitempty"`
+	LineResults []httpLineResult `json:"lineResults,omitempty"`
+	Language    string          `json:"language,omitempty"`
+	Lines       int64           `json:"lines,omitempty"`
+	Code        int64           `json:"code,omitempty"`
+	Comment     int64           `json:"comment,omitempty"`
+	Blank       int64           `json:"blank,omitempty"`
+	Complexity  int64           `json:"complexity,omitempty"`
 }
 
 type httpFileDisplay struct {
@@ -74,18 +79,26 @@ type httpFileDisplay struct {
 }
 
 type httpFacetResult struct {
-	Title       string
-	Count       int
-	SearchTerm  string
-	SnippetSize int
+	Title       string `json:"title"`
+	Count       int    `json:"count"`
+	SearchTerm  string `json:"searchTerm"`
+	SnippetSize int    `json:"snippetSize"`
+	Ranker      string `json:"ranker"`
+	CodeFilter  string `json:"codeFilter"`
+	Gravity     string `json:"gravity"`
+	Noise       string `json:"noise"`
 }
 
 type httpPageResult struct {
-	SearchTerm  string
-	SnippetSize int
-	Value       int
-	Name        string
-	Ext         string
+	SearchTerm  string `json:"searchTerm"`
+	SnippetSize int    `json:"snippetSize"`
+	Value       int    `json:"value"`
+	Name        string `json:"name"`
+	Ext         string `json:"ext,omitempty"`
+	Ranker      string `json:"ranker"`
+	CodeFilter  string `json:"codeFilter"`
+	Gravity     string `json:"gravity"`
+	Noise       string `json:"noise"`
 }
 
 func StartHttpServer(cfg *Config) {
@@ -160,16 +173,55 @@ func StartHttpServer(cfg *Config) {
 		page := tryParseInt(r.URL.Query().Get("p"), 0)
 		pageSize := 20
 
+		// Parse ranking/filter params with defaults from server config
+		rankerParam := r.URL.Query().Get("rk")
+		if rankerParam == "" {
+			rankerParam = cfg.Ranker
+		}
+		codeFilter := r.URL.Query().Get("cf")
+		if codeFilter == "" {
+			codeFilter = "default"
+		}
+		gravityParam := r.URL.Query().Get("gv")
+		if gravityParam == "" {
+			gravityParam = cfg.GravityIntent
+		}
+		noiseParam := r.URL.Query().Get("ns")
+		if noiseParam == "" {
+			noiseParam = cfg.NoiseIntent
+		}
+
 		var results []*common.FileJob
 		var processedFileCount int64
 
 		if query != "" {
-			// Make a copy of config so we can adjust AllowListExtensions per request
+			// Make a copy of config so we can adjust per request
 			searchCfg := *cfg
 			if len(ext) != 0 {
 				searchCfg.AllowListExtensions = []string{ext}
 			} else {
 				searchCfg.AllowListExtensions = []string{}
+			}
+
+			// Apply ranking/filter params
+			searchCfg.Ranker = rankerParam
+			searchCfg.GravityIntent = gravityParam
+			searchCfg.NoiseIntent = noiseParam
+			switch codeFilter {
+			case "only-code":
+				searchCfg.OnlyCode = true
+				searchCfg.OnlyComments = false
+			case "only-comments":
+				searchCfg.OnlyCode = false
+				searchCfg.OnlyComments = true
+			default:
+				searchCfg.OnlyCode = false
+				searchCfg.OnlyComments = false
+			}
+			// Auto-switch ranker to structural when code filter is active (matches TUI behavior)
+			if searchCfg.OnlyCode || searchCfg.OnlyComments {
+				searchCfg.Ranker = "structural"
+				rankerParam = "structural"
 			}
 
 			ctx := context.Background()
@@ -180,7 +232,7 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			processedFileCount = stats.TextFileCount.Load()
-			results = ranker.RankResults(cfg.Ranker, int(processedFileCount), results, cfg.StructuralRankerConfig(), cfg.ResolveGravityStrength(), cfg.ResolveNoiseSensitivity())
+			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity())
 		}
 
 		// Create a random str to define where the start and end of
@@ -197,7 +249,7 @@ func StartHttpServer(cfg *Config) {
 
 		// if we have more than the page size of results, lets just show the first page
 		displayResults := results
-		pages := httpCalculatePages(results, pageSize, query, snippetLength, ext)
+		pages := httpCalculatePages(results, pageSize, query, snippetLength, ext, rankerParam, codeFilter, gravityParam, noiseParam)
 
 		if displayResults != nil && len(displayResults) > pageSize {
 			displayResults = displayResults[:pageSize]
@@ -322,17 +374,29 @@ func StartHttpServer(cfg *Config) {
 			}
 		}
 
-		err := searchTmpl.Execute(w, httpSearch{
+		searchData := httpSearch{
 			SearchTerm:          query,
 			SnippetSize:         snippetLength,
 			Results:             searchResults,
 			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  processedFileCount,
-			ExtensionFacet:      httpCalculateExtensionFacet(extensionFacets, query, snippetLength),
+			ExtensionFacet:      httpCalculateExtensionFacet(extensionFacets, query, snippetLength, rankerParam, codeFilter, gravityParam, noiseParam),
 			Pages:               pages,
 			Ext:                 ext,
-		})
+			Ranker:              rankerParam,
+			CodeFilter:          codeFilter,
+			Gravity:             gravityParam,
+			Noise:               noiseParam,
+		}
+
+		if r.URL.Query().Get("format") == "json" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(searchData)
+			return
+		}
+
+		err := searchTmpl.Execute(w, searchData)
 		if err != nil {
 			log.Printf("template execute error: %v", err)
 		}
@@ -342,7 +406,7 @@ func StartHttpServer(cfg *Config) {
 	log.Fatal(http.ListenAndServe(cfg.Address, nil))
 }
 
-func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int) []httpFacetResult {
+func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int, rankerParam, codeFilter, gravityParam, noiseParam string) []httpFacetResult {
 	var ef []httpFacetResult
 
 	for k, v := range extensionFacets {
@@ -351,6 +415,10 @@ func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, s
 			Count:       v,
 			SearchTerm:  query,
 			SnippetSize: snippetLength,
+			Ranker:      rankerParam,
+			CodeFilter:  codeFilter,
+			Gravity:     gravityParam,
+			Noise:       noiseParam,
 		})
 	}
 
@@ -364,7 +432,7 @@ func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, s
 	return ef
 }
 
-func httpCalculatePages(results []*common.FileJob, pageSize int, query string, snippetLength int, ext string) []httpPageResult {
+func httpCalculatePages(results []*common.FileJob, pageSize int, query string, snippetLength int, ext string, rankerParam, codeFilter, gravityParam, noiseParam string) []httpPageResult {
 	var pages []httpPageResult
 
 	if len(results) == 0 {
@@ -377,6 +445,10 @@ func httpCalculatePages(results []*common.FileJob, pageSize int, query string, s
 			SnippetSize: snippetLength,
 			Value:       0,
 			Name:        "1",
+			Ranker:      rankerParam,
+			CodeFilter:  codeFilter,
+			Gravity:     gravityParam,
+			Noise:       noiseParam,
 		})
 		return pages
 	}
@@ -393,6 +465,10 @@ func httpCalculatePages(results []*common.FileJob, pageSize int, query string, s
 			Value:       i,
 			Name:        strconv.Itoa(i + 1),
 			Ext:         ext,
+			Ranker:      rankerParam,
+			CodeFilter:  codeFilter,
+			Gravity:     gravityParam,
+			Noise:       noiseParam,
 		})
 	}
 	return pages

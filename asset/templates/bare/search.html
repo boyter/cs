@@ -22,25 +22,41 @@
 	</head>
 	<body>
 		<div>
-		<form method="get" action="/" >
-			<input type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" />
-			<input type="submit" value="search" />
-			<select name="ss" id="ss" onchange="this.form.submit()">
-				<option value="100" {{ if eq .SnippetSize 100 }}selected{{ end }}>100</option>
-				<option value="200" {{ if eq .SnippetSize 200 }}selected{{ end }}>200</option>
-				<option value="300" {{ if eq .SnippetSize 300 }}selected{{ end }}>300</option>
-				<option value="400" {{ if eq .SnippetSize 400 }}selected{{ end }}>400</option>
-				<option value="500" {{ if eq .SnippetSize 500 }}selected{{ end }}>500</option>
-				<option value="600" {{ if eq .SnippetSize 600 }}selected{{ end }}>600</option>
-				<option value="700" {{ if eq .SnippetSize 700 }}selected{{ end }}>700</option>
-				<option value="800" {{ if eq .SnippetSize 800 }}selected{{ end }}>800</option>
-				<option value="900" {{ if eq .SnippetSize 900 }}selected{{ end }}>900</option>
-				<option value="1000" {{ if eq .SnippetSize 1000 }}selected{{ end }}>1000</option>
+		<form id="search-form" method="get" action="/" >
+			<div style="display:flex;gap:8px;width:100%">
+				<input id="search-input" type="text" name="q" value="{{ .SearchTerm }}" autofocus="autofocus" onfocus="this.select()" style="flex:1" />
+				<input type="submit" value="search" />
+			</div>
+			<select name="rk" onchange="this.form.submit()">
+				<option value="simple" {{ if eq .Ranker "simple" }}selected{{ end }}>simple</option>
+				<option value="tfidf" {{ if eq .Ranker "tfidf" }}selected{{ end }}>tfidf</option>
+				<option value="tfidf2" {{ if eq .Ranker "tfidf2" }}selected{{ end }}>tfidf2</option>
+				<option value="bm25" {{ if eq .Ranker "bm25" }}selected{{ end }}>bm25</option>
+				<option value="structural" {{ if eq .Ranker "structural" }}selected{{ end }}>structural</option>
 			</select>
-			<small>[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
+			<select name="cf" onchange="this.form.submit()">
+				<option value="default" {{ if eq .CodeFilter "default" }}selected{{ end }}>all</option>
+				<option value="only-code" {{ if eq .CodeFilter "only-code" }}selected{{ end }}>only-code</option>
+				<option value="only-comments" {{ if eq .CodeFilter "only-comments" }}selected{{ end }}>only-comments</option>
+			</select>
+			<select name="gv" onchange="this.form.submit()">
+				<option value="off" {{ if eq .Gravity "off" }}selected{{ end }}>gravity: off</option>
+				<option value="low" {{ if eq .Gravity "low" }}selected{{ end }}>gravity: low</option>
+				<option value="default" {{ if eq .Gravity "default" }}selected{{ end }}>gravity: default</option>
+				<option value="logic" {{ if eq .Gravity "logic" }}selected{{ end }}>gravity: logic</option>
+				<option value="brain" {{ if eq .Gravity "brain" }}selected{{ end }}>gravity: brain</option>
+			</select>
+			<select name="ns" onchange="this.form.submit()">
+				<option value="silence" {{ if eq .Noise "silence" }}selected{{ end }}>noise: silence</option>
+				<option value="quiet" {{ if eq .Noise "quiet" }}selected{{ end }}>noise: quiet</option>
+				<option value="default" {{ if eq .Noise "default" }}selected{{ end }}>noise: default</option>
+				<option value="loud" {{ if eq .Noise "loud" }}selected{{ end }}>noise: loud</option>
+				<option value="raw" {{ if eq .Noise "raw" }}selected{{ end }}>noise: raw</option>
+			</select>
+			<small id="search-stats">[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
 		</form>
 		</div>
-		<div style="display:flex;">
+		<div id="results-container" style="display:flex;">
 			{{if .Results -}}
 			<div style="flex-grow: 4;">
 				<ul>
@@ -58,7 +74,7 @@
 
 				<div>
 				{{- range .Pages }}
-					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}">{{ .Name }}</a>
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}&rk={{ .Ranker }}&cf={{ .CodeFilter }}&gv={{ .Gravity }}&ns={{ .Noise }}">{{ .Name }}</a>
 				{{- end }}
 				</div>
 			</div>
@@ -68,11 +84,125 @@
 				<h4>extensions</h4>
 				<ol>
 				{{- range .ExtensionFacet }}
-					<li value="{{ .Count }}"><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}">{{ .Title }}</a></li>
+					<li value="{{ .Count }}"><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}&rk={{ .Ranker }}&cf={{ .CodeFilter }}&gv={{ .Gravity }}&ns={{ .Noise }}">{{ .Title }}</a></li>
 				{{- end }}
 				</ol>
 			</div>
 			{{- end }}
 		</div>
+
+<script>
+(function() {
+	var input = document.getElementById('search-input');
+	var form = document.getElementById('search-form');
+	var stats = document.getElementById('search-stats');
+	var container = document.getElementById('results-container');
+	var selects = form.querySelectorAll('select');
+	var timer = null;
+	var controller = null;
+
+	function escapeHTML(s) {
+		var d = document.createElement('div');
+		d.appendChild(document.createTextNode(s));
+		return d.innerHTML;
+	}
+
+	function getParams() {
+		var rk = form.querySelector('select[name="rk"]').value;
+		var cf = form.querySelector('select[name="cf"]').value;
+		var gv = form.querySelector('select[name="gv"]').value;
+		var ns = form.querySelector('select[name="ns"]').value;
+		return 'rk=' + encodeURIComponent(rk) + '&cf=' + encodeURIComponent(cf) + '&gv=' + encodeURIComponent(gv) + '&ns=' + encodeURIComponent(ns);
+	}
+
+	function doSearch() {
+		var q = input.value;
+		var params = getParams();
+		var url = '/?q=' + encodeURIComponent(q) + '&' + params + '&format=json';
+
+		history.replaceState(null, '', '/?q=' + encodeURIComponent(q) + '&' + params);
+
+		if (!q.trim()) {
+			stats.textContent = '';
+			container.innerHTML = '';
+			return;
+		}
+
+		stats.textContent = '[searching...]';
+
+		if (controller) controller.abort();
+		controller = new AbortController();
+
+		fetch(url, { signal: controller.signal }).then(function(r) { return r.json(); }).then(function(data) {
+			stats.textContent = '[' + data.resultsCount + ' results from ' + data.processedFileCount + ' files in ' + data.runtimeMilliseconds + ' (ms)]';
+			renderResults(data);
+		}).catch(function(e) {
+			if (e.name !== 'AbortError') stats.textContent = '[error]';
+		});
+	}
+
+	function renderResults(data) {
+		var html = '';
+		if (data.results && data.results.length > 0) {
+			html += '<div style="flex-grow: 4;"><ul>';
+			for (var i = 0; i < data.results.length; i++) {
+				var r = data.results[i];
+				html += '<li>';
+				html += '<h4><a href="/file/' + escapeHTML(r.location) + '?sp=' + r.startPos + '&ep=' + r.endPos + '">' + escapeHTML(r.title) + '</a>';
+				if (r.language) html += ' <small>(' + escapeHTML(r.language) + ')</small>';
+				html += '</h4>';
+				if (r.lines) html += '<small style="color:#808080">' + escapeHTML(r.language) + ' | Lines: ' + r.lines + ' | Code: ' + r.code + ' | Comment: ' + r.comment + ' | Blank: ' + r.blank + ' | Complexity: ' + r.complexity + '</small>';
+				if (r.isLineMode && r.lineResults) {
+					html += '<pre>';
+					for (var j = 0; j < r.lineResults.length; j++) {
+						var lr = r.lineResults[j];
+						var num = ('    ' + lr.lineNumber).slice(-4) + ' ';
+						html += '<span style="color:#808080;user-select:none">' + num + '</span>' + lr.content + '\n';
+					}
+					html += '</pre>';
+				} else if (r.content) {
+					for (var j = 0; j < r.content.length; j++) {
+						html += '<pre>' + r.content[j] + '</pre>';
+					}
+				}
+				html += '</li><small>[<a href="/file/' + escapeHTML(r.location) + '?sp=' + r.startPos + '&ep=' + r.endPos + '#' + r.startPos + '">jump to location</a>]</small>';
+			}
+			html += '</ul><div>';
+			if (data.pages) {
+				for (var i = 0; i < data.pages.length; i++) {
+					var p = data.pages[i];
+					html += '<a href="/?q=' + encodeURIComponent(p.searchTerm) + '&ss=' + p.snippetSize + '&p=' + p.value + '&ext=' + encodeURIComponent(p.ext || '') + '&rk=' + encodeURIComponent(p.ranker) + '&cf=' + encodeURIComponent(p.codeFilter) + '&gv=' + encodeURIComponent(p.gravity) + '&ns=' + encodeURIComponent(p.noise) + '">' + escapeHTML(p.name) + '</a>';
+				}
+			}
+			html += '</div></div>';
+		}
+		if (data.extensionFacet && data.extensionFacet.length > 0) {
+			html += '<div style="flex-grow: 1;"><h4>extensions</h4><ol>';
+			for (var i = 0; i < data.extensionFacet.length; i++) {
+				var f = data.extensionFacet[i];
+				html += '<li value="' + f.count + '"><a href="/?q=' + encodeURIComponent(f.searchTerm) + '&ss=' + f.snippetSize + '&ext=' + encodeURIComponent(f.title) + '&rk=' + encodeURIComponent(f.ranker) + '&cf=' + encodeURIComponent(f.codeFilter) + '&gv=' + encodeURIComponent(f.gravity) + '&ns=' + encodeURIComponent(f.noise) + '">' + escapeHTML(f.title) + '</a></li>';
+			}
+			html += '</ol></div>';
+		}
+		container.innerHTML = html;
+	}
+
+	for (var i = 0; i < selects.length; i++) {
+		selects[i].removeAttribute('onchange');
+		selects[i].addEventListener('change', function() { doSearch(); });
+	}
+
+	input.addEventListener('input', function() {
+		clearTimeout(timer);
+		timer = setTimeout(doSearch, 200);
+	});
+
+	form.addEventListener('submit', function(e) {
+		e.preventDefault();
+		clearTimeout(timer);
+		doSearch();
+	});
+})();
+</script>
 	</body>
 </html>
