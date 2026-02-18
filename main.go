@@ -52,7 +52,8 @@ func main() {
 			"\n" +
 			"- F1 cycle ranker (simple/tfidf/bm25/structural)\n" +
 			"- F2 cycle code filter (default/only-code/only-comments/only-strings)\n" +
-			"- F3 cycle gravity (off/low/default/logic/brain)\n",
+			"- F3 cycle gravity (off/low/default/logic/brain)\n" +
+			"- F4 cycle noise (silence/quiet/default/loud/raw)\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.SearchString = args

@@ -218,7 +218,7 @@ features listed below may be missing from your installation.
 ```
 $ cs -h
 code spelunker (cs) code search.
-Version 2.0.0
+Version 2.1.0
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
@@ -251,6 +251,7 @@ The default input field in tui mode supports some nano commands
 - F1 cycle ranker (simple/tfidf/bm25/structural)
 - F2 cycle code filter (default/only-code/only-comments/only-strings)
 - F3 cycle gravity (off/low/default/logic/brain)
+- F4 cycle noise (silence/quiet/default/loud/raw)
 
 Usage:
   cs [flags]
