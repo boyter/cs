@@ -178,6 +178,51 @@ func EvaluateFile(node Node, content []byte, filename string, location string, c
 	return matched, locations
 }
 
+// PostEvalMetadataFilters checks metadata-dependent filters (lang, complexity)
+// that could not be evaluated during per-file AST evaluation because the metadata
+// was not yet available. Returns false if any metadata filter rejects the file.
+func PostEvalMetadataFilters(node Node, lang string, complexity int64) bool {
+	if node == nil {
+		return true
+	}
+	return postEvalMeta(node, lang, complexity)
+}
+
+func postEvalMeta(node Node, lang string, complexity int64) bool {
+	if node == nil {
+		return true
+	}
+
+	switch n := node.(type) {
+	case *AndNode:
+		if !postEvalMeta(n.Left, lang, complexity) {
+			return false
+		}
+		return postEvalMeta(n.Right, lang, complexity)
+	case *OrNode:
+		return postEvalMeta(n.Left, lang, complexity) || postEvalMeta(n.Right, lang, complexity)
+	case *NotNode:
+		return !postEvalMeta(n.Expr, lang, complexity)
+	case *KeywordNode, *PhraseNode, *RegexNode, *FuzzyNode:
+		// Already evaluated during per-file search
+		return true
+	case *FilterNode:
+		field := strings.ToLower(n.Field)
+		switch field {
+		case "lang", "language":
+			doc := &Document{Language: lang}
+			return handleLanguageFilter(n.Operator, n.Value, doc)
+		case "complexity":
+			doc := &Document{Complexity: complexity}
+			return handleComplexityFilter(n.Operator, n.Value, doc)
+		default:
+			// file, ext, path filters already handled during per-file eval
+			return true
+		}
+	}
+	return true
+}
+
 func evalFile(node Node, content []byte, filename string, location string, caseSensitive bool, locations map[string][][]int) bool {
 	if node == nil {
 		return true
@@ -265,7 +310,8 @@ func evalFile(node Node, content []byte, filename string, location string, caseS
 
 // evalFileFilter evaluates a FilterNode against a filename/location in per-file mode.
 // Filters that require document metadata not available per-file (lang, complexity)
-// pass through as true.
+// pass through as true here, and are checked post-evaluation via PostEvalMetadataFilters
+// once fileCodeStats has run.
 func evalFileFilter(n *FilterNode, filename string, location string) bool {
 	filterVal, ok := n.Value.(string)
 	if !ok {

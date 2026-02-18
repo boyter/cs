@@ -171,6 +171,11 @@ startWorkers:
 
 				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, contentByteType := fileCodeStats(f.Filename, content)
 
+				// Post-evaluate metadata filters (lang, complexity) now that metadata is available
+				if !search.PostEvalMetadataFilters(ast, lang, sccComplexity) {
+					continue
+				}
+
 				// Filter match locations by content type when a filter is active
 				if cfg.HasContentFilter() {
 					var survived bool

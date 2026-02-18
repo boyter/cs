@@ -27,6 +27,7 @@ Why use cs?
  - Searches across multiple lines
  - Has a nice TUI interface.
  - Cross-platform (on Windows it probably needs the terminal)
+ - In-query filters to narrow results by language, extension, complexity, filename, or path
 
 The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my own
 problem. 
@@ -238,6 +239,10 @@ the following syntax
  - file:test              (substring match on filename)
  - filename:.go           (substring match on filename)
  - path:pkg/search        (substring match on full file path)
+ - ext:go                 (filter by file extension)
+ - lang:Go                (filter by detected language)
+ - lang:Go,Python         (filter by multiple languages)
+ - complexity:>=50        (filter by cyclomatic complexity)
 
 Example search that uses all current functionality
  - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/ file:test path:pkg
@@ -294,6 +299,10 @@ cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/" file:test
 cs (cat OR dog) AND NOT bird
 cs path:vendor main           # search only under vendor/
 cs "func main" path:cmd       # find main functions under cmd/
+cs handler lang:go            # search only Go files
+cs TODO lang:go,python        # search Go and Python files
+cs NOT lang:go test           # search all languages except Go
+cs handler complexity:>=50    # find complex files containing "handler"
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
