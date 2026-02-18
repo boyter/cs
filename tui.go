@@ -578,9 +578,9 @@ func (m *model) ensureVisible() {
 	m.clampScroll()
 }
 
-// cycleRanker cycles the ranker through: simple → tfidf → tfidf2 → bm25 → structural → simple…
+// cycleRanker cycles the ranker through: simple → tfidf → bm25 → structural → simple…
 func (m *model) cycleRanker() {
-	order := []string{"simple", "tfidf", "tfidf2", "bm25", "structural"}
+	order := []string{"simple", "tfidf", "bm25", "structural"}
 	for i, v := range order {
 		if v == m.cfg.Ranker {
 			m.cfg.Ranker = order[(i+1)%len(order)]

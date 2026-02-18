@@ -50,7 +50,7 @@ func main() {
 			"- CTRL+e move to the end of the input\n" +
 			"- CTRL+k to clear from the cursor location forward\n" +
 			"\n" +
-			"- F1 cycle ranker (simple/tfidf/tfidf2/bm25/structural)\n" +
+			"- F1 cycle ranker (simple/tfidf/bm25/structural)\n" +
 			"- F2 cycle code filter (default/only-code/only-comments/only-strings)\n" +
 			"- F3 cycle gravity (off/low/default/logic/brain)\n",
 		Version: Version,
@@ -209,7 +209,7 @@ func main() {
 		&cfg.Ranker,
 		"ranker",
 		"structural",
-		"set ranking algorithm [simple, tfidf, tfidf2, bm25, structural]",
+		"set ranking algorithm [simple, tfidf, bm25, structural]",
 	)
 	flags.StringVar(
 		&cfg.GravityIntent,

@@ -44,7 +44,7 @@ func DefaultStructuralConfig() StructuralConfig {
 // RankResults takes in the search results and applies chained
 // ranking over them to produce a score and then sort those results
 // and return them.
-// The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf2",
+// The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf",
 // "structural", or anything else for classic TF-IDF.
 // structuralCfg is only used when rankerName is "structural" and may be nil otherwise.
 func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64, noiseSensitivity float64, testPenalty float64, testIntent bool) []*common.FileJob {
@@ -62,7 +62,7 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 	case "bm25":
 		results = rankResultsBM25(corpusCount, results, CalculateDocumentFrequency(results))
 		results = rankResultsLocation(results)
-	case "tfidf2":
+	case "tfidf":
 		results = rankResultsTFIDF(corpusCount, results, CalculateDocumentFrequency(results), false)
 		results = rankResultsLocation(results)
 	default:

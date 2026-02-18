@@ -5,7 +5,7 @@ package main
 import "testing"
 
 func TestCycleRanker(t *testing.T) {
-	order := []string{"simple", "tfidf", "tfidf2", "bm25", "structural"}
+	order := []string{"simple", "tfidf", "bm25", "structural"}
 	cfg := DefaultConfig()
 	m := &model{cfg: &cfg}
 
