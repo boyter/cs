@@ -118,6 +118,28 @@ func TestExecutor(t *testing.T) {
 		{"Colon path filter with keyword", "cat path:pkg/search", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
 		{"Filepath alias", "filepath=vendor", false, []string{"vendor/lib/file5.rs"}},
 
+		// Glob file: patterns
+		{"File glob *.go", "file:*.go", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"File glob *_test.go no match", "file:*_test.go", false, []string{}},
+		{"File glob file?.go", "file:file?.go", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"File glob file?.py", "file:file?.py", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"File glob char class", "file:file[34].py", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"File glob case insensitive", "file:*.GO", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"File glob != negation", "file!=*.go", false, []string{"pkg/search/file3.py", "pkg/search/file4.py", "vendor/lib/file5.rs", "src/main/file6.txt"}},
+		{"File glob malformed pattern", "file:[invalid", false, []string{}},
+
+		// Glob path: patterns
+		{"Path glob */search/*", "path:*/search/*", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Path glob src/main/*", "path:src/main/*", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
+		{"Path glob vendor/*/*", "path:vendor/*/*", false, []string{"vendor/lib/file5.rs"}},
+		{"Path glob NOT vendor/*/*", "NOT path:vendor/*/*", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py", "src/main/file6.txt"}},
+		{"Path glob case insensitive", "path:SRC/MAIN/*", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
+		{"Path glob with keyword", "cat path:*/search/*", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+
+		// Backward compat: no glob chars still use substring
+		{"File no glob still substring", "file:file1", false, []string{"src/main/file1.go"}},
+		{"Path no glob still substring", "path:src/main", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
+
 		// TODO: Add tests for NOT operator precedence and filter interaction.
 		// {"NOT Operator Precedence", "lazy AND NOT dog", false, []string{"file3.py"}},
 		// {"NOT with Filter", "NOT lang=go", false, []string{"file3.py", "file4.py", "file5.rs"}},
@@ -761,6 +783,76 @@ func TestEvaluateFile(t *testing.T) {
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
+		// Glob file filter in per-file mode
+		{
+			name:      "File glob *.go matches",
+			query:     "cat file:*.go",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "File glob *.py no match",
+			query:     "cat file:*.py",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "File glob != negation",
+			query:     "cat file!=*.go",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "File glob case insensitive",
+			query:     "cat file:*.GO",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "File glob malformed pattern no crash",
+			query:     "cat file:[invalid",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		// Glob path filter in per-file mode
+		{
+			name:      "Path glob */search/* matches",
+			query:     "cat path:*/search/*",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Path glob */vendor/* no match",
+			query:     "cat path:*/vendor/*",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "Path glob case insensitive",
+			query:     "cat path:PKG/SEARCH/*",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
 	}
 
 	for _, tc := range fileFilterCases {
@@ -1041,6 +1133,78 @@ func TestFuzzyNodeEvaluateFile(t *testing.T) {
 			t.Error("FuzzyNode should not match 'zzzzz~1' in 'hello world'")
 		}
 	})
+}
+
+// --- Glob helper unit tests ---
+
+func TestContainsGlobMeta(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"hello", false},
+		{"*.go", true},
+		{"file?.py", true},
+		{"file[34].py", true},
+		{"src/main", false},
+		{"", false},
+	}
+	for _, tc := range tests {
+		if got := containsGlobMeta(tc.input); got != tc.want {
+			t.Errorf("containsGlobMeta(%q) = %v, want %v", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestMatchGlob(t *testing.T) {
+	tests := []struct {
+		pattern, name string
+		want          bool
+	}{
+		{"*.go", "file1.go", true},
+		{"*.go", "file1.py", false},
+		{"*_test.go", "search_test.go", true},
+		{"*_test.go", "file1.go", false},
+		{"file?.go", "file1.go", true},
+		{"file?.go", "file12.go", false},
+		{"file[34].py", "file3.py", true},
+		{"file[34].py", "file5.py", false},
+		// Case insensitive
+		{"*.GO", "file1.go", true},
+		{"*.go", "FILE1.GO", true},
+		// Malformed pattern
+		{"[invalid", "file.go", false},
+	}
+	for _, tc := range tests {
+		if got := matchGlob(tc.pattern, tc.name); got != tc.want {
+			t.Errorf("matchGlob(%q, %q) = %v, want %v", tc.pattern, tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestMatchPathGlob(t *testing.T) {
+	tests := []struct {
+		pattern, fullPath string
+		want              bool
+	}{
+		{"*/search/*", "pkg/search/file3.py", true},
+		{"*/search/*", "src/main/file1.go", false},
+		{"src/main/*", "src/main/file1.go", true},
+		{"src/main/*", "pkg/search/file3.py", false},
+		{"vendor/*/*", "vendor/lib/file5.rs", true},
+		{"vendor/*/*", "src/main/file1.go", false},
+		// Single segment
+		{"*", "anything", true},
+		// Case insensitive
+		{"SRC/MAIN/*", "src/main/file1.go", true},
+		// No match — pattern longer than path
+		{"a/b/c/d", "a/b", false},
+	}
+	for _, tc := range tests {
+		if got := matchPathGlob(tc.pattern, tc.fullPath); got != tc.want {
+			t.Errorf("matchPathGlob(%q, %q) = %v, want %v", tc.pattern, tc.fullPath, got, tc.want)
+		}
+	}
 }
 
 // --- Invalid regex tests ---

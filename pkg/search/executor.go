@@ -2,6 +2,7 @@ package search
 
 import (
 	"errors"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -274,7 +275,12 @@ func evalFileFilter(n *FilterNode, filename string, location string) bool {
 	field := strings.ToLower(n.Field)
 	switch field {
 	case "file", "filename":
-		match := strings.Contains(strings.ToLower(filename), strings.ToLower(filterVal))
+		var match bool
+		if containsGlobMeta(filterVal) {
+			match = matchGlob(filterVal, filename)
+		} else {
+			match = strings.Contains(strings.ToLower(filename), strings.ToLower(filterVal))
+		}
 		if n.Operator == "!=" {
 			return !match
 		}
@@ -287,7 +293,12 @@ func evalFileFilter(n *FilterNode, filename string, location string) bool {
 		}
 		return match
 	case "path", "filepath":
-		match := strings.Contains(strings.ToLower(location), strings.ToLower(filterVal))
+		var match bool
+		if containsGlobMeta(filterVal) {
+			match = matchPathGlob(filterVal, location)
+		} else {
+			match = strings.Contains(strings.ToLower(location), strings.ToLower(filterVal))
+		}
 		if n.Operator == "!=" {
 			return !match
 		}
@@ -296,6 +307,49 @@ func evalFileFilter(n *FilterNode, filename string, location string) bool {
 		// lang, language, complexity, etc. — metadata not available in per-file mode
 		return true
 	}
+}
+
+// --- Glob matching helpers ---
+
+// containsGlobMeta reports whether s contains any glob metacharacters (*, ?, [).
+func containsGlobMeta(s string) bool {
+	return strings.ContainsAny(s, "*?[")
+}
+
+// matchGlob performs a case-insensitive glob match using path.Match.
+// Returns false on malformed patterns (no panic).
+func matchGlob(pattern, name string) bool {
+	matched, err := path.Match(strings.ToLower(pattern), strings.ToLower(name))
+	if err != nil {
+		return false
+	}
+	return matched
+}
+
+// matchPathGlob matches a multi-segment glob pattern against a full path using
+// a sliding-window approach over /-separated segments.
+func matchPathGlob(pattern, fullPath string) bool {
+	patSegs := strings.Split(strings.ToLower(pattern), "/")
+	pathSegs := strings.Split(strings.ToLower(fullPath), "/")
+
+	if len(patSegs) > len(pathSegs) {
+		return false
+	}
+
+	for i := 0; i <= len(pathSegs)-len(patSegs); i++ {
+		allMatch := true
+		for j, ps := range patSegs {
+			matched, err := path.Match(ps, pathSegs[i+j])
+			if err != nil || !matched {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			return true
+		}
+	}
+	return false
 }
 
 // --- Filter Handlers ---
@@ -345,29 +399,41 @@ func handleFilenameFilter(op string, val interface{}, doc *Document) bool {
 	if !ok {
 		return false
 	}
-	filename = strings.ToLower(filename)
+
+	var match bool
+	if containsGlobMeta(filename) {
+		match = matchGlob(filename, doc.Filename)
+	} else {
+		match = strings.Contains(strings.ToLower(doc.Filename), strings.ToLower(filename))
+	}
 
 	switch op {
 	case "=":
-		return strings.Contains(strings.ToLower(doc.Filename), filename)
+		return match
 	case "!=":
-		return !strings.Contains(strings.ToLower(doc.Filename), filename)
+		return !match
 	}
 	return false
 }
 
 func handlePathFilter(op string, val interface{}, doc *Document) bool {
-	path, ok := val.(string)
+	p, ok := val.(string)
 	if !ok {
 		return false
 	}
-	path = strings.ToLower(path)
+
+	var match bool
+	if containsGlobMeta(p) {
+		match = matchPathGlob(p, doc.Path)
+	} else {
+		match = strings.Contains(strings.ToLower(doc.Path), strings.ToLower(p))
+	}
 
 	switch op {
 	case "=":
-		return strings.Contains(strings.ToLower(doc.Path), path)
+		return match
 	case "!=":
-		return !strings.Contains(strings.ToLower(doc.Path), path)
+		return !match
 	}
 	return false
 }
