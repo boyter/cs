@@ -109,13 +109,31 @@ func (l *Lexer) scanWhitespace() Token {
 // scanIdentifier consumes characters until a delimiter is found and returns the appropriate token.
 func (l *Lexer) scanIdentifier() Token {
 	var sb strings.Builder
+	inFilterValue := false
 	for {
 		ch := l.read()
-		if ch == eof || isWhitespace(ch) || isSpecialSyntaxChar(ch) {
+		if ch == eof || isWhitespace(ch) {
+			l.unread()
+			break
+		}
+		if isSpecialSyntaxChar(ch) {
+			// Allow '/' in colon-filter values so path:pkg/search stays as one token
+			if ch == '/' && inFilterValue {
+				sb.WriteRune(ch)
+				continue
+			}
 			l.unread()
 			break
 		}
 		sb.WriteRune(ch)
+		// Detect colon-filter pattern (e.g., "path:" or "file:")
+		if ch == ':' && !inFilterValue {
+			prefix := sb.String()
+			prefix = prefix[:len(prefix)-1] // strip the colon
+			if isFilterField(prefix) {
+				inFilterValue = true
+			}
+		}
 	}
 	literal := sb.String()
 

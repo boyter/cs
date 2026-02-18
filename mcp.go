@@ -43,10 +43,10 @@ func StartMCPServer(cfg *Config) {
 	searchTool := mcp.NewTool("search",
 		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking. "+
 			"Supports: exact match with quotes, fuzzy match (term~1, term~2), NOT operator, regex (/pattern/), "+
-			"file filtering (file:test, filename:.go)."),
+			"file filtering (file:test, filename:.go), path filtering (path:pkg/search)."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
-			mcp.Description("The search query. Supports boolean logic (AND/OR/NOT), quoted phrases, regex (/pattern/), and fuzzy matching (term~1)."),
+			mcp.Description("The search query. Supports boolean logic (AND/OR/NOT), quoted phrases, regex (/pattern/), fuzzy matching (term~1), file filtering (file:name), and path filtering (path:dir)."),
 			mcp.Required(),
 		),
 		mcp.WithNumber("max_results",

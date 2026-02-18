@@ -107,7 +107,8 @@ The engine ships with the following metadata filters, registered in `executor.go
 |----------------------|----------------------|---------|------------------|-------------|-------------------------------------|
 | `complexity`         | —                    | Numeric | `=` `!=` `>=` `<=` | No       | Matches `Document.Complexity`       |
 | `lang` / `language`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Language` (case-insensitive) |
-| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Filename` (case-insensitive) |
+| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Filename` (case-insensitive substring) |
+| `path` / `filepath`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Path` (case-insensitive substring) |
 | `ext` / `extension`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Extension` (case-insensitive) |
 
 **Semantic alias**: `complexity=high` is rewritten to `complexity>=8`.

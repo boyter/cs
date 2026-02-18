@@ -52,12 +52,12 @@ import (
 )
 
 var testDocs = []*Document{
-	{Path: "file1.go", Filename: "file1.go", Language: "Go", Extension: "go", Content: []byte("A brown cat is in the house."), Complexity: 2},
-	{Path: "file2.go", Filename: "file2.go", Language: "Go", Extension: "go", Content: []byte("A quick brown dog jumps over the lazy fox."), Complexity: 5},
-	{Path: "file3.py", Filename: "file3.py", Language: "Python", Extension: "py", Content: []byte("The lazy cat sat on the mat."), Complexity: 3},
-	{Path: "file4.py", Filename: "file4.py", Language: "Python", Extension: "py", Content: []byte("A bat and a cat are friends."), Complexity: 8},
-	{Path: "file5.rs", Filename: "file5.rs", Language: "Rust", Extension: "rs", Content: []byte("This is a complex document about Go programming."), Complexity: 9},
-	{Path: "file6.txt", Filename: "file6.txt", Language: "Text", Extension: "txt", Content: []byte("ByteOrderMarks = [][]byte{ {254, 255}, // UTF-16 BE"), Complexity: 1},
+	{Path: "src/main/file1.go", Filename: "file1.go", Language: "Go", Extension: "go", Content: []byte("A brown cat is in the house."), Complexity: 2},
+	{Path: "src/main/file2.go", Filename: "file2.go", Language: "Go", Extension: "go", Content: []byte("A quick brown dog jumps over the lazy fox."), Complexity: 5},
+	{Path: "pkg/search/file3.py", Filename: "file3.py", Language: "Python", Extension: "py", Content: []byte("The lazy cat sat on the mat."), Complexity: 3},
+	{Path: "pkg/search/file4.py", Filename: "file4.py", Language: "Python", Extension: "py", Content: []byte("A bat and a cat are friends."), Complexity: 8},
+	{Path: "vendor/lib/file5.rs", Filename: "file5.rs", Language: "Rust", Extension: "rs", Content: []byte("This is a complex document about Go programming."), Complexity: 9},
+	{Path: "src/main/file6.txt", Filename: "file6.txt", Language: "Text", Extension: "txt", Content: []byte("ByteOrderMarks = [][]byte{ {254, 255}, // UTF-16 BE"), Complexity: 1},
 }
 
 func TestExecutor(t *testing.T) {
@@ -68,44 +68,55 @@ func TestExecutor(t *testing.T) {
 		caseSensitive bool
 		wantPaths     []string
 	}{
-		{"Simple Keyword", "cat", false, []string{"file1.go", "file3.py", "file4.py"}},
-		{"Simple AND", "brown AND cat", false, []string{"file1.go"}},
-		{"Implicit AND", "lazy cat", false, []string{"file3.py"}},
-		{"OR", "dog OR fox", false, []string{"file2.go"}},
-		{"NOT", "brown NOT dog", false, []string{"file1.go"}},
-		{"Grouping", "(lazy OR house) AND cat", false, []string{"file1.go", "file3.py"}},
-		{"Regex", "/[cb]at/", false, []string{"file1.go", "file3.py", "file4.py"}},
-		{"Filter =", "complexity=5", false, []string{"file2.go"}},
-		{"Filter >=", "complexity>=8", false, []string{"file4.py", "file5.rs"}},
-		{"Filter !=", "complexity!=3", false, []string{"file1.go", "file2.go", "file4.py", "file5.rs", "file6.txt"}},
-		{"Combined Filter and Keyword", "lazy AND complexity<=3", false, []string{"file3.py"}},
-		{"Language Filter", "lang=go", false, []string{"file1.go", "file2.go"}},
-		{"Extension Filter", "ext=py", false, []string{"file3.py", "file4.py"}},
-		{"Multi-Value Language Filter", "lang=go,py", false, []string{"file1.go", "file2.go"}}, // must use Python/python
-		{"Multi-Value Language Filter", "lang=go,python", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Multi-Value Language Filter Ignore Case", "lang=go,Python", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Case Insensitive Keyword", "Cat", false, []string{"file1.go", "file3.py", "file4.py"}},
-		{"Case Sensitive Keyword Match", "cat", true, []string{"file1.go", "file3.py", "file4.py"}},
+		{"Simple Keyword", "cat", false, []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Simple AND", "brown AND cat", false, []string{"src/main/file1.go"}},
+		{"Implicit AND", "lazy cat", false, []string{"pkg/search/file3.py"}},
+		{"OR", "dog OR fox", false, []string{"src/main/file2.go"}},
+		{"NOT", "brown NOT dog", false, []string{"src/main/file1.go"}},
+		{"Grouping", "(lazy OR house) AND cat", false, []string{"src/main/file1.go", "pkg/search/file3.py"}},
+		{"Regex", "/[cb]at/", false, []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Filter =", "complexity=5", false, []string{"src/main/file2.go"}},
+		{"Filter >=", "complexity>=8", false, []string{"pkg/search/file4.py", "vendor/lib/file5.rs"}},
+		{"Filter !=", "complexity!=3", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file4.py", "vendor/lib/file5.rs", "src/main/file6.txt"}},
+		{"Combined Filter and Keyword", "lazy AND complexity<=3", false, []string{"pkg/search/file3.py"}},
+		{"Language Filter", "lang=go", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"Extension Filter", "ext=py", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Multi-Value Language Filter", "lang=go,py", false, []string{"src/main/file1.go", "src/main/file2.go"}}, // must use Python/python
+		{"Multi-Value Language Filter", "lang=go,python", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Multi-Value Language Filter Ignore Case", "lang=go,Python", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Case Insensitive Keyword", "Cat", false, []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Case Sensitive Keyword Match", "cat", true, []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
 		{"Case Sensitive Keyword No Match", "Cat", true, []string{}},
 		// Edge cases for multi-value filters
-		{"Multi-Value with Empty Values", "lang=go,,python", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Multi-Value with Leading Empty", "lang=,go,python", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Multi-Value with Trailing Empty", "lang=go,python,", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Multi-Value Extension Filter", "ext=go,py", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Multi-Value with Special Characters", "lang=go,py+thon,java", false, []string{"file1.go", "file2.go"}},
-		{"Multi-Value Filter With NOT", "lang=go NOT python", false, []string{"file1.go", "file2.go"}},
-		{"Multi-Value Filter with Complex Conditions", "(lang=go OR lang=python) AND complexity>=5", false, []string{"file2.go", "file4.py"}},
-		{"Multi-Value Filter Case Sensitivity", "lang=GO,PYTHON", false, []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Search for Numbers", "254 255", false, []string{"file6.txt"}},
-		{"Fuzzy Distance 1", "houss~1", false, []string{"file1.go"}}, // "houss" is distance 1 from "house" (only in file1)
+		{"Multi-Value with Empty Values", "lang=go,,python", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Multi-Value with Leading Empty", "lang=,go,python", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Multi-Value with Trailing Empty", "lang=go,python,", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Multi-Value Extension Filter", "ext=go,py", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Multi-Value with Special Characters", "lang=go,py+thon,java", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"Multi-Value Filter With NOT", "lang=go NOT python", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"Multi-Value Filter with Complex Conditions", "(lang=go OR lang=python) AND complexity>=5", false, []string{"src/main/file2.go", "pkg/search/file4.py"}},
+		{"Multi-Value Filter Case Sensitivity", "lang=GO,PYTHON", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Search for Numbers", "254 255", false, []string{"src/main/file6.txt"}},
+		{"Fuzzy Distance 1", "houss~1", false, []string{"src/main/file1.go"}}, // "houss" is distance 1 from "house" (only in file1)
 		{"Fuzzy Distance 1 No Match", "zzz~1", false, []string{}},
-		{"Fuzzy AND Keyword", "houss~1 AND brown", false, []string{"file1.go"}},
-		{"Fuzzy Distance 2", "hovze~2", false, []string{"file1.go"}}, // "hovze" is distance 2 from "house" (u→v, s→z), only in file1
+		{"Fuzzy AND Keyword", "houss~1 AND brown", false, []string{"src/main/file1.go"}},
+		{"Fuzzy Distance 2", "hovze~2", false, []string{"src/main/file1.go"}}, // "hovze" is distance 2 from "house" (u→v, s→z), only in file1
 
 		// Colon filter syntax
-		{"Colon file filter", "cat file:file1", false, []string{"file1.go"}},
-		{"Colon ext filter", "cat ext:go", false, []string{"file1.go"}},
-		{"Colon lang filter", "cat lang:go", false, []string{"file1.go"}},
+		{"Colon file filter", "cat file:file1", false, []string{"src/main/file1.go"}},
+		{"Colon ext filter", "cat ext:go", false, []string{"src/main/file1.go"}},
+		{"Colon lang filter", "cat lang:go", false, []string{"src/main/file1.go"}},
+
+		// Path filter
+		{"Path filter colon src/main", "path:src/main", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
+		{"Path filter colon pkg/search", "path:pkg/search", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Path filter vendor", "path=vendor", false, []string{"vendor/lib/file5.rs"}},
+		{"Path filter with keyword", "cat path:pkg/search", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Path filter != excludes", "path!=vendor", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py", "src/main/file6.txt"}},
+		{"Path filter case insensitive", "path:SRC/MAIN", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
+		{"Path filter quoted value", `path="src/main"`, false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
+		{"Colon path filter with keyword", "cat path:pkg/search", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Filepath alias", "filepath=vendor", false, []string{"vendor/lib/file5.rs"}},
 
 		// TODO: Add tests for NOT operator precedence and filter interaction.
 		// {"NOT Operator Precedence", "lazy AND NOT dog", false, []string{"file3.py"}},
@@ -146,10 +157,10 @@ func TestParserHealing(t *testing.T) {
 		wantNotice string
 		wantPaths  []string
 	}{
-		{"Dangling AND", "cat AND", "Trailing 'AND' was ignored", []string{"file1.go", "file3.py", "file4.py"}},
-		{"Dangling OR", "dog OR", "Trailing 'OR' was ignored", []string{"file2.go"}},
-		{"Missing Closing Paren", "(cat OR dog", "Missing ')' was added", []string{"file1.go", "file2.go", "file3.py", "file4.py"}},
-		{"Extra Closing Paren", "cat)", "Unmatched ')' was ignored", []string{"file1.go", "file3.py", "file4.py"}},
+		{"Dangling AND", "cat AND", "Trailing 'AND' was ignored", []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Dangling OR", "dog OR", "Trailing 'OR' was ignored", []string{"src/main/file2.go"}},
+		{"Missing Closing Paren", "(cat OR dog", "Missing ')' was added", []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Extra Closing Paren", "cat)", "Unmatched ')' was ignored", []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
 	}
 
 	for _, tc := range testCases {
@@ -184,7 +195,7 @@ func TestTransformer(t *testing.T) {
 		t.Fatalf("Search failed: %v", err)
 	}
 
-	if len(res.Documents) != 2 { // Should match docs with path file4.py and file5.rs
+	if len(res.Documents) != 2 { // Should match docs with path pkg/search/file4.py and vendor/lib/file5.rs
 		t.Errorf("got %d results, want 2", len(res.Documents))
 	}
 
@@ -314,6 +325,14 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
+			name:  "Colon path filter (path:pkg/search)",
+			query: "path:pkg/search",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "path:pkg/search"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
 			name:  "Colon non-filter (std::cout)",
 			query: "std::cout",
 			want: []Token{
@@ -387,6 +406,8 @@ func TestTermExtractor(t *testing.T) {
 		{"Filter with Keyword", "cat lang=go", []string{"cat"}},
 		{"Colon Filter Only", "file:test", []string{}},
 		{"Colon Filter with Keyword", "cat file:test", []string{"cat"}},
+		{"Colon Path Filter Only", "path:pkg/search", []string{}},
+		{"Colon Path Filter with Keyword", "cat path:pkg/search", []string{"cat"}},
 		{"Empty Query", "", nil},
 	}
 
@@ -559,6 +580,7 @@ func TestEvaluateFile(t *testing.T) {
 		query         string
 		content       string
 		filename      string
+		location      string
 		caseSensitive bool
 		wantMatch     bool
 		wantTerms     []string
@@ -568,6 +590,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file=test",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -576,6 +599,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file=test",
 			content:   "the cat sat on the mat",
 			filename:  "main.go",
+			location:  "src/main.go",
 			wantMatch: false,
 		},
 		{
@@ -583,6 +607,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file!=test",
 			content:   "the cat sat on the mat",
 			filename:  "main.go",
+			location:  "src/main.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -591,6 +616,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file!=test",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: false,
 		},
 		{
@@ -598,6 +624,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat ext=go",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -606,6 +633,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat ext=py",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: false,
 		},
 		{
@@ -613,6 +641,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file=TEST",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -621,6 +650,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat ext=GO",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -629,6 +659,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat lang=go",
 			content:   "the cat sat on the mat",
 			filename:  "anything.py",
+			location:  "src/anything.py",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -638,6 +669,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file:test",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -646,6 +678,7 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat file:test",
 			content:   "the cat sat on the mat",
 			filename:  "main.go",
+			location:  "src/main.go",
 			wantMatch: false,
 		},
 		{
@@ -653,6 +686,78 @@ func TestEvaluateFile(t *testing.T) {
 			query:     "cat ext:go",
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		// Path filter tests in per-file mode
+		{
+			name:      "Path filter matches directory",
+			query:     "cat path:pkg/search",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Path filter no match",
+			query:     "cat path=vendor",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "Path filter != excludes",
+			query:     "cat path!=vendor",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Path filter case insensitive",
+			query:     "cat path:PKG/SEARCH",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Colon path filter matches",
+			query:     "cat path:pkg/search",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Colon path filter no match",
+			query:     "cat path:vendor",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		{
+			name:      "Filepath alias in per-file mode",
+			query:     "cat filepath:pkg/search",
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "Path filter with quoted value",
+			query:     `cat path="pkg/search"`,
+			content:   "the cat sat on the mat",
+			filename:  "search_test.go",
+			location:  "pkg/search/search_test.go",
 			wantMatch: true,
 			wantTerms: []string{"cat"},
 		},
@@ -661,7 +766,7 @@ func TestEvaluateFile(t *testing.T) {
 	for _, tc := range fileFilterCases {
 		t.Run(tc.name, func(t *testing.T) {
 			node := parse(tc.query)
-			matched, locations := EvaluateFile(node, []byte(tc.content), tc.filename, tc.caseSensitive)
+			matched, locations := EvaluateFile(node, []byte(tc.content), tc.filename, tc.location, tc.caseSensitive)
 
 			if matched != tc.wantMatch {
 				t.Errorf("EvaluateFile() matched = %v, want %v", matched, tc.wantMatch)
@@ -680,7 +785,7 @@ func TestEvaluateFile(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			node := parse(tc.query)
-			matched, locations := EvaluateFile(node, []byte(tc.content), "test.txt", tc.caseSensitive)
+			matched, locations := EvaluateFile(node, []byte(tc.content), "test.txt", "test.txt", tc.caseSensitive)
 
 			if matched != tc.wantMatch {
 				t.Errorf("EvaluateFile() matched = %v, want %v", matched, tc.wantMatch)
@@ -909,7 +1014,7 @@ func TestFuzzyNodeEvaluate(t *testing.T) {
 func TestFuzzyNodeEvaluateFile(t *testing.T) {
 	t.Run("Exact match", func(t *testing.T) {
 		node := &FuzzyNode{Value: "hello", Distance: 1}
-		matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+		matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", "test.txt", false)
 		if !matched {
 			t.Error("FuzzyNode in EvaluateFile should match 'hello' in 'hello world'")
 		}
@@ -920,7 +1025,7 @@ func TestFuzzyNodeEvaluateFile(t *testing.T) {
 
 	t.Run("Fuzzy match", func(t *testing.T) {
 		node := &FuzzyNode{Value: "hallo", Distance: 1}
-		matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+		matched, locs := EvaluateFile(node, []byte("hello world"), "test.txt", "test.txt", false)
 		if !matched {
 			t.Error("FuzzyNode should match 'hello' for query 'hallo~1'")
 		}
@@ -931,7 +1036,7 @@ func TestFuzzyNodeEvaluateFile(t *testing.T) {
 
 	t.Run("No match", func(t *testing.T) {
 		node := &FuzzyNode{Value: "zzzzz", Distance: 1}
-		matched, _ := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+		matched, _ := EvaluateFile(node, []byte("hello world"), "test.txt", "test.txt", false)
 		if matched {
 			t.Error("FuzzyNode should not match 'zzzzz~1' in 'hello world'")
 		}
@@ -953,7 +1058,7 @@ func TestInvalidRegexSearch(t *testing.T) {
 
 func TestInvalidRegexEvaluateFile(t *testing.T) {
 	node := &RegexNode{Pattern: "[invalid"}
-	matched, _ := EvaluateFile(node, []byte("hello world"), "test.txt", false)
+	matched, _ := EvaluateFile(node, []byte("hello world"), "test.txt", "test.txt", false)
 	if matched {
 		t.Error("EvaluateFile with invalid regex should return false")
 	}
@@ -1060,6 +1165,20 @@ func TestFilterHandlerEdgeCases(t *testing.T) {
 			t.Error("go in [go, rs] with != should be false")
 		}
 	})
+
+	t.Run("Path with non-string value", func(t *testing.T) {
+		doc := &Document{Path: "pkg/search/a.go"}
+		if handlePathFilter("=", 123, doc) {
+			t.Error("path filter with int value should return false")
+		}
+	})
+
+	t.Run("Path with unsupported operator", func(t *testing.T) {
+		doc := &Document{Path: "pkg/search/a.go"}
+		if handlePathFilter(">=", "pkg", doc) {
+			t.Error("path filter with >= should return false")
+		}
+	})
 }
 
 // --- Filter alias tests ---
@@ -1072,14 +1191,14 @@ func TestFilterAliases(t *testing.T) {
 		query     string
 		wantPaths []string
 	}{
-		{"language=go", "language=go", []string{"file1.go", "file2.go"}},
-		{"lang=go", "lang=go", []string{"file1.go", "file2.go"}},
-		{"extension=py", "extension=py", []string{"file3.py", "file4.py"}},
-		{"ext=py", "ext=py", []string{"file3.py", "file4.py"}},
-		{"filename=file1.go", "filename=file1.go", []string{"file1.go"}},
-		{"file=file1.go", "file=file1.go", []string{"file1.go"}},
-		{"file substring match", "file=file1", []string{"file1.go"}},
-		{"file substring match .go", "file=.go", []string{"file1.go", "file2.go"}},
+		{"language=go", "language=go", []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"lang=go", "lang=go", []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"extension=py", "extension=py", []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"ext=py", "ext=py", []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"filename=file1.go", "filename=file1.go", []string{"src/main/file1.go"}},
+		{"file=file1.go", "file=file1.go", []string{"src/main/file1.go"}},
+		{"file substring match", "file=file1", []string{"src/main/file1.go"}},
+		{"file substring match .go", "file=.go", []string{"src/main/file1.go", "src/main/file2.go"}},
 	}
 
 	for _, tc := range tests {
@@ -1171,7 +1290,7 @@ func TestTransformerExpanded(t *testing.T) {
 		if len(res.Documents) != 1 {
 			t.Errorf("expected 1 doc, got %d", len(res.Documents))
 		}
-		if len(res.Documents) == 1 && res.Documents[0].Path != "file4.py" {
+		if len(res.Documents) == 1 && res.Documents[0].Path != "pkg/search/file4.py" {
 			t.Errorf("expected file4.py, got %s", res.Documents[0].Path)
 		}
 	})
@@ -1191,7 +1310,7 @@ func TestTransformerExpanded(t *testing.T) {
 // --- EvaluateFile edge cases ---
 
 func TestEvaluateFileNilNode(t *testing.T) {
-	matched, locs := EvaluateFile(nil, []byte("hello"), "test.txt", false)
+	matched, locs := EvaluateFile(nil, []byte("hello"), "test.txt", "test.txt", false)
 	if !matched {
 		t.Error("EvaluateFile(nil) should return true")
 	}

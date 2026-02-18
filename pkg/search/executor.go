@@ -37,6 +37,8 @@ func (se *SearchEngine) registerFilterHandlers() {
 	se.filterHandlers["filename"] = handleFilenameFilter
 	se.filterHandlers["ext"] = handleExtensionFilter
 	se.filterHandlers["extension"] = handleExtensionFilter
+	se.filterHandlers["path"] = handlePathFilter
+	se.filterHandlers["filepath"] = handlePathFilter
 }
 
 // Search is the main public method to run a query.
@@ -166,32 +168,32 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 // It returns whether the file matches and a map of term → match locations.
 // File/extension filters are evaluated against the filename; other filters
 // (lang, complexity) pass through as true since metadata is not available.
-func EvaluateFile(node Node, content []byte, filename string, caseSensitive bool) (bool, map[string][][]int) {
+func EvaluateFile(node Node, content []byte, filename string, location string, caseSensitive bool) (bool, map[string][][]int) {
 	if node == nil {
 		return true, nil
 	}
 	locations := make(map[string][][]int)
-	matched := evalFile(node, content, filename, caseSensitive, locations)
+	matched := evalFile(node, content, filename, location, caseSensitive, locations)
 	return matched, locations
 }
 
-func evalFile(node Node, content []byte, filename string, caseSensitive bool, locations map[string][][]int) bool {
+func evalFile(node Node, content []byte, filename string, location string, caseSensitive bool, locations map[string][][]int) bool {
 	if node == nil {
 		return true
 	}
 
 	switch n := node.(type) {
 	case *AndNode:
-		if !evalFile(n.Left, content, filename, caseSensitive, locations) {
+		if !evalFile(n.Left, content, filename, location, caseSensitive, locations) {
 			return false
 		}
-		return evalFile(n.Right, content, filename, caseSensitive, locations)
+		return evalFile(n.Right, content, filename, location, caseSensitive, locations)
 	case *OrNode:
-		left := evalFile(n.Left, content, filename, caseSensitive, locations)
-		right := evalFile(n.Right, content, filename, caseSensitive, locations)
+		left := evalFile(n.Left, content, filename, location, caseSensitive, locations)
+		right := evalFile(n.Right, content, filename, location, caseSensitive, locations)
 		return left || right
 	case *NotNode:
-		return !evalFile(n.Expr, content, filename, caseSensitive, locations)
+		return !evalFile(n.Expr, content, filename, location, caseSensitive, locations)
 	case *KeywordNode:
 		s := string(content)
 		if caseSensitive {
@@ -254,16 +256,16 @@ func evalFile(node Node, content []byte, filename string, caseSensitive bool, lo
 		}
 		return false
 	case *FilterNode:
-		return evalFileFilter(n, filename)
+		return evalFileFilter(n, filename, location)
 	}
 
 	return false
 }
 
-// evalFileFilter evaluates a FilterNode against a filename in per-file mode.
+// evalFileFilter evaluates a FilterNode against a filename/location in per-file mode.
 // Filters that require document metadata not available per-file (lang, complexity)
 // pass through as true.
-func evalFileFilter(n *FilterNode, filename string) bool {
+func evalFileFilter(n *FilterNode, filename string, location string) bool {
 	filterVal, ok := n.Value.(string)
 	if !ok {
 		return true
@@ -280,6 +282,12 @@ func evalFileFilter(n *FilterNode, filename string) bool {
 	case "ext", "extension":
 		ext := strings.TrimPrefix(filepath.Ext(filename), ".")
 		match := strings.EqualFold(ext, filterVal)
+		if n.Operator == "!=" {
+			return !match
+		}
+		return match
+	case "path", "filepath":
+		match := strings.Contains(strings.ToLower(location), strings.ToLower(filterVal))
 		if n.Operator == "!=" {
 			return !match
 		}
@@ -344,6 +352,22 @@ func handleFilenameFilter(op string, val interface{}, doc *Document) bool {
 		return strings.Contains(strings.ToLower(doc.Filename), filename)
 	case "!=":
 		return !strings.Contains(strings.ToLower(doc.Filename), filename)
+	}
+	return false
+}
+
+func handlePathFilter(op string, val interface{}, doc *Document) bool {
+	path, ok := val.(string)
+	if !ok {
+		return false
+	}
+	path = strings.ToLower(path)
+
+	switch op {
+	case "=":
+		return strings.Contains(strings.ToLower(doc.Path), path)
+	case "!=":
+		return !strings.Contains(strings.ToLower(doc.Path), path)
 	}
 	return false
 }

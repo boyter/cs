@@ -233,15 +233,14 @@ Searches by default use AND boolean syntax for all terms
  - negate using NOT such as pride NOT prejudice
  - regex with toothpick syntax /pr[e-i]de/
 
-Searches can fuzzy match which files are searched by adding
+Searches can filter which files are searched by adding
 the following syntax
- - test file:test
- - stuff filename:.go
+ - file:test              (substring match on filename)
+ - filename:.go           (substring match on filename)
+ - path:pkg/search        (substring match on full file path)
 
-Files that are searched will be limited to those that fuzzy
-match test for the first example and .go for the second.
 Example search that uses all current functionality
- - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/ file:test
+ - darcy NOT collins wickham~1 "ten thousand a year" /pr[e-i]de/ file:test path:pkg
 
 The default input field in tui mode supports some nano commands
 - CTRL+a move to the beginning of the input
@@ -293,6 +292,8 @@ Example search that uses all current functionality (but will match nothing in th
 ```shell
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/" file:test
 cs (cat OR dog) AND NOT bird
+cs path:vendor main           # search only under vendor/
+cs "func main" path:cmd       # find main functions under cmd/
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path

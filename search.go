@@ -162,7 +162,7 @@ startWorkers:
 				stats.TextFileCount.Add(1)
 
 				// Evaluate query AST against file content
-				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, cfg.CaseSensitive)
+				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, f.Location, cfg.CaseSensitive)
 				if !matched {
 					continue
 				}

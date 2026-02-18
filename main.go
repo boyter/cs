@@ -36,16 +36,14 @@ func main() {
 			" - negate using NOT such as pride NOT prejudice\n" +
 			" - regex with toothpick syntax /pr[e-i]de/\n" +
 			"\n" +
-			"Searches can fuzzy match which files are searched by adding\n" +
+			"Searches can filter which files are searched by adding\n" +
 			"the following syntax\n" +
-			" - test file:test\n" +
-			" - stuff filename:.go\n" +
-			"\n" +
-			"Files that are searched will be limited to those that fuzzy\n" +
-			"match test for the first example and .go for the second." +
+			" - file:test              (substring match on filename)\n" +
+			" - filename:.go           (substring match on filename)\n" +
+			" - path:pkg/search        (substring match on full file path)\n" +
 			"\n" +
 			"Example search that uses all current functionality\n" +
-			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/ file:test\n" +
+			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/ file:test path:pkg\n" +
 			"\n" +
 			"The default input field in tui mode supports some nano commands\n" +
 			"- CTRL+a move to the beginning of the input\n" +

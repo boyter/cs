@@ -93,7 +93,7 @@ func (p *Parser) parseExpression(precedence int) Node {
 				return left
 			}
 			left = p.parseInfixExpression(left)
-					case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT:			// An expression-starting token here means an implicit AND.
+		case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT: // An expression-starting token here means an implicit AND.
 			left = p.parseImplicitAndExpression(left)
 		default:
 			// If the token can't be part of an infix expression, stop.
@@ -105,7 +105,7 @@ func (p *Parser) parseExpression(precedence int) Node {
 
 func isFilterField(s string) bool {
 	switch strings.ToLower(s) {
-	case "file", "filename", "ext", "extension", "lang", "language", "complexity":
+	case "file", "filename", "ext", "extension", "lang", "language", "complexity", "path", "filepath":
 		return true
 	}
 	return false
@@ -145,7 +145,7 @@ func (p *Parser) parsePrefix() Node {
 		dist, _ := strconv.Atoi(literal[idx+1:])
 		node = &FuzzyNode{Value: term, Distance: dist}
 	case NOT:
-		p.nextToken()                               // Consume 'NOT'
+		p.nextToken()                // Consume 'NOT'
 		expr := p.parseExpression(5) // High precedence for what NOT applies to
 		if expr == nil {
 			// This indicates a dangling NOT operator (e.g., "cat AND NOT")
@@ -197,7 +197,7 @@ func (p *Parser) parseFilterExpression() Node {
 			val, _ := strconv.Atoi(p.tok.Literal)
 			values = append(values, val)
 			p.nextToken() // Consume the value token
-		case STRING_ALIAS, IDENTIFIER:
+		case STRING_ALIAS, IDENTIFIER, PHRASE:
 			values = append(values, p.tok.Literal)
 			p.nextToken() // Consume the value token
 		}
