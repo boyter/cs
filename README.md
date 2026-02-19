@@ -126,7 +126,7 @@ extraction, for example, was tested on Pride and Prejudice, a text I know more a
 #### Where is the index?
 
 There is none. Everything is brute force calculated on the fly. There is some caching to speed things up, but should in 
-practice should never affect the results.
+practice never affect the results.
 
 #### How does the ranking work?
 
