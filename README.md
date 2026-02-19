@@ -1,11 +1,16 @@
-codespelunker (cs)
-----------------------
+# codespelunker (cs)
 
-A command line search tool. Allows you to search over code or text files in the current directory either on
-the console, via a TUI or HTTP server, using some boolean queries or regular expressions.
+### A CLI code search tool with BM25 ranking, structural code awareness, and complexity gravity — no index required
 
-Consider it a similar approach to using ripgrep, silver searcher or grep coupled with fzf but in a single tool, 
-and with a specific focus on ranking results by relevance. Consider it a "Semantic-Heuristic Search Grep".
+Ever searched for `authenticate` and gotten 200 results from config files, comments, and test stubs before finding the actual implementation? `cs` fixes that.
+
+It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines like Sourcegraph or Zoekt, but without needing to maintain an index.
+
+```shell
+cs "authenticate" --gravity=brain           # Find the complex implementation, not the interface
+cs "FIXME OR TODO OR HACK" --only-comments  # Search only in comments, not code or strings
+cs "error" --only-strings                   # Find where error messages are defined
+```
 
 Licensed under MIT.
 
@@ -18,30 +23,36 @@ Licensed under MIT.
 
 <img alt="cs tui" src=https://github.com/boyter/cs/raw/master/cs_tui.png>
 
-### Support
+### Pitch: Why use cs?
 
-Using `cs` commercially? If you want priority support for `cs` you can purchase a years worth https://boyter.gumroad.com/l/vvmyi which entitles you to priority direct email support from the developer.
+Most search tools treat code as plain text. `cs` doesn't.
 
-### Pitch
+It parses every file on the fly to understand what is a comment, what is a string, and what is code 
+then uses that structure to rank by relevance, not just list them by occurrence.
 
-Why use `cs` instead of `ripgrep` or `grep`?
+```shell
+cs "authenticate"                    # BM25-ranked results, best match first
+cs "authenticate" --gravity=brain    # Boost complex implementations over interfaces
+cs "TODO" --only-comments            # Only matches inside comments
+cs "error" --only-strings            # Only matches inside string literals
+cs "config OR setup" lang:go         # Boolean queries with language filters
+```
 
-`cs` is NOT a replacement for either. It is a very different tool that just happens to have some overlap with both.
+#### What makes it different from ripgrep or grep?
 
-While most tools treat code as plain text, `cs` treats code with structure. It parses every file on the fly to 
-understand what is a comment, what is a string, and what is code. 
+`ripgrep` is a fast text matcher. It finds lines and prints them. It's the best at what it does.
 
-This enables a few unique features.
+`cs` is a search engine. It finds files, ranks by relevance, extracts the best snippet, 
+and shows the most relevant results. Think Sourcegraph-quality ranked search as a CLI tool, no index required.
 
-- Context-Aware Ranking: A match inside a variable name or function body ranks higher than the same word inside a comment or string literal (but is configurable).
-- Structural Filtering: You can strictly filter matches. Want to find "TODO" but only if it's inside a string literal? Want to find "hack" but only if it's inside a comment? `cs` can do that.
-- Complexity Gravity: `cs` can measure the [Cyclomatic Complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) of a file and use it as a ranking signal. If you are searching for `Authenticate`, you likely want the complex implementation logic (high complexity), not the interface definition or the config file (low complexity).
+They solve different problems. You'll probably want both.
 
-It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines like 
-Sourcegraph or Zoekt, but without needing to maintain an index.
+#### Key capabilities
 
-The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my 
-own problem. As a result, it has a pretty nice TUI interface but can run over HTTP if you need as well.
+- Structural Awareness: A match in code ranks higher than the same word in a comment (1.0 vs 0.2) — and it's configurable. Or filter strictly: `--only-code`, `--only-comments`, `--only-strings`.
+- Complexity Gravity: Uses [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) as a ranking signal. Searching for `Authenticate`? The complex implementation file ranks above the interface definition. (`--gravity=brain`)
+- Smart Ranking: BM25 relevance scoring, file-location boosting, noise penalty for data blobs, and automatic test-file dampening — all on the fly with no pre-built index.
+- Multiple interfaces: Console output, a built-in TUI, an HTTP server with syntax highlighting, or an MCP server for LLM tooling.
 
 ### Key Features
 
@@ -364,3 +375,11 @@ Results are returned as JSON with the same fields as `--format json`: filename, 
 | `end_line` | number | no | 1-based end line number, inclusive (reads to end if omitted) |
 
 Returns JSON with line-numbered file content and, for recognised source files, language, lines, code, comment, blank, and complexity fields.
+
+
+
+### Support
+
+Using `cs` commercially? If you want priority support for `cs` you can purchase a years worth https://boyter.gumroad.com/l/vvmyi which entitles you to priority direct email support from the developer.
+
+If not, raise a bug report... or don't. I'm not the boss of you.
