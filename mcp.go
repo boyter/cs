@@ -65,7 +65,15 @@ func StartMCPServer(cfg *Config) {
 			"- 'jwt middleware lang:go NOT path:vendor' — find Go JWT middleware outside vendor\n"+
 			"- query='dense_rank' code_filter='only-strings' — find the actual SQL string, not code references\n"+
 			"- query='middleware' code_filter='only-code' path filter='NOT path:vendor' — find middleware implementations\n"+
-			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow"),
+			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow\n\n"+
+			"Tips and common mistakes:\n"+
+			"- Terms are ANDed: 'sql.Open pgx.Connect mongo.Connect' requires ALL terms in one file. Use OR for alternatives: 'sql.Open OR pgx.Connect OR mongo.Connect'\n"+
+			"- Too many AND terms = no results. Start with 1-2 specific terms, then narrow with filters.\n"+
+			"- Dot-separated names (sql.Open, fmt.Println) work as literal substrings. Quoting is optional: sql.Open and \"sql.Open\" behave identically.\n"+
+			"- Exclude dependency dirs: add 'NOT path:vendor NOT path:node_modules' to avoid vendored/dependency results.\n"+
+			"- File exclusion with many AND terms: 'process calculate transform aggregate NOT file:*_test.go' fails because no file contains all four keywords. Reduce terms: 'process aggregate NOT file:*_test.go lang:go'\n"+
+			"- For structural patterns use regex: '/type\\s+\\w+Error\\s+struct/' not 'type Error struct'. Keywords match anywhere in the file, not adjacently.\n"+
+			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
 			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
@@ -75,7 +83,7 @@ func StartMCPServer(cfg *Config) {
 			mcp.Required(),
 		),
 		mcp.WithNumber("max_results",
-			mcp.Description("Maximum number of results to return. Defaults to 20."),
+			mcp.Description("Maximum number of results to return. Defaults to 20. No upper limit enforced. Use higher values (50-100) for broad discovery queries or when exploring unfamiliar codebases."),
 		),
 		mcp.WithNumber("snippet_length",
 			mcp.Description("Size of the code snippet to display in characters."),
