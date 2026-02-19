@@ -236,10 +236,13 @@ startWorkers:
 // filterMatchLocations removes match locations that don't belong to the
 // content type selected by the active filter. Returns the filtered map
 // and true if any locations survived. When contentByteType is nil
-// (unrecognised language), all locations pass through.
+// (unrecognised language) and a content filter is active, the file is
+// excluded because we cannot verify the content type.
 func filterMatchLocations(matchLocations map[string][][]int, contentByteType []byte, cfg *Config) (map[string][][]int, bool) {
 	if contentByteType == nil {
-		// Can't classify — let everything through (matches ranker fallback)
+		if cfg.OnlyCode || cfg.OnlyComments || cfg.OnlyStrings {
+			return nil, false
+		}
 		return matchLocations, len(matchLocations) > 0
 	}
 

@@ -152,16 +152,46 @@ func TestFilterMatchLocations_MixedContent_FiltersCorrectly(t *testing.T) {
 	}
 }
 
-func TestFilterMatchLocations_NilByteType_PassesThrough(t *testing.T) {
+func TestFilterMatchLocations_NilByteType_NoFilter_PassesThrough(t *testing.T) {
 	locs := map[string][][]int{"func": {{0, 4}}}
-	cfg := &Config{OnlyCode: true}
+	cfg := &Config{}
 
 	filtered, ok := filterMatchLocations(locs, nil, cfg)
 	if !ok {
-		t.Fatal("expected matches to pass through with nil byte type")
+		t.Fatal("expected matches to pass through with nil byte type and no filter")
 	}
 	if len(filtered["func"]) != 1 {
 		t.Errorf("expected 1 location, got %d", len(filtered["func"]))
+	}
+}
+
+func TestFilterMatchLocations_NilByteType_OnlyComments_Excluded(t *testing.T) {
+	locs := map[string][][]int{"func": {{0, 4}}}
+	cfg := &Config{OnlyComments: true}
+
+	_, ok := filterMatchLocations(locs, nil, cfg)
+	if ok {
+		t.Fatal("expected nil byte type with OnlyComments to exclude file")
+	}
+}
+
+func TestFilterMatchLocations_NilByteType_OnlyCode_Excluded(t *testing.T) {
+	locs := map[string][][]int{"func": {{0, 4}}}
+	cfg := &Config{OnlyCode: true}
+
+	_, ok := filterMatchLocations(locs, nil, cfg)
+	if ok {
+		t.Fatal("expected nil byte type with OnlyCode to exclude file")
+	}
+}
+
+func TestFilterMatchLocations_NilByteType_OnlyStrings_Excluded(t *testing.T) {
+	locs := map[string][][]int{"func": {{0, 4}}}
+	cfg := &Config{OnlyStrings: true}
+
+	_, ok := filterMatchLocations(locs, nil, cfg)
+	if ok {
+		t.Fatal("expected nil byte type with OnlyStrings to exclude file")
 	}
 }
 
