@@ -103,7 +103,8 @@ func StartMCPServer(cfg *Config) {
 				"Use when searching for SQL queries (e.g. 'dense_rank'), error messages, log messages, config keys, dependency names, or connection strings.\n"+
 				"- 'only-comments': match only in comments. "+
 				"Use when searching for TODOs, FIXMEs, developer explanations of complex logic, or doc annotations.\n"+
-				"Default: no filter (searches all content types)."),
+				"Default: no filter (searches all content types).\n"+
+				"IMPORTANT: When using code_filter, always also set the 'language' parameter to scope results to the relevant language(s). Without it, results from all languages in the project (including dependency directories like node_modules, vendor, site-packages) will dominate."),
 		),
 	)
 
