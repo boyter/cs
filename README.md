@@ -12,7 +12,10 @@ Licensed under MIT.
 [![Coverage Status](https://coveralls.io/repos/github/boyter/cs/badge.svg?branch=master)](https://coveralls.io/github/boyter/cs?branch=master)
 [![Cs Count Badge](https://sloc.xyz/github/boyter/cs/)](https://github.com/boyter/cs/)
 
-[![asciicast](https://asciinema.org/a/589640.svg)](https://asciinema.org/a/589640)
+[//]: # ([![asciicast]&#40;https://asciinema.org/a/589640.svg&#41;]&#40;https://asciinema.org/a/589640&#41;)
+
+
+<img alt="cs tui" src=https://github.com/boyter/cs/raw/master/cs_tui.png>
 
 ### Support
 
@@ -132,7 +135,7 @@ For more info read the "Snippet Extraction AKA I am PHP developer" section of th
 
 It's a little brutalist.
 
-<img alt="scc" src=https://github.com/boyter/cs/raw/master/cs_http.png>
+<img alt="cs http" src=https://github.com/boyter/cs/raw/master/cs_http.png>
 
 You can change its look and feel using `--template-style` for built-in themes (`dark`, `light`, `bare`), or provide
 custom templates with `--template-display` and `--template-search`. See https://github.com/boyter/cs/tree/master/asset/templates
