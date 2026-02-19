@@ -147,11 +147,14 @@ func TestExecutor(t *testing.T) {
 		{"File no glob still substring", "file:file1", false, []string{"src/main/file1.go"}},
 		{"Path no glob still substring", "path:src/main", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
 
-		// TODO: Add tests for NOT operator precedence and filter interaction.
-		// {"NOT Operator Precedence", "lazy AND NOT dog", false, []string{"file3.py"}},
-		// {"NOT with Filter", "NOT lang=go", false, []string{"file3.py", "file4.py", "file5.rs"}},
-		// {"Empty Query", "", false, []string{}},
-		// {"Whitespace Query", " ", false, []string{}},
+		// NOT with path filter (regression: was returning null)
+		{"Keyword NOT path filter", "brown NOT path:vendor", false, []string{"src/main/file1.go", "src/main/file2.go"}},
+		{"Keyword NOT path filter 2", "cat NOT path:vendor", false, []string{"src/main/file1.go", "pkg/search/file3.py", "pkg/search/file4.py"}},
+		{"Implicit AND with NOT path", "lazy cat NOT path:vendor", false, []string{"pkg/search/file3.py"}},
+
+		// NOT operator precedence and filter interaction
+		{"NOT Operator Precedence", "lazy AND NOT dog", false, []string{"pkg/search/file3.py"}},
+		{"NOT with Filter", "NOT lang=go", false, []string{"pkg/search/file3.py", "pkg/search/file4.py", "vendor/lib/file5.rs", "src/main/file6.txt"}},
 	}
 
 	for _, tc := range testCases {
@@ -831,6 +834,32 @@ func TestEvaluateFile(t *testing.T) {
 			content:   "the cat sat on the mat",
 			filename:  "search_test.go",
 			location:  "pkg/search/search_test.go",
+			wantMatch: false,
+		},
+		// NOT path filter in per-file mode
+		{
+			name:      "NOT path:vendor excludes vendor file",
+			query:     "cat NOT path:vendor",
+			content:   "the cat sat on the mat",
+			filename:  "lib.rs",
+			location:  "vendor/lib/lib.rs",
+			wantMatch: false,
+		},
+		{
+			name:      "NOT path:vendor includes non-vendor file",
+			query:     "cat NOT path:vendor",
+			content:   "the cat sat on the mat",
+			filename:  "search.go",
+			location:  "pkg/search/search.go",
+			wantMatch: true,
+			wantTerms: []string{"cat"},
+		},
+		{
+			name:      "NOT path:vendor no content match",
+			query:     "dog NOT path:vendor",
+			content:   "the cat sat on the mat",
+			filename:  "search.go",
+			location:  "pkg/search/search.go",
 			wantMatch: false,
 		},
 		// Glob path filter in per-file mode
@@ -1546,6 +1575,89 @@ func TestColonOperatorFilterAST(t *testing.T) {
 			}
 			if fn.Operator != tc.wantOp {
 				t.Errorf("Operator = %q, want %q", fn.Operator, tc.wantOp)
+			}
+		})
+	}
+}
+
+// TestFullPipelinePerFile simulates the DoSearch per-file logic:
+// parse → transform → plan → EvaluateFile → PostEvalMetadataFilters.
+// This ensures the two-phase evaluation works correctly end-to-end.
+func TestFullPipelinePerFile(t *testing.T) {
+	pipeline := func(query string) Node {
+		lexer := NewLexer(strings.NewReader(query))
+		parser := NewParser(lexer)
+		ast, _ := parser.ParseQuery()
+		transformer := &Transformer{}
+		ast, _ = transformer.TransformAST(ast)
+		ast = PlanAST(ast)
+		return ast
+	}
+
+	tests := []struct {
+		name       string
+		query      string
+		content    string
+		filename   string
+		location   string
+		lang       string
+		complexity int64
+		wantMatch  bool
+	}{
+		{
+			name:      "cat NOT path:vendor — non-vendor file matches",
+			query:     "cat NOT path:vendor",
+			content:   "the cat sat on the mat",
+			filename:  "search.go",
+			location:  "pkg/search/search.go",
+			lang:      "Go",
+			wantMatch: true,
+		},
+		{
+			name:      "cat NOT path:vendor — vendor file excluded",
+			query:     "cat NOT path:vendor",
+			content:   "the cat sat on the mat",
+			filename:  "lib.rs",
+			location:  "vendor/lib/lib.rs",
+			lang:      "Rust",
+			wantMatch: false,
+		},
+		{
+			name:       "cat NOT lang:go — Go file excluded by metadata",
+			query:      "cat NOT lang:go",
+			content:    "the cat sat on the mat",
+			filename:   "search.go",
+			location:   "pkg/search/search.go",
+			lang:       "Go",
+			complexity: 5,
+			wantMatch:  false,
+		},
+		{
+			name:       "cat NOT lang:go — Python file matches",
+			query:      "cat NOT lang:go",
+			content:    "the cat sat on the mat",
+			filename:   "search.py",
+			location:   "pkg/search/search.py",
+			lang:       "Python",
+			complexity: 3,
+			wantMatch:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ast := pipeline(tc.query)
+
+			// Phase 1: per-file evaluation
+			matched, _ := EvaluateFile(ast, []byte(tc.content), tc.filename, tc.location, false)
+
+			// Phase 2: metadata filter check
+			if matched {
+				matched = PostEvalMetadataFilters(ast, tc.lang, tc.complexity)
+			}
+
+			if matched != tc.wantMatch {
+				t.Errorf("full pipeline matched = %v, want %v", matched, tc.wantMatch)
 			}
 		})
 	}

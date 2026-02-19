@@ -202,6 +202,12 @@ func postEvalMeta(node Node, lang string, complexity int64) bool {
 	case *OrNode:
 		return postEvalMeta(n.Left, lang, complexity) || postEvalMeta(n.Right, lang, complexity)
 	case *NotNode:
+		// If the negated subtree contains no metadata filters (lang, complexity),
+		// the NOT was already fully evaluated during per-file processing.
+		// Negating the pass-through true would incorrectly reject every file.
+		if !hasMetadataFilter(n.Expr) {
+			return true
+		}
 		return !postEvalMeta(n.Expr, lang, complexity)
 	case *KeywordNode, *PhraseNode, *RegexNode, *FuzzyNode:
 		// Already evaluated during per-file search
@@ -223,6 +229,53 @@ func postEvalMeta(node Node, lang string, complexity int64) bool {
 	return true
 }
 
+// hasMetadataFilter reports whether the subtree rooted at node contains any
+// filter that depends on document metadata (lang/language, complexity).
+// These are the filters that postEvalMeta actually evaluates; all others
+// (file, ext, path) are handled during per-file evaluation and just pass through.
+func hasMetadataFilter(node Node) bool {
+	if node == nil {
+		return false
+	}
+	switch n := node.(type) {
+	case *FilterNode:
+		field := strings.ToLower(n.Field)
+		return field == "lang" || field == "language" || field == "complexity"
+	case *AndNode:
+		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
+	case *OrNode:
+		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
+	case *NotNode:
+		return hasMetadataFilter(n.Expr)
+	default:
+		return false
+	}
+}
+
+// isMetadataOnlySubtree reports whether the subtree rooted at node contains
+// only metadata filters (lang/language, complexity) and no content-matching
+// nodes (keywords, phrases, regex, fuzzy) or file-level filters (file, ext, path).
+// Used by evalFile to skip negation for NOT subtrees that are entirely deferred
+// to PostEvalMetadataFilters.
+func isMetadataOnlySubtree(node Node) bool {
+	if node == nil {
+		return true
+	}
+	switch n := node.(type) {
+	case *FilterNode:
+		field := strings.ToLower(n.Field)
+		return field == "lang" || field == "language" || field == "complexity"
+	case *AndNode:
+		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
+	case *OrNode:
+		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
+	case *NotNode:
+		return isMetadataOnlySubtree(n.Expr)
+	default:
+		return false
+	}
+}
+
 func evalFile(node Node, content []byte, filename string, location string, caseSensitive bool, locations map[string][][]int) bool {
 	if node == nil {
 		return true
@@ -239,6 +292,12 @@ func evalFile(node Node, content []byte, filename string, location string, caseS
 		right := evalFile(n.Right, content, filename, location, caseSensitive, locations)
 		return left || right
 	case *NotNode:
+		// If the negated subtree contains only metadata filters (lang, complexity)
+		// that pass through as true in per-file mode, don't negate — those will be
+		// handled by PostEvalMetadataFilters once file metadata is available.
+		if isMetadataOnlySubtree(n.Expr) {
+			return true
+		}
 		return !evalFile(n.Expr, content, filename, location, caseSensitive, locations)
 	case *KeywordNode:
 		s := string(content)
