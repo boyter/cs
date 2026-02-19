@@ -4,7 +4,8 @@ codespelunker (cs)
 A command line search tool. Allows you to search over code or text files in the current directory either on
 the console, via a TUI or HTTP server, using some boolean queries or regular expressions.
 
-Consider it a similar approach to using ripgrep, silver searcher or grep coupled with fzf but in a single tool.
+Consider it a similar approach to using ripgrep, silver searcher or grep coupled with fzf but in a single tool, 
+and with a specific focus on ranking results by relevance. Consider it a "Semantic-Heuristic Search Grep".
 
 Licensed under MIT.
 
@@ -23,25 +24,58 @@ Using `cs` commercially? If you want priority support for `cs` you can purchase 
 
 ### Pitch
 
-Why use cs?
+Why use `cs` instead of `ripgrep` or `grep`?
 
- - Reasonably fast
- - Rank results on the fly helping you find things
- - Searches across multiple lines
- - Has a nice TUI interface.
- - Cross-platform (on Windows it probably needs the terminal)
- - In-query filters to narrow results by language, extension, complexity, filename, or path
+`cs` is NOT a replacement for either. It is a very different tool that just happens to have some overlap with both.
 
-The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my own
-problem. 
+While most tools treat code as plain text, `cs` treats code with structure. It parses every file on the fly to 
+understand what is a comment, what is a string, and what is code. 
+
+This enables a few unique features.
+
+- Context-Aware Ranking: A match inside a variable name or function body ranks higher than the same word inside a comment or string literal (but is configurable).
+- Structural Filtering: You can strictly filter matches. Want to find "TODO" but only if it's inside a string literal? Want to find "hack" but only if it's inside a comment? `cs` can do that.
+- Complexity Gravity: `cs` can measure the [Cyclomatic Complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) of a file and use it as a ranking signal. If you are searching for `Authenticate`, you likely want the complex implementation logic (high complexity), not the interface definition or the config file (low complexity).
+
+It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines like 
+Sourcegraph or Zoekt, but without needing to maintain an index.
+
+The reason `cs` exists at all is because I was running into limitations using `rg TERM | fzf` and decided to solve my 
+own problem. As a result, it has a pretty nice TUI interface but can run over HTTP if you need as well.
+
+### Key Features
+
+#### Structural Filtering
+
+Stop grepping through false positives.
+```shell
+cs "database" --only-code        # Ignore matches in comments/docs
+cs "FIXME" --only-comments       # Ignore matches in code/strings
+cs "error" --only-strings        # Find where error messages are defined
+```
+
+#### Complexity Gravity
+
+Find where the work happens.
+```shell
+cs "login" --gravity=brain       # Boosts complex files (the implementation)
+cs "login" --gravity=low         # Boosts simple files (configs/interfaces)
+```
+
+**Smart Ranking**
+Results are sorted by BM25 (relevance), dampened by file length, and boosted by code structure. Some effort to dampen 
+test files (when you are not looking for them) is taken into account as well.
+
+**Non-Smart Ranking**
+You can switch the ranking algorithm to pure BM25, TFIDF, or simple most match ranking on the fly.
 
 ### Install
 
-If you want to create a package to install, please make it. Let me know and ill ensure I add it here.
+If you want to create a package to install, please make it. Let me know, and I will ensure I add it here.
 
 #### Go Get
 
-If you have Go >= 1.21 installed
+If you have Go >= 1.25.2 installed
 
 `go install github.com/boyter/cs@v2.0.0`
 
@@ -53,7 +87,7 @@ https://github.com/NixOS/nixpkgs/pull/236073
 
 #### Manual
 
-Binaries for Windows, GNU/Linux and macOS are available from the [releases](https://github.com/boyter/cs/releases) page.
+Binaries for Windows, GNU/Linux, and macOS are available from the [releases](https://github.com/boyter/cs/releases) page.
 
 ### FAQ
 
@@ -66,46 +100,47 @@ No.
 The answer is probably no. It's not directly comparable. No other tool I know of works like this outside of full
 indexing tools such as hound, searchcode, sourcegraph etc... None work on the fly like this does.
 
-While `cs` does have some overlap with tools like ripgrep, grep, ack or the silver searcher the reality is it does not
-work the same way, so any comparison is pointless. It is slower than most of them, but its also doing something different.
+As far as I know what `cs` does is unique for a command line tool.
 
-You can replicate some of what it does by piping their output into fzf though if you feel like a flawed comparison.
+`cs` runs a full lexical analysis and complexity calculation from [scc](https://github.com/boyter/scc) on every matching file. 
+This is expensive compared to the raw byte-scanning of `ripgrep`, but probably not as slow as you may think.
 
-On my local machine which at time of writing is a Macbook Air M1 it can search a recent checkout of the linux source
-code in ~2.5 seconds. While absolute performance is not a design goal, I also don't want this to be a slow tool. As such
-if any obvious performance gains are on the table I will take them.
-
-Note that there is an expiring cache built in, so if you add more terms to an existing search it should only get faster.
+On a modern machine (such as Apple Silicon M1), it can search and rank the entire Linux kernel source in ~2.5 seconds.
 
 #### Does it work on normal documents?
 
 So long as they are text. I wrote it to search code, but it works just as well on full text documents. The snippet
-extraction for example was tested on Pride and Prejudice. If you had a heap of PDF's you could shell script some
-use of pdftotext and get something searchable.
-
-Note it was designed for code and as such has full .ignore and .gitignore support.
+extraction, for example, was tested on Pride and Prejudice, a text I know more about than I probably should consider I'm male.
 
 #### Where is the index?
 
-There is none. Everything is brute force calculated on the fly. For TUI mode there are some shortcuts taken with
-caching of results to speed things up.
+There is none. Everything is brute force calculated on the fly. There is some caching to speed things up, but should in 
+practice should never affect the results.
 
-#### How does the ranking work then?
+#### How does the ranking work?
 
-Standard BM25 or TF/IDF or the modified TF/IDF in Lucene https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/ 
-which dampens the impact of term frequency.
+`cs` uses a weighted BM25 algorithm.
 
-Technically speaking it's not accurate because it calculates the weights based on what it matched on and not everything,
-but it works well enough in practice and is calculated on the fly. Try it out and report if something is not working as
-you expect?
+Standard BM25 weights matches based on "fields" (so title, body, category). `cs` generates fields dynamically 
+by parsing the code syntax.
+- A match in code gets full weight (1.0).
+- A match in a string gets partial weight (0.5).
+- A match in a comment gets lower weight (0.2).
+
+This means a file where your search term appears in the logic will rank higher than a file where the term only appears 
+in the documentation, even if the word count is the same. 
+
+You can tweak the values as needed via the CLI, or on the fly change what fields `cs` searches.
 
 #### What is complexity gravity?
 
-Complexity gravity is a post-ranking boost that uses each file's cyclomatic complexity to influence result ordering.
-Complex source files (many branches, loops, conditions) get ranked higher than simple files or prose with the same
-text relevance score. This helps surface core logic files over boilerplate, configs, or documentation.
+Complexity gravity is a ranking boost that uses each file's cyclomatic complexity to influence result ordering.
 
-The `--gravity` flag accepts a named intent:
+In code search, the best result is usually where the logic is implemented. These files usually have higher 
+algorithmic density (branches, loops, conditions). `cs` uses this so implementation files generally outrank 
+data/config/interface files all things being equal. 
+
+The `--gravity` flag accepts named intent:
 
 | Intent    | Strength | Purpose                                 |
 |-----------|----------|-----------------------------------------|
@@ -122,12 +157,12 @@ cs --gravity=off "search term"     # pure text relevance
 
 #### How do you get the snippets?
 
-It's not fun... see https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go and https://github.com/boyter/cs/blob/master/pkg/snippet/snippet_lines.go 
+It's not fun... see https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go and https://github.com/boyter/cs/blob/master/pkg/snippet/snippet_lines.go
 
-It works by passing the document content to extract the snippet from and all the match locations for each term. 
-It then looks through each location for each word, and checks on either side looking for terms close to it. 
-It then ranks on the term frequency for the term we are checking around and rewards rarer terms. 
-It also rewards more matches, closer matches, exact case matches and matches that are whole words.
+It works by passing the document content to extract the snippet from and all the match locations for each term.
+It then looks through each location for each word, and checks on either side looking for terms close to it.
+It then ranks on the term frequency for the term we are checking around and rewards rarer terms.
+It also rewards more matches, closer matches, exact case matches, and matches that are whole words.
 
 For more info read the "Snippet Extraction AKA I am PHP developer" section of this blog post https://boyter.org/posts/abusing-aws-to-make-a-search-engine/
 
@@ -139,78 +174,13 @@ It's a little brutalist.
 
 You can change its look and feel using `--template-style` for built-in themes (`dark`, `light`, `bare`), or provide
 custom templates with `--template-display` and `--template-search`. See https://github.com/boyter/cs/tree/master/asset/templates
-for example templates you can use to modify things.
+for example templates you can use to modify the look and feel.
 
 ```shell
 cs -d --template-style light
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 ```
 
-### MCP Server Mode
-
-`cs` can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server over stdio, allowing LLM tools like Claude Desktop, Claude Code, Cursor, and others to use it as a code search tool.
-
-```shell
-cs --mcp --dir /path/to/codebase
-```
-
-#### Claude Desktop Configuration
-
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "codespelunker": {
-      "command": "/path/to/cs",
-      "args": ["--mcp", "--dir", "/path/to/codebase"]
-    }
-  }
-}
-```
-
-#### Claude Code Configuration
-
-Add to your `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "codespelunker": {
-      "command": "/path/to/cs",
-      "args": ["--mcp", "--dir", "/path/to/codebase"]
-    }
-  }
-}
-```
-
-#### Exposed Tools
-
-The MCP server exposes two tools:
-
-**`search`** — Search code files recursively with relevance ranking.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `query` | string | yes | Search query (supports boolean logic, quotes, regex, fuzzy) |
-| `max_results` | number | no | Maximum results to return (default 20) |
-| `snippet_length` | number | no | Snippet size in characters |
-| `case_sensitive` | boolean | no | Case sensitive search |
-| `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`) |
-| `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
-| `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off` |
-
-Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
-
-**`get_file`** — Read the contents of a file within the project directory.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `path` | string | yes | File path relative to the project directory, or absolute path within the project |
-| `start_line` | number | no | 1-based start line number (reads from beginning if omitted) |
-| `end_line` | number | no | 1-based end line number, inclusive (reads to end if omitted) |
-
-Returns JSON with line-numbered file content and, for recognised source files, language, lines, code, comment, blank, and complexity fields.
 
 ### Usage
 
@@ -305,7 +275,7 @@ Searches work on single or multiple words with a logical AND applied between the
 You can combine terms with OR and use parentheses to control grouping.
 You can do an exact match with quotes and do regular expressions using toothpicks.
 
-Example search that uses all current functionality (but will match nothing in this repository)
+Example searches,
 
 ```shell
 cs t NOT something test~1 "ten thousand a year" "/pr[e-i]de/" file:test
@@ -316,11 +286,81 @@ cs handler lang:go            # search only Go files
 cs TODO lang:go,python        # search Go and Python files
 cs NOT lang:go test           # search all languages except Go
 cs handler complexity:>=50    # find complex files containing "handler"
+cs "json" --only-code         # find "json" in code, ignoring string literals
+cs "hack" --only-comments     # find "hack" in comments only
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
-if you hit the enter key.
+if you hit the enter key one you have highlighted a result.
 
 ```shell
-cat `cs`
+cat `cs`  # cat out the matching file
+vi `cs`   # edit the selected file
 ```
+
+### MCP Server Mode
+
+`cs` can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server over stdio, allowing LLM 
+tools like Claude Desktop, Claude Code, Cursor, and others to use it as a code search tool.
+
+```shell
+cs --mcp --dir /path/to/codebase
+```
+
+#### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "codespelunker": {
+      "command": "/path/to/cs",
+      "args": ["--mcp", "--dir", "/path/to/codebase"]
+    }
+  }
+}
+```
+
+#### Claude Code Configuration
+
+Add to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "codespelunker": {
+      "command": "/path/to/cs",
+      "args": ["--mcp", "--dir", "/path/to/codebase"]
+    }
+  }
+}
+```
+
+#### Exposed Tools
+
+The MCP server exposes two tools:
+
+**`search`** — Search code files recursively with relevance ranking.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | yes | Search query (supports boolean logic, quotes, regex, fuzzy) |
+| `max_results` | number | no | Maximum results to return (default 20) |
+| `snippet_length` | number | no | Snippet size in characters |
+| `case_sensitive` | boolean | no | Case sensitive search |
+| `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`) |
+| `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
+| `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off` |
+
+Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
+
+**`get_file`** — Read the contents of a file within the project directory.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | File path relative to the project directory, or absolute path within the project |
+| `start_line` | number | no | 1-based start line number (reads from beginning if omitted) |
+| `end_line` | number | no | 1-based end line number, inclusive (reads to end if omitted) |
+
+Returns JSON with line-numbered file content and, for recognised source files, language, lines, code, comment, blank, and complexity fields.
