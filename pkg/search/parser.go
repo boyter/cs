@@ -119,10 +119,19 @@ func (p *Parser) parsePrefix() Node {
 		if colonIdx := strings.Index(p.tok.Literal, ":"); colonIdx > 0 {
 			field := p.tok.Literal[:colonIdx]
 			value := p.tok.Literal[colonIdx+1:]
-			if isFilterField(field) && value != "" {
-				node = &FilterNode{Field: field, Operator: "=", Value: value}
-				p.nextToken() // Consume the identifier
-				return node
+			if isFilterField(field) {
+				if value != "" {
+					node = &FilterNode{Field: field, Operator: "=", Value: value}
+					p.nextToken() // Consume the identifier
+					return node
+				}
+				// Colon-filter with empty value followed by operator: complexity:<=25
+				// Strip the trailing colon so parseFilterExpression gets clean field name
+				if p.peekTok.Type == OPERATOR {
+					p.tok.Literal = field
+					node = p.parseFilterExpression()
+					return node
+				}
 			}
 		}
 		if p.peekTok.Type == OPERATOR {

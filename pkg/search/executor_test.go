@@ -127,3 +127,18 @@ func TestPostEvalMetadataFilters_NilNode(t *testing.T) {
 		t.Error("expected nil node to return true")
 	}
 }
+
+func TestPostEvalMetadataFilters_ColonComplexityFilter(t *testing.T) {
+	// Verify that complexity:<=25 parsed via the colon syntax produces a
+	// FilterNode that PostEvalMetadataFilters handles correctly.
+	node := &FilterNode{Field: "complexity", Operator: "<=", Value: 25}
+	if !PostEvalMetadataFilters(node, "Go", 10) {
+		t.Error("expected complexity<=25 to match file with complexity 10")
+	}
+	if !PostEvalMetadataFilters(node, "Go", 25) {
+		t.Error("expected complexity<=25 to match file with complexity 25")
+	}
+	if PostEvalMetadataFilters(node, "Go", 26) {
+		t.Error("expected complexity<=25 to not match file with complexity 26")
+	}
+}

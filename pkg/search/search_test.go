@@ -107,6 +107,13 @@ func TestExecutor(t *testing.T) {
 		{"Colon ext filter", "cat ext:go", false, []string{"src/main/file1.go"}},
 		{"Colon lang filter", "cat lang:go", false, []string{"src/main/file1.go"}},
 
+		// Colon + operator filter syntax (complexity:<=25, complexity:>=8, etc.)
+		{"Colon complexity <=3", "complexity:<=3", false, []string{"src/main/file1.go", "pkg/search/file3.py", "src/main/file6.txt"}},
+		{"Colon complexity >=8", "complexity:>=8", false, []string{"pkg/search/file4.py", "vendor/lib/file5.rs"}},
+		{"Colon complexity with keyword", "cat complexity:<=3", false, []string{"src/main/file1.go", "pkg/search/file3.py"}},
+		{"Colon complexity =5", "complexity:=5", false, []string{"src/main/file2.go"}},
+		{"Colon complexity !=3", "complexity:!=3", false, []string{"src/main/file1.go", "src/main/file2.go", "pkg/search/file4.py", "vendor/lib/file5.rs", "src/main/file6.txt"}},
+
 		// Path filter
 		{"Path filter colon src/main", "path:src/main", false, []string{"src/main/file1.go", "src/main/file2.go", "src/main/file6.txt"}},
 		{"Path filter colon pkg/search", "path:pkg/search", false, []string{"pkg/search/file3.py", "pkg/search/file4.py"}},
@@ -1507,4 +1514,39 @@ func TestEmptyDocumentList(t *testing.T) {
 			t.Errorf("expected 0 results, got %d", len(res.Documents))
 		}
 	})
+}
+
+// --- Colon+operator filter AST tests ---
+
+func TestColonOperatorFilterAST(t *testing.T) {
+	tests := []struct {
+		name     string
+		query    string
+		wantOp   string
+		wantField string
+	}{
+		{"complexity:<=25", "complexity:<=25", "<=", "complexity"},
+		{"complexity:>=100", "complexity:>=100", ">=", "complexity"},
+		{"complexity:=5", "complexity:=5", "=", "complexity"},
+		{"complexity:!=3", "complexity:!=3", "!=", "complexity"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			lexer := NewLexer(strings.NewReader(tc.query))
+			parser := NewParser(lexer)
+			ast, _ := parser.ParseQuery()
+
+			fn, ok := ast.(*FilterNode)
+			if !ok {
+				t.Fatalf("expected *FilterNode, got %T", ast)
+			}
+			if fn.Field != tc.wantField {
+				t.Errorf("Field = %q, want %q", fn.Field, tc.wantField)
+			}
+			if fn.Operator != tc.wantOp {
+				t.Errorf("Operator = %q, want %q", fn.Operator, tc.wantOp)
+			}
+		})
+	}
 }
