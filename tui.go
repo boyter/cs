@@ -204,7 +204,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Rank all results with BM25 and re-extract snippets with global frequencies
 			if len(m.fileJobs) > 0 {
-				ranked := ranker.RankResults("bm25", m.textFileCount, m.fileJobs)
+				testIntent := ranker.HasTestIntent(strings.Fields(m.searchInput.Value()))
+				ranked := ranker.RankResults(m.cfg.Ranker, m.textFileCount, m.fileJobs, m.cfg.StructuralRankerConfig(), m.cfg.ResolveGravityStrength(), m.cfg.ResolveNoiseSensitivity(), m.cfg.TestPenalty, testIntent)
 				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
 
 				// Parse snippet length from input
@@ -355,6 +356,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+
+		case tea.KeyF1:
+			m.cycleRanker()
+			return m, m.retriggerSearch()
+		case tea.KeyF2:
+			m.cycleCodeFilter()
+			return m, m.retriggerSearch()
+		case tea.KeyF3:
+			m.cycleGravity()
+			return m, m.retriggerSearch()
+		case tea.KeyF4:
+			m.cycleNoise()
+			return m, m.retriggerSearch()
 		}
 	}
 
@@ -536,7 +550,7 @@ func (m *model) clampScroll() {
 
 func (m *model) ensureVisible() {
 	// Calculate available height for results area
-	availHeight := m.windowHeight - 3 // input line + status line + separator
+	availHeight := m.windowHeight - 5 // input + status + separator + bottom bar + overhead
 
 	// Make sure selected item is visible by adjusting scroll offset
 	heightBefore := 0
@@ -562,6 +576,88 @@ func (m *model) ensureVisible() {
 	}
 
 	m.clampScroll()
+}
+
+// cycleRanker cycles the ranker through: simple → tfidf → bm25 → structural → simple…
+func (m *model) cycleRanker() {
+	order := []string{"simple", "tfidf", "bm25", "structural"}
+	for i, v := range order {
+		if v == m.cfg.Ranker {
+			m.cfg.Ranker = order[(i+1)%len(order)]
+			return
+		}
+	}
+	m.cfg.Ranker = "simple"
+}
+
+// cycleCodeFilter cycles: default → only-code → only-comments → only-strings → default…
+// Auto-switches ranker to "structural" when a filter is active.
+func (m *model) cycleCodeFilter() {
+	switch {
+	case !m.cfg.OnlyCode && !m.cfg.OnlyComments && !m.cfg.OnlyStrings:
+		m.cfg.OnlyCode = true
+		m.cfg.OnlyComments = false
+		m.cfg.OnlyStrings = false
+	case m.cfg.OnlyCode:
+		m.cfg.OnlyCode = false
+		m.cfg.OnlyComments = true
+		m.cfg.OnlyStrings = false
+	case m.cfg.OnlyComments:
+		m.cfg.OnlyCode = false
+		m.cfg.OnlyComments = false
+		m.cfg.OnlyStrings = true
+	default:
+		m.cfg.OnlyCode = false
+		m.cfg.OnlyComments = false
+		m.cfg.OnlyStrings = false
+	}
+	if m.cfg.HasContentFilter() {
+		m.cfg.Ranker = "structural"
+	}
+}
+
+// cycleGravity cycles: off → low → default → logic → brain → off…
+func (m *model) cycleGravity() {
+	order := []string{"off", "low", "default", "logic", "brain"}
+	for i, v := range order {
+		if v == m.cfg.GravityIntent {
+			m.cfg.GravityIntent = order[(i+1)%len(order)]
+			return
+		}
+	}
+	m.cfg.GravityIntent = "off"
+}
+
+// cycleNoise cycles: silence → quiet → default → loud → raw → silence…
+func (m *model) cycleNoise() {
+	order := []string{"silence", "quiet", "default", "loud", "raw"}
+	for i, v := range order {
+		if v == m.cfg.NoiseIntent {
+			m.cfg.NoiseIntent = order[(i+1)%len(order)]
+			return
+		}
+	}
+	m.cfg.NoiseIntent = "silence"
+}
+
+// retriggerSearch bumps the search sequence and returns a debounce command to re-execute the current query.
+func (m *model) retriggerSearch() tea.Cmd {
+	m.searchSeq++
+	return makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+}
+
+// codeFilterLabel returns a display label for the current code filter state.
+func (m *model) codeFilterLabel() string {
+	switch {
+	case m.cfg.OnlyCode:
+		return "only-code"
+	case m.cfg.OnlyComments:
+		return "only-comments"
+	case m.cfg.OnlyStrings:
+		return "only-strings"
+	default:
+		return "default"
+	}
 }
 
 func (m model) View() string {
@@ -607,7 +703,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 
 	// === Results area ===
-	availHeight := m.windowHeight - 3 // input + status + separator line
+	availHeight := m.windowHeight - 5 // input + status + separator + bottom bar + overhead
 	if availHeight < 1 {
 		availHeight = 1
 	}
@@ -655,6 +751,13 @@ func (m model) View() string {
 		b.WriteString("\n")
 		linesRendered++
 	}
+
+	// === Bottom bar (nano-style keybinding hints) ===
+	bottomBar := snippetLabelStyle.Render(fmt.Sprintf(
+		"F1 Ranker:%s  F2 Filter:%s  F3 Gravity:%s  F4 Noise:%s",
+		m.cfg.Ranker, m.codeFilterLabel(), m.cfg.GravityIntent, m.cfg.NoiseIntent))
+	b.WriteString("\n")
+	b.WriteString(bottomBar)
 
 	return b.String()
 }

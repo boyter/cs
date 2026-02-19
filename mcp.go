@@ -41,16 +41,50 @@ func StartMCPServer(cfg *Config) {
 	)
 
 	searchTool := mcp.NewTool("search",
-		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking. "+
-			"Supports: exact match with quotes, fuzzy match (term~1, term~2), NOT operator, regex (/pattern/), "+
-			"file filtering (file:test, filename:.go)."),
+		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking.\n\n"+
+			"Query syntax:\n"+
+			"- Keywords: terms are ANDed by default (e.g. 'jwt middleware' finds files with both terms)\n"+
+			"- OR: 'error OR exception' matches either term\n"+
+			"- NOT: 'NOT path:vendor' excludes matches\n"+
+			"- Grouping: '(auth OR login) AND handler'\n"+
+			"- Phrases: '\"exact phrase\"' for exact match\n"+
+			"- Regex: '/pattern/' (e.g. '/func\\s+Test/')\n"+
+			"- Fuzzy: 'term~1' or 'term~2' for typo-tolerant matching (Levenshtein distance 1 or 2)\n\n"+
+			"Filters (in-query):\n"+
+			"- file:pattern — match filename (substring or glob: file:*.go, file:*_test.go)\n"+
+			"- path:pattern — match full path (substring or glob: path:*/pkg/*, NOT path:vendor/*/*)\n"+
+			"- lang:value — filter by language: lang:go, lang=go,python (multi-value with commas)\n"+
+			"- ext:value — filter by extension: ext:go, ext=ts,tsx\n\n"+
+			"Filter operators: = != (e.g. lang!=python, file!=test)\n"+
+			"Negation: NOT file:test, file!=test, NOT path:vendor, path!=vendor\n\n"+
+			"Content type filter (code_filter parameter):\n"+
+			"- 'only-code': matches in code only, skipping comments and strings — e.g. find where a function is called, not just mentioned\n"+
+			"- 'only-strings': matches in string literals only — find SQL queries, error messages, config values, connection strings\n"+
+			"- 'only-comments': matches in comments only — find TODOs, developer explanations, annotations\n\n"+
+			"Combined examples:\n"+
+			"- 'jwt middleware lang:go NOT path:vendor' — find Go JWT middleware outside vendor\n"+
+			"- query='dense_rank' code_filter='only-strings' — find the actual SQL string, not code references\n"+
+			"- query='middleware' code_filter='only-code' path filter='NOT path:vendor' — find middleware implementations\n"+
+			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow\n\n"+
+			"Tips and common mistakes:\n"+
+			"- Terms are ANDed: 'sql.Open pgx.Connect mongo.Connect' requires ALL terms in one file. Use OR for alternatives: 'sql.Open OR pgx.Connect OR mongo.Connect'\n"+
+			"- Too many AND terms = no results. Start with 1-2 specific terms, then narrow with filters.\n"+
+			"- Dot-separated names (sql.Open, fmt.Println) work as literal substrings. Quoting is optional: sql.Open and \"sql.Open\" behave identically.\n"+
+			"- Exclude dependency dirs: add 'NOT path:vendor NOT path:node_modules' to avoid vendored/dependency results.\n"+
+			"- File exclusion with many AND terms: 'process calculate transform aggregate NOT file:*_test.go' fails because no file contains all four keywords. Reduce terms: 'process aggregate NOT file:*_test.go lang:go'\n"+
+			"- For structural patterns use regex: '/type\\s+\\w+Error\\s+struct/' not 'type Error struct'. Keywords match anywhere in the file, not adjacently.\n"+
+			"- NOT binds to the next term only, not the whole query. 'a OR b NOT path:vendor' means 'a OR (b AND NOT path:vendor)'. To exclude globally, use grouping: '(a OR b) NOT path:vendor'. Precedence: NOT (tightest) > AND > OR (loosest).\n"+
+			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
-			mcp.Description("The search query. Supports boolean logic (AND/OR/NOT), quoted phrases, regex (/pattern/), and fuzzy matching (term~1)."),
+			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
+				"grouping ('(auth OR login) AND handler'), quoted phrases ('\"exact match\"'), regex (/pattern/), fuzzy (term~1, term~2). "+
+				"In-query filters: file:name, path:dir, lang:go, ext:ts. Operators: = != (lang!=python, file!=test). "+
+				"Multi-value: lang=go,python, ext=ts,tsx. 'file:' matches filename only; 'path:' matches the full directory path."),
 			mcp.Required(),
 		),
 		mcp.WithNumber("max_results",
-			mcp.Description("Maximum number of results to return. Defaults to 20."),
+			mcp.Description("Maximum number of results to return. Defaults to 20. No upper limit enforced. Use higher values (50-100) for broad discovery queries or when exploring unfamiliar codebases."),
 		),
 		mcp.WithNumber("snippet_length",
 			mcp.Description("Size of the code snippet to display in characters."),
@@ -59,10 +93,27 @@ func StartMCPServer(cfg *Config) {
 			mcp.Description("Make the search case sensitive."),
 		),
 		mcp.WithString("include_ext",
-			mcp.Description("Comma-separated list of file extensions to search (e.g. \"go,js,py\")."),
+			mcp.Description("Comma-separated list of file extensions to search (e.g. \"go,js,py\"). Convenience parameter equivalent to in-query 'ext:go,js,py' filter."),
 		),
 		mcp.WithString("language",
-			mcp.Description("Comma-separated list of language types to search (e.g. \"Go,Python,JavaScript\")."),
+			mcp.Description("Comma-separated list of language types to search (e.g. \"Go,Python,JavaScript\"). Convenience parameter equivalent to in-query 'lang:Go,Python' filter."),
+		),
+		mcp.WithString("gravity",
+			mcp.Description("Complexity gravity intent controlling how much cyclomatic complexity boosts ranking. "+
+				"Values: brain (2.5) — find complex algorithmic code, logic (1.5) — prefer branching/control flow, "+
+				"default (1.0) — balanced, low (0.2) — mostly ignore complexity, off (0.0) — pure text relevance only."),
+		),
+		mcp.WithString("code_filter",
+			mcp.Description("Content type filter — narrows matches to a specific part of the source file.\n"+
+				"Values:\n"+
+				"- 'only-code': match only in executable code lines (skip comments and string literals). "+
+				"Use when searching for function calls, variable usage, or control flow.\n"+
+				"- 'only-strings': match only in string literals. "+
+				"Use when searching for SQL queries (e.g. 'dense_rank'), error messages, log messages, config keys, dependency names, or connection strings.\n"+
+				"- 'only-comments': match only in comments. "+
+				"Use when searching for TODOs, FIXMEs, developer explanations of complex logic, or doc annotations.\n"+
+				"Default: no filter (searches all content types).\n"+
+				"IMPORTANT: When using code_filter, always also set the 'language' parameter to scope results to the relevant language(s). Without it, results from all languages in the project (including dependency directories like node_modules, vendor, site-packages) will dominate."),
 		),
 	)
 
@@ -139,7 +190,7 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		// Detect language and compute code stats
-		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(filepath.Base(absResolved), content)
+		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, _ := fileCodeStats(filepath.Base(absResolved), content)
 
 		lines := strings.Split(string(content), "\n")
 
@@ -234,6 +285,26 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 				searchCfg.LanguageTypes = strings.Split(s, ",")
 			}
 		}
+		if v, ok := request.GetArguments()["gravity"]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				searchCfg.GravityIntent = s
+			}
+		}
+		if v, ok := request.GetArguments()["code_filter"]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				switch s {
+				case "only-code":
+					searchCfg.OnlyCode = true
+				case "only-comments":
+					searchCfg.OnlyComments = true
+				case "only-strings":
+					searchCfg.OnlyStrings = true
+				}
+				if searchCfg.HasContentFilter() {
+					searchCfg.Ranker = "structural"
+				}
+			}
+		}
 
 		// Run search
 		ch, stats := DoSearch(ctx, &searchCfg, query, cache)
@@ -245,7 +316,8 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Rank results
 		textFileCount := int(stats.TextFileCount.Load())
-		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results)
+		testIntent := ranker.HasTestIntent(strings.Fields(query))
+		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), searchCfg.TestPenalty, testIntent)
 
 		// Apply max_results limit
 		if maxResults > 0 && len(results) > maxResults {

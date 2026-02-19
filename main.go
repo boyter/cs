@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const Version = "2.0.0"
+const Version = "2.1.0"
 
 func main() {
 	cfg := DefaultConfig()
@@ -34,26 +34,54 @@ func main() {
 			" - exact match using quotes \"find this\"\n" +
 			" - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2\n" +
 			" - negate using NOT such as pride NOT prejudice\n" +
+			" - OR syntax such as catch OR throw\n" +
+			" - group with parentheses (cat OR dog) NOT fish\n" +
+			" - note: NOT binds to next term, use () with OR\n" +
 			" - regex with toothpick syntax /pr[e-i]de/\n" +
 			"\n" +
-			"Searches can fuzzy match which files are searched by adding\n" +
+			"Searches can filter which files are searched by adding\n" +
 			"the following syntax\n" +
-			" - test file:test\n" +
-			" - stuff filename:.go\n" +
-			"\n" +
-			"Files that are searched will be limited to those that fuzzy\n" +
-			"match test for the first example and .go for the second." +
+			" - file:test              (substring match on filename)\n" +
+			" - filename:.go           (substring match on filename)\n" +
+			" - path:pkg/search        (substring match on full file path)\n" +
 			"\n" +
 			"Example search that uses all current functionality\n" +
-			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/ file:test\n" +
+			" - darcy NOT collins wickham~1 \"ten thousand a year\" /pr[e-i]de/ file:test path:pkg\n" +
 			"\n" +
 			"The default input field in tui mode supports some nano commands\n" +
 			"- CTRL+a move to the beginning of the input\n" +
 			"- CTRL+e move to the end of the input\n" +
-			"- CTRL+k to clear from the cursor location forward\n",
+			"- CTRL+k to clear from the cursor location forward\n" +
+			"\n" +
+			"- F1 cycle ranker (simple/tfidf/bm25/structural)\n" +
+			"- F2 cycle code filter (default/only-code/only-comments/only-strings)\n" +
+			"- F3 cycle gravity (off/low/default/logic/brain)\n" +
+			"- F4 cycle noise (silence/quiet/default/loud/raw)\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.SearchString = args
+
+			// Mutual exclusivity check
+			count := 0
+			if cfg.OnlyCode {
+				count++
+			}
+			if cfg.OnlyComments {
+				count++
+			}
+			if cfg.OnlyStrings {
+				count++
+			}
+			if count > 1 {
+				fmt.Fprintf(os.Stderr, "error: --only-code, --only-comments, and --only-strings are mutually exclusive\n")
+				os.Exit(1)
+			}
+
+			// Auto-select structural ranker when a content filter is set
+			if cfg.HasContentFilter() && cfg.Ranker != "structural" {
+				fmt.Fprintf(os.Stderr, "warning: --only-code/--only-comments/--only-strings requires structural ranker, setting --ranker=structural\n")
+				cfg.Ranker = "structural"
+			}
 
 			if cfg.MCPServer {
 				StartMCPServer(&cfg)
@@ -184,8 +212,26 @@ func main() {
 	flags.StringVar(
 		&cfg.Ranker,
 		"ranker",
-		"bm25",
-		"set ranking algorithm [simple, tfidf, tfidf2, bm25]",
+		"structural",
+		"set ranking algorithm [simple, tfidf, bm25, structural]",
+	)
+	flags.StringVar(
+		&cfg.GravityIntent,
+		"gravity",
+		"default",
+		"complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0)",
+	)
+	flags.StringVar(
+		&cfg.NoiseIntent,
+		"noise",
+		"default",
+		"noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off)",
+	)
+	flags.Float64Var(
+		&cfg.TestPenalty,
+		"test-penalty",
+		0.4,
+		"score multiplier for test files when query has no test intent (0.0-1.0, 1.0=disabled)",
 	)
 	flags.StringVarP(
 		&cfg.FileOutput,
@@ -254,6 +300,42 @@ func main() {
 		"no-syntax",
 		false,
 		"disable syntax highlighting in output",
+	)
+	flags.Float64Var(
+		&cfg.WeightCode,
+		"weight-code",
+		1.0,
+		"structural ranker: weight for matches in code (default 1.0)",
+	)
+	flags.Float64Var(
+		&cfg.WeightComment,
+		"weight-comment",
+		0.2,
+		"structural ranker: weight for matches in comments (default 0.2)",
+	)
+	flags.Float64Var(
+		&cfg.WeightString,
+		"weight-string",
+		0.5,
+		"structural ranker: weight for matches in strings (default 0.5)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyCode,
+		"only-code",
+		false,
+		"only rank matches in code (auto-selects structural ranker)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyComments,
+		"only-comments",
+		false,
+		"only rank matches in comments (auto-selects structural ranker)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyStrings,
+		"only-strings",
+		false,
+		"only rank matches in string literals (auto-selects structural ranker)",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

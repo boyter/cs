@@ -7,6 +7,7 @@ This project is a robust, extensible, in-memory search engine written in Go. It 
 
 -   **Rich Query Syntax**:
     -   **Boolean Logic**: `AND`, `OR`, `NOT` operators. `AND` is the default operator between terms (e.g., `cat dog` is the same as `cat AND dog`).
+    -   **Operator Precedence**: NOT (tightest) > AND > OR (loosest). `a OR b AND c` parses as `a OR (b AND c)`. `a OR b NOT path:vendor` parses as `a OR (b AND NOT path:vendor)`. Use parentheses to override: `(a OR b) NOT path:vendor`.
     -   **Grouping**: Use parentheses `()` for controlling order of operations.
     -   **Phrase Search**: Exact phrases using double quotes (e.g., `"lazy fox"`).
     -   **Regex Search**: Pattern matching using `/.../` syntax (e.g., `/[cb]at/`).
@@ -107,10 +108,29 @@ The engine ships with the following metadata filters, registered in `executor.go
 |----------------------|----------------------|---------|------------------|-------------|-------------------------------------|
 | `complexity`         | —                    | Numeric | `=` `!=` `>=` `<=` | No       | Matches `Document.Complexity`       |
 | `lang` / `language`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Language` (case-insensitive) |
-| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Filename` (case-insensitive) |
+| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Filename` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
+| `path` / `filepath`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Path` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
 | `ext` / `extension`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Extension` (case-insensitive) |
 
 **Semantic alias**: `complexity=high` is rewritten to `complexity>=8`.
+
+**Glob pattern support**: The `file` and `path` filters support glob patterns when the value contains `*`, `?`, or `[` characters. Without these characters, the existing substring matching is used for backward compatibility.
+
+| Pattern | Meaning |
+|---------|---------|
+| `*` | Matches any sequence of non-separator characters |
+| `?` | Matches any single non-separator character |
+| `[abc]` | Matches any character in the set |
+
+Examples:
+- `file:*.go` — files ending in `.go`
+- `file:*_test.go` — Go test files only
+- `file:file?.py` — `file1.py`, `file2.py`, etc.
+- `path:*/search/*` — files in any `search` directory
+- `path:src/main/*` — files directly under `src/main/`
+- `NOT path:vendor/*/*` — exclude vendor directory
+
+For `path:` globs, a sliding-window approach matches pattern segments against contiguous segments of the file path. `**` (recursive glob) is not supported; use substring matching without glob characters for broad directory matching (e.g., `path:vendor`).
 
 **Multi-value syntax**: Filters that support multi-value accept comma-separated lists (e.g., `lang=go,python`, `ext=ts,tsx`). This works like an `IN` clause — the document matches if its value is any of the listed values.
 

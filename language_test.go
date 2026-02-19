@@ -39,7 +39,7 @@ func TestFileCodeStats(t *testing.T) {
 	initLanguageDatabase()
 
 	content := []byte("package main\n\n// main entry point\nfunc main() {\n\tprintln(\"hello\")\n}\n")
-	lang, lines, code, comment, blank, complexity := fileCodeStats("main.go", content)
+	lang, lines, code, comment, blank, complexity, contentByteType := fileCodeStats("main.go", content)
 	if lang != "Go" {
 		t.Errorf("expected language Go, got %q", lang)
 	}
@@ -56,19 +56,28 @@ func TestFileCodeStats(t *testing.T) {
 		t.Error("expected non-zero blank")
 	}
 	_ = complexity // complexity may be zero for simple code
+	if len(contentByteType) == 0 {
+		t.Error("expected non-empty contentByteType")
+	}
+	if len(contentByteType) != len(content) {
+		t.Errorf("expected contentByteType length %d, got %d", len(content), len(contentByteType))
+	}
 }
 
 func TestFileCodeStatsUnknown(t *testing.T) {
 	initLanguageDatabase()
 
 	content := []byte("some random text\n")
-	lang, lines, code, comment, blank, complexity := fileCodeStats("unknown.zzzzz", content)
+	lang, lines, code, comment, blank, complexity, contentByteType := fileCodeStats("unknown.zzzzz", content)
 	if lang != "" {
 		t.Errorf("expected empty language, got %q", lang)
 	}
 	if lines != 0 || code != 0 || comment != 0 || blank != 0 || complexity != 0 {
 		t.Errorf("expected all zero stats, got lines=%d code=%d comment=%d blank=%d complexity=%d",
 			lines, code, comment, blank, complexity)
+	}
+	if contentByteType != nil {
+		t.Errorf("expected nil contentByteType for unknown file, got length %d", len(contentByteType))
 	}
 }
 

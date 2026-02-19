@@ -2,6 +2,7 @@ package search
 
 import (
 	"errors"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -37,6 +38,8 @@ func (se *SearchEngine) registerFilterHandlers() {
 	se.filterHandlers["filename"] = handleFilenameFilter
 	se.filterHandlers["ext"] = handleExtensionFilter
 	se.filterHandlers["extension"] = handleExtensionFilter
+	se.filterHandlers["path"] = handlePathFilter
+	se.filterHandlers["filepath"] = handlePathFilter
 }
 
 // Search is the main public method to run a query.
@@ -166,32 +169,136 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 // It returns whether the file matches and a map of term → match locations.
 // File/extension filters are evaluated against the filename; other filters
 // (lang, complexity) pass through as true since metadata is not available.
-func EvaluateFile(node Node, content []byte, filename string, caseSensitive bool) (bool, map[string][][]int) {
+func EvaluateFile(node Node, content []byte, filename string, location string, caseSensitive bool) (bool, map[string][][]int) {
 	if node == nil {
 		return true, nil
 	}
 	locations := make(map[string][][]int)
-	matched := evalFile(node, content, filename, caseSensitive, locations)
+	matched := evalFile(node, content, filename, location, caseSensitive, locations)
 	return matched, locations
 }
 
-func evalFile(node Node, content []byte, filename string, caseSensitive bool, locations map[string][][]int) bool {
+// PostEvalMetadataFilters checks metadata-dependent filters (lang, complexity)
+// that could not be evaluated during per-file AST evaluation because the metadata
+// was not yet available. Returns false if any metadata filter rejects the file.
+func PostEvalMetadataFilters(node Node, lang string, complexity int64) bool {
+	if node == nil {
+		return true
+	}
+	return postEvalMeta(node, lang, complexity)
+}
+
+func postEvalMeta(node Node, lang string, complexity int64) bool {
 	if node == nil {
 		return true
 	}
 
 	switch n := node.(type) {
 	case *AndNode:
-		if !evalFile(n.Left, content, filename, caseSensitive, locations) {
+		if !postEvalMeta(n.Left, lang, complexity) {
 			return false
 		}
-		return evalFile(n.Right, content, filename, caseSensitive, locations)
+		return postEvalMeta(n.Right, lang, complexity)
 	case *OrNode:
-		left := evalFile(n.Left, content, filename, caseSensitive, locations)
-		right := evalFile(n.Right, content, filename, caseSensitive, locations)
+		return postEvalMeta(n.Left, lang, complexity) || postEvalMeta(n.Right, lang, complexity)
+	case *NotNode:
+		// If the negated subtree contains no metadata filters (lang, complexity),
+		// the NOT was already fully evaluated during per-file processing.
+		// Negating the pass-through true would incorrectly reject every file.
+		if !hasMetadataFilter(n.Expr) {
+			return true
+		}
+		return !postEvalMeta(n.Expr, lang, complexity)
+	case *KeywordNode, *PhraseNode, *RegexNode, *FuzzyNode:
+		// Already evaluated during per-file search
+		return true
+	case *FilterNode:
+		field := strings.ToLower(n.Field)
+		switch field {
+		case "lang", "language":
+			doc := &Document{Language: lang}
+			return handleLanguageFilter(n.Operator, n.Value, doc)
+		case "complexity":
+			doc := &Document{Complexity: complexity}
+			return handleComplexityFilter(n.Operator, n.Value, doc)
+		default:
+			// file, ext, path filters already handled during per-file eval
+			return true
+		}
+	}
+	return true
+}
+
+// hasMetadataFilter reports whether the subtree rooted at node contains any
+// filter that depends on document metadata (lang/language, complexity).
+// These are the filters that postEvalMeta actually evaluates; all others
+// (file, ext, path) are handled during per-file evaluation and just pass through.
+func hasMetadataFilter(node Node) bool {
+	if node == nil {
+		return false
+	}
+	switch n := node.(type) {
+	case *FilterNode:
+		field := strings.ToLower(n.Field)
+		return field == "lang" || field == "language" || field == "complexity"
+	case *AndNode:
+		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
+	case *OrNode:
+		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
+	case *NotNode:
+		return hasMetadataFilter(n.Expr)
+	default:
+		return false
+	}
+}
+
+// isMetadataOnlySubtree reports whether the subtree rooted at node contains
+// only metadata filters (lang/language, complexity) and no content-matching
+// nodes (keywords, phrases, regex, fuzzy) or file-level filters (file, ext, path).
+// Used by evalFile to skip negation for NOT subtrees that are entirely deferred
+// to PostEvalMetadataFilters.
+func isMetadataOnlySubtree(node Node) bool {
+	if node == nil {
+		return true
+	}
+	switch n := node.(type) {
+	case *FilterNode:
+		field := strings.ToLower(n.Field)
+		return field == "lang" || field == "language" || field == "complexity"
+	case *AndNode:
+		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
+	case *OrNode:
+		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
+	case *NotNode:
+		return isMetadataOnlySubtree(n.Expr)
+	default:
+		return false
+	}
+}
+
+func evalFile(node Node, content []byte, filename string, location string, caseSensitive bool, locations map[string][][]int) bool {
+	if node == nil {
+		return true
+	}
+
+	switch n := node.(type) {
+	case *AndNode:
+		if !evalFile(n.Left, content, filename, location, caseSensitive, locations) {
+			return false
+		}
+		return evalFile(n.Right, content, filename, location, caseSensitive, locations)
+	case *OrNode:
+		left := evalFile(n.Left, content, filename, location, caseSensitive, locations)
+		right := evalFile(n.Right, content, filename, location, caseSensitive, locations)
 		return left || right
 	case *NotNode:
-		return !evalFile(n.Expr, content, filename, caseSensitive, locations)
+		// If the negated subtree contains only metadata filters (lang, complexity)
+		// that pass through as true in per-file mode, don't negate — those will be
+		// handled by PostEvalMetadataFilters once file metadata is available.
+		if isMetadataOnlySubtree(n.Expr) {
+			return true
+		}
+		return !evalFile(n.Expr, content, filename, location, caseSensitive, locations)
 	case *KeywordNode:
 		s := string(content)
 		if caseSensitive {
@@ -254,16 +361,17 @@ func evalFile(node Node, content []byte, filename string, caseSensitive bool, lo
 		}
 		return false
 	case *FilterNode:
-		return evalFileFilter(n, filename)
+		return evalFileFilter(n, filename, location)
 	}
 
 	return false
 }
 
-// evalFileFilter evaluates a FilterNode against a filename in per-file mode.
+// evalFileFilter evaluates a FilterNode against a filename/location in per-file mode.
 // Filters that require document metadata not available per-file (lang, complexity)
-// pass through as true.
-func evalFileFilter(n *FilterNode, filename string) bool {
+// pass through as true here, and are checked post-evaluation via PostEvalMetadataFilters
+// once fileCodeStats has run.
+func evalFileFilter(n *FilterNode, filename string, location string) bool {
 	filterVal, ok := n.Value.(string)
 	if !ok {
 		return true
@@ -272,7 +380,12 @@ func evalFileFilter(n *FilterNode, filename string) bool {
 	field := strings.ToLower(n.Field)
 	switch field {
 	case "file", "filename":
-		match := strings.Contains(strings.ToLower(filename), strings.ToLower(filterVal))
+		var match bool
+		if containsGlobMeta(filterVal) {
+			match = matchGlob(filterVal, filename)
+		} else {
+			match = strings.Contains(strings.ToLower(filename), strings.ToLower(filterVal))
+		}
 		if n.Operator == "!=" {
 			return !match
 		}
@@ -284,10 +397,64 @@ func evalFileFilter(n *FilterNode, filename string) bool {
 			return !match
 		}
 		return match
+	case "path", "filepath":
+		var match bool
+		if containsGlobMeta(filterVal) {
+			match = matchPathGlob(filterVal, location)
+		} else {
+			match = strings.Contains(strings.ToLower(location), strings.ToLower(filterVal))
+		}
+		if n.Operator == "!=" {
+			return !match
+		}
+		return match
 	default:
 		// lang, language, complexity, etc. — metadata not available in per-file mode
 		return true
 	}
+}
+
+// --- Glob matching helpers ---
+
+// containsGlobMeta reports whether s contains any glob metacharacters (*, ?, [).
+func containsGlobMeta(s string) bool {
+	return strings.ContainsAny(s, "*?[")
+}
+
+// matchGlob performs a case-insensitive glob match using path.Match.
+// Returns false on malformed patterns (no panic).
+func matchGlob(pattern, name string) bool {
+	matched, err := path.Match(strings.ToLower(pattern), strings.ToLower(name))
+	if err != nil {
+		return false
+	}
+	return matched
+}
+
+// matchPathGlob matches a multi-segment glob pattern against a full path using
+// a sliding-window approach over /-separated segments.
+func matchPathGlob(pattern, fullPath string) bool {
+	patSegs := strings.Split(strings.ToLower(pattern), "/")
+	pathSegs := strings.Split(strings.ToLower(fullPath), "/")
+
+	if len(patSegs) > len(pathSegs) {
+		return false
+	}
+
+	for i := 0; i <= len(pathSegs)-len(patSegs); i++ {
+		allMatch := true
+		for j, ps := range patSegs {
+			matched, err := path.Match(ps, pathSegs[i+j])
+			if err != nil || !matched {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			return true
+		}
+	}
+	return false
 }
 
 // --- Filter Handlers ---
@@ -337,13 +504,41 @@ func handleFilenameFilter(op string, val interface{}, doc *Document) bool {
 	if !ok {
 		return false
 	}
-	filename = strings.ToLower(filename)
+
+	var match bool
+	if containsGlobMeta(filename) {
+		match = matchGlob(filename, doc.Filename)
+	} else {
+		match = strings.Contains(strings.ToLower(doc.Filename), strings.ToLower(filename))
+	}
 
 	switch op {
 	case "=":
-		return strings.Contains(strings.ToLower(doc.Filename), filename)
+		return match
 	case "!=":
-		return !strings.Contains(strings.ToLower(doc.Filename), filename)
+		return !match
+	}
+	return false
+}
+
+func handlePathFilter(op string, val interface{}, doc *Document) bool {
+	p, ok := val.(string)
+	if !ok {
+		return false
+	}
+
+	var match bool
+	if containsGlobMeta(p) {
+		match = matchPathGlob(p, doc.Path)
+	} else {
+		match = strings.Contains(strings.ToLower(doc.Path), strings.ToLower(p))
+	}
+
+	switch op {
+	case "=":
+		return match
+	case "!=":
+		return !match
 	}
 	return false
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/boyter/cs/pkg/search"
 	"github.com/boyter/cs/pkg/snippet"
 	"github.com/boyter/gocodewalker"
+	"github.com/boyter/scc/v3/processor"
 )
 
 // SearchStats holds counters readable after the search channel drains.
@@ -63,8 +64,9 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 
 	// Try cache hit path: feed cached file locations instead of walking
 	var walkerToTerminate *gocodewalker.FileWalker
+	cacheQuery := cfg.ContentFilterCachePrefix() + query
 	if cache != nil {
-		if cachedFiles, ok := cache.FindPrefixFiles(cfg.AllowListExtensions, query); ok {
+		if cachedFiles, ok := cache.FindPrefixFiles(cfg.AllowListExtensions, cacheQuery); ok {
 			go func() {
 				defer close(fileQueue)
 				for _, loc := range cachedFiles {
@@ -162,9 +164,25 @@ startWorkers:
 				stats.TextFileCount.Add(1)
 
 				// Evaluate query AST against file content
-				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, cfg.CaseSensitive)
+				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, f.Location, cfg.CaseSensitive)
 				if !matched {
 					continue
+				}
+
+				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, contentByteType := fileCodeStats(f.Filename, content)
+
+				// Post-evaluate metadata filters (lang, complexity) now that metadata is available
+				if !search.PostEvalMetadataFilters(ast, lang, sccComplexity) {
+					continue
+				}
+
+				// Filter match locations by content type when a filter is active
+				if cfg.HasContentFilter() {
+					var survived bool
+					matchLocations, survived = filterMatchLocations(matchLocations, contentByteType, cfg)
+					if !survived {
+						continue
+					}
 				}
 
 				// Track matched file location for cache
@@ -176,21 +194,20 @@ startWorkers:
 
 				snippet.AddPhraseMatchLocations(content, strings.Trim(query, "\""), matchLocations)
 
-				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity := fileCodeStats(f.Filename, content)
-
 				fj := &common.FileJob{
-					Filename:       f.Filename,
-					Extension:      gocodewalker.GetExtension(f.Filename),
-					Location:       f.Location,
-					Content:        content,
-					Bytes:          len(content),
-					MatchLocations: matchLocations,
-					Language:       lang,
-					Lines:          sccLines,
-					Code:           sccCode,
-					Comment:        sccComment,
-					Blank:          sccBlank,
-					Complexity:     sccComplexity,
+					Filename:        f.Filename,
+					Extension:       gocodewalker.GetExtension(f.Filename),
+					Location:        f.Location,
+					Content:         content,
+					ContentByteType: contentByteType,
+					Bytes:           len(content),
+					MatchLocations:  matchLocations,
+					Language:        lang,
+					Lines:           sccLines,
+					Code:            sccCode,
+					Comment:         sccComment,
+					Blank:           sccBlank,
+					Complexity:      sccComplexity,
 				}
 
 				select {
@@ -209,11 +226,57 @@ startWorkers:
 
 		// Populate cache with matched file locations
 		if cache != nil && len(matchedLocations) > 0 {
-			cache.Store(cfg.AllowListExtensions, query, matchedLocations)
+			cache.Store(cfg.AllowListExtensions, cacheQuery, matchedLocations)
 		}
 	}()
 
 	return out, stats
+}
+
+// filterMatchLocations removes match locations that don't belong to the
+// content type selected by the active filter. Returns the filtered map
+// and true if any locations survived. When contentByteType is nil
+// (unrecognised language) and a content filter is active, the file is
+// excluded because we cannot verify the content type.
+func filterMatchLocations(matchLocations map[string][][]int, contentByteType []byte, cfg *Config) (map[string][][]int, bool) {
+	if contentByteType == nil {
+		if cfg.OnlyCode || cfg.OnlyComments || cfg.OnlyStrings {
+			return nil, false
+		}
+		return matchLocations, len(matchLocations) > 0
+	}
+
+	var allowedTypes []byte
+	switch {
+	case cfg.OnlyCode:
+		allowedTypes = []byte{processor.ByteTypeCode, processor.ByteTypeBlank}
+	case cfg.OnlyComments:
+		allowedTypes = []byte{processor.ByteTypeComment}
+	case cfg.OnlyStrings:
+		allowedTypes = []byte{processor.ByteTypeString}
+	}
+
+	allowed := make(map[byte]bool, len(allowedTypes))
+	for _, t := range allowedTypes {
+		allowed[t] = true
+	}
+
+	filtered := make(map[string][][]int, len(matchLocations))
+	anySurvived := false
+	for term, locs := range matchLocations {
+		var kept [][]int
+		for _, loc := range locs {
+			startByte := loc[0]
+			if startByte >= 0 && startByte < len(contentByteType) && allowed[contentByteType[startByte]] {
+				kept = append(kept, loc)
+			}
+		}
+		if len(kept) > 0 {
+			filtered[term] = kept
+			anySurvived = true
+		}
+	}
+	return filtered, anySurvived
 }
 
 // readFileContent reads a file, limiting to maxBytes if the file is larger.

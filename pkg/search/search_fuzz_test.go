@@ -53,11 +53,11 @@ func FuzzSearch(f *testing.F) {
 
 	// The test documents for the fuzzer to run against.
 	testDocs := []*Document{
-		{Path: "file1.go", Filename: "file1.go", Language: "Go", Extension: "go", Content: []byte("A brown cat is in the house."), Complexity: 2},
-		{Path: "file2.go", Filename: "file2.go", Language: "Go", Extension: "go", Content: []byte("A quick brown dog jumps over the lazy fox."), Complexity: 5},
-		{Path: "file3.py", Filename: "file3.py", Language: "Python", Extension: "py", Content: []byte("The lazy cat sat on the mat."), Complexity: 3},
-		{Path: "file4.py", Filename: "file4.py", Language: "Python", Extension: "py", Content: []byte("A bat and a cat are friends."), Complexity: 8},
-		{Path: "file5.rs", Filename: "file5.rs", Language: "Rust", Extension: "rs", Content: []byte("This is a complex document about Go programming."), Complexity: 9},
+		{Path: "src/main/file1.go", Filename: "file1.go", Language: "Go", Extension: "go", Content: []byte("A brown cat is in the house."), Complexity: 2},
+		{Path: "src/main/file2.go", Filename: "file2.go", Language: "Go", Extension: "go", Content: []byte("A quick brown dog jumps over the lazy fox."), Complexity: 5},
+		{Path: "pkg/search/file3.py", Filename: "file3.py", Language: "Python", Extension: "py", Content: []byte("The lazy cat sat on the mat."), Complexity: 3},
+		{Path: "pkg/search/file4.py", Filename: "file4.py", Language: "Python", Extension: "py", Content: []byte("A bat and a cat are friends."), Complexity: 8},
+		{Path: "vendor/lib/file5.rs", Filename: "file5.rs", Language: "Rust", Extension: "rs", Content: []byte("This is a complex document about Go programming."), Complexity: 9},
 	}
 	se := NewSearchEngine(testDocs)
 

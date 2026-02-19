@@ -38,7 +38,8 @@ func ConsoleSearch(cfg *Config) {
 
 	// Rank results
 	textFileCount := int(stats.TextFileCount.Load())
-	results = ranker.RankResults(cfg.Ranker, textFileCount, results)
+	testIntent := ranker.HasTestIntent(strings.Fields(query))
+	results = ranker.RankResults(cfg.Ranker, textFileCount, results, cfg.StructuralRankerConfig(), cfg.ResolveGravityStrength(), cfg.ResolveNoiseSensitivity(), cfg.TestPenalty, testIntent)
 
 	// Route to formatter
 	switch cfg.Format {
