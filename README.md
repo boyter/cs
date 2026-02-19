@@ -121,7 +121,7 @@ On a modern machine (such as Apple Silicon M1), it can search and rank the entir
 #### Does it work on normal documents?
 
 So long as they are text. I wrote it to search code, but it works just as well on full text documents. The snippet
-extraction, for example, was tested on Pride and Prejudice, a text I know more about than I probably should consider I'm male.
+extraction, for example, was tested on Pride and Prejudice, a text I know more about than I probably should considering I'm male.
 
 #### Where is the index?
 
