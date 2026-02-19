@@ -552,7 +552,13 @@ func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [
 // resultHeight returns the number of terminal lines a result takes up
 func resultHeight(r searchResult) int {
 	if len(r.LineResults) > 0 {
-		return 1 + len(r.LineResults) + 1
+		gaps := 0
+		for i := 1; i < len(r.LineResults); i++ {
+			if r.LineResults[i].LineNumber > r.LineResults[i-1].LineNumber+1 {
+				gaps++
+			}
+		}
+		return 1 + len(r.LineResults) + gaps + 1
 	}
 	// 1 for title + lines in snippet + 1 blank line separator
 	lines := strings.Count(r.Snippet, "\n") + 1
@@ -875,7 +881,12 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 
 	// Render content: line-based or snippet-based
 	if len(r.LineResults) > 0 {
+		prevLine := 0
 		for _, lr := range r.LineResults {
+			if prevLine > 0 && lr.LineNumber > prevLine+1 {
+				b.WriteString("\n")
+			}
+			prevLine = lr.LineNumber
 			prefix := "  "
 			if isSelected {
 				prefix = selectedIndicator.String() + " "

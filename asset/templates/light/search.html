@@ -166,7 +166,8 @@
 				<div class="result-item">
 					<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <span style="color:#656d76;font-size:12px">({{ .Language }})</span>{{ end }}</h4>
 					{{ if .Lines }}<div class="stats">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</div>{{ end }}
-					{{ if .IsLineMode }}<pre>{{ range .LineResults }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
+					{{ if .IsLineMode }}<pre>{{ range .LineResults }}{{ if .Gap }}
+{{ end }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
 {{ end }}</pre>{{ else }}{{- range .Content }}
 					<pre>{{ . }}</pre>
 					{{- end }}{{ end }}
@@ -256,8 +257,13 @@
 				if (r.lines) html += '<div class="stats">' + escapeHTML(r.language) + ' | Lines: ' + r.lines + ' | Code: ' + r.code + ' | Comment: ' + r.comment + ' | Blank: ' + r.blank + ' | Complexity: ' + r.complexity + '</div>';
 				if (r.isLineMode && r.lineResults) {
 					html += '<pre>';
+					var prevLN = 0;
 					for (var j = 0; j < r.lineResults.length; j++) {
 						var lr = r.lineResults[j];
+						if (prevLN > 0 && lr.lineNumber > prevLN + 1) {
+							html += '\n';
+						}
+						prevLN = lr.lineNumber;
 						var num = ('    ' + lr.lineNumber).slice(-4) + ' ';
 						html += '<span style="color:#808080;user-select:none">' + num + '</span>' + lr.content + '\n';
 					}

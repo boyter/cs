@@ -81,7 +81,12 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 			} else {
 				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)%s", res.Location, lines, res.Score, codeStats))
 			}
+			prevLine := 0
 			for _, lr := range lineResults {
+				if prevLine > 0 && lr.LineNumber > prevLine+1 {
+					fmt.Println("")
+				}
+				prevLine = lr.LineNumber
 				var displayContent string
 				if !noColor && !cfg.NoSyntax {
 					displayContent = RenderANSILine(lr.Content, lr.Locs)

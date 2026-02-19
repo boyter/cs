@@ -47,6 +47,7 @@ type httpSearch struct {
 type httpLineResult struct {
 	LineNumber int           `json:"lineNumber"`
 	Content    template.HTML `json:"content"`
+	Gap        bool          `json:"gap,omitempty"`
 }
 
 type httpSearchResult struct {
@@ -291,14 +292,18 @@ func StartHttpServer(cfg *Config) {
 					continue
 				}
 				var httpLines []httpLineResult
+				prevLine := 0
 				for _, lr := range lineResults {
 					coloredLine := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
 					coloredLine = html.EscapeString(coloredLine)
 					coloredLine = strings.Replace(coloredLine, fmtBegin, "<strong>", -1)
 					coloredLine = strings.Replace(coloredLine, fmtEnd, "</strong>", -1)
+					gap := prevLine > 0 && lr.LineNumber > prevLine+1
+					prevLine = lr.LineNumber
 					httpLines = append(httpLines, httpLineResult{
 						LineNumber: lr.LineNumber,
 						Content:    template.HTML(coloredLine),
+						Gap:        gap,
 					})
 				}
 				// Compute byte range covering the displayed lines for click-through highlighting
