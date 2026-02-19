@@ -274,6 +274,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Keep listening for more results
 		return m, listenForResults(m.searchResults)
 
+	case tea.MouseMsg:
+		switch msg.Type {
+		case tea.MouseWheelUp:
+			m.scrollOffset -= 3
+			m.clampScroll()
+			m.syncSelectedToScroll()
+			return m, nil
+		case tea.MouseWheelDown:
+			m.scrollOffset += 3
+			m.clampScroll()
+			m.syncSelectedToScroll()
+			return m, nil
+		case tea.MouseLeft:
+			idx := m.resultIndexAtY(msg.Y)
+			if idx >= 0 && idx < len(m.results) {
+				m.selectedIndex = idx
+			}
+			return m, nil
+		}
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
@@ -539,9 +559,79 @@ func resultHeight(r searchResult) int {
 	return 1 + lines + 1
 }
 
+func (m *model) totalContentHeight() int {
+	total := 0
+	for _, r := range m.results {
+		total += resultHeight(r)
+	}
+	return total
+}
+
 func (m *model) clampScroll() {
 	if m.scrollOffset < 0 {
 		m.scrollOffset = 0
+	}
+	availHeight := m.windowHeight - 5
+	if availHeight < 1 {
+		availHeight = 1
+	}
+	maxScroll := m.totalContentHeight() - availHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.scrollOffset > maxScroll {
+		m.scrollOffset = maxScroll
+	}
+}
+
+func (m *model) resultIndexAtY(y int) int {
+	const headerLines = 2
+	if y < headerLines {
+		return -1
+	}
+	contentLine := m.scrollOffset + (y - headerLines)
+	accum := 0
+	for i, r := range m.results {
+		rh := resultHeight(r)
+		if contentLine < accum+rh {
+			return i
+		}
+		accum += rh
+	}
+	return -1
+}
+
+func (m *model) syncSelectedToScroll() {
+	if len(m.results) == 0 {
+		return
+	}
+	availHeight := m.windowHeight - 5
+	if availHeight < 1 {
+		availHeight = 1
+	}
+	accum := 0
+	firstVisible, lastVisible := -1, -1
+	for i, r := range m.results {
+		rh := resultHeight(r)
+		if accum+rh > m.scrollOffset && accum < m.scrollOffset+availHeight {
+			if firstVisible == -1 {
+				firstVisible = i
+			}
+			lastVisible = i
+		}
+		accum += rh
+		if accum >= m.scrollOffset+availHeight && lastVisible >= 0 {
+			break
+		}
+	}
+	if firstVisible == -1 {
+		return
+	}
+	if m.selectedIndex < firstVisible {
+		m.selectedIndex = firstVisible
+	}
+	if m.selectedIndex > lastVisible {
+		m.selectedIndex = lastVisible
 	}
 }
 

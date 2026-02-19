@@ -90,7 +90,7 @@ func main() {
 			} else if len(cfg.SearchString) != 0 {
 				ConsoleSearch(&cfg)
 			} else {
-				p := tea.NewProgram(initialModel(&cfg), tea.WithAltScreen(), tea.WithOutput(os.Stderr))
+				p := tea.NewProgram(initialModel(&cfg), tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(os.Stderr))
 				m, err := p.Run()
 				if err != nil {
 					_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
