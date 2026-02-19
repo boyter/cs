@@ -56,15 +56,13 @@ var (
 
 	selectedTitleStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("5")).
-				Bold(true).
-				Background(lipgloss.Color("236"))
+				Bold(true)
 
 	snippetStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
 
 	selectedSnippetStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("252")).
-				Background(lipgloss.Color("236"))
+				Foreground(lipgloss.Color("252"))
 
 	matchStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("1")). // red
@@ -72,8 +70,7 @@ var (
 
 	selectedMatchStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("1")).
-				Bold(true).
-				Background(lipgloss.Color("236"))
+				Bold(true)
 
 	statusStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("243"))

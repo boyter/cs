@@ -281,13 +281,13 @@ var (
 	syntaxTypeStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("80"))
 	syntaxPunctStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 
-	// Selected variants (with background)
-	syntaxKeywordSelectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Background(lipgloss.Color("236"))
-	syntaxStringSelectedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("114")).Background(lipgloss.Color("236"))
-	syntaxCommentSelectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Background(lipgloss.Color("236"))
-	syntaxNumberSelectedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("176")).Background(lipgloss.Color("236"))
-	syntaxTypeSelectedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("80")).Background(lipgloss.Color("236"))
-	syntaxPunctSelectedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Background(lipgloss.Color("236"))
+	// Selected variants (without background, selection indicated by left bar)
+	syntaxKeywordSelectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
+	syntaxStringSelectedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("114"))
+	syntaxCommentSelectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
+	syntaxNumberSelectedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("176"))
+	syntaxTypeSelectedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("80"))
+	syntaxPunctSelectedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 )
 
 // lipglossStyle returns the appropriate lipgloss style for a token kind.
