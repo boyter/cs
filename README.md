@@ -1,6 +1,6 @@
 # codespelunker (cs)
 
-### A CLI code search tool with BM25 ranking, structural code awareness, and complexity gravity — no index required
+### CLI code search tool that understands code structure and ranks results by relevance. No indexing required
 
 Ever searched for `authenticate` and gotten 200 results from config files, comments, and test stubs before finding the actual implementation? `cs` fixes that.
 
