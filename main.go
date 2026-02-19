@@ -34,6 +34,9 @@ func main() {
 			" - exact match using quotes \"find this\"\n" +
 			" - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2\n" +
 			" - negate using NOT such as pride NOT prejudice\n" +
+			" - OR syntax such as catch OR throw\n" +
+			" - group with parentheses (cat OR dog) NOT fish\n" +
+			" - note: NOT binds to next term, use () with OR\n" +
 			" - regex with toothpick syntax /pr[e-i]de/\n" +
 			"\n" +
 			"Searches can filter which files are searched by adding\n" +

@@ -73,6 +73,7 @@ func StartMCPServer(cfg *Config) {
 			"- Exclude dependency dirs: add 'NOT path:vendor NOT path:node_modules' to avoid vendored/dependency results.\n"+
 			"- File exclusion with many AND terms: 'process calculate transform aggregate NOT file:*_test.go' fails because no file contains all four keywords. Reduce terms: 'process aggregate NOT file:*_test.go lang:go'\n"+
 			"- For structural patterns use regex: '/type\\s+\\w+Error\\s+struct/' not 'type Error struct'. Keywords match anywhere in the file, not adjacently.\n"+
+			"- NOT binds to the next term only, not the whole query. 'a OR b NOT path:vendor' means 'a OR (b AND NOT path:vendor)'. To exclude globally, use grouping: '(a OR b) NOT path:vendor'. Precedence: NOT (tightest) > AND > OR (loosest).\n"+
 			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",

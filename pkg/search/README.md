@@ -7,6 +7,7 @@ This project is a robust, extensible, in-memory search engine written in Go. It 
 
 -   **Rich Query Syntax**:
     -   **Boolean Logic**: `AND`, `OR`, `NOT` operators. `AND` is the default operator between terms (e.g., `cat dog` is the same as `cat AND dog`).
+    -   **Operator Precedence**: NOT (tightest) > AND > OR (loosest). `a OR b AND c` parses as `a OR (b AND c)`. `a OR b NOT path:vendor` parses as `a OR (b AND NOT path:vendor)`. Use parentheses to override: `(a OR b) NOT path:vendor`.
     -   **Grouping**: Use parentheses `()` for controlling order of operations.
     -   **Phrase Search**: Exact phrases using double quotes (e.g., `"lazy fox"`).
     -   **Regex Search**: Pattern matching using `/.../` syntax (e.g., `/[cb]at/`).
