@@ -49,12 +49,14 @@ type Config struct {
 	MaxReadSizeBytes       int64
 
 	// Structural ranker weights
-	WeightCode    float64
-	WeightComment float64
-	WeightString  float64
-	OnlyCode      bool
-	OnlyComments  bool
-	OnlyStrings   bool
+	WeightCode       float64
+	WeightComment    float64
+	WeightString     float64
+	OnlyCode         bool
+	OnlyComments     bool
+	OnlyStrings      bool
+	OnlyDeclarations bool
+	OnlyUsages       bool
 
 	// Output
 	Format     string
@@ -112,7 +114,7 @@ func (c *Config) StructuralRankerConfig() *ranker.StructuralConfig {
 
 // HasContentFilter returns true if any content-type filter is active.
 func (c *Config) HasContentFilter() bool {
-	return c.OnlyCode || c.OnlyComments || c.OnlyStrings
+	return c.OnlyCode || c.OnlyComments || c.OnlyStrings || c.OnlyDeclarations || c.OnlyUsages
 }
 
 // ContentFilterCachePrefix returns a cache key prefix for the active content filter.
@@ -124,6 +126,10 @@ func (c *Config) ContentFilterCachePrefix() string {
 		return "[[only-comments]]"
 	case c.OnlyStrings:
 		return "[[only-strings]]"
+	case c.OnlyDeclarations:
+		return "[[only-declarations]]"
+	case c.OnlyUsages:
+		return "[[only-usages]]"
 	default:
 		return ""
 	}

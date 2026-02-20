@@ -60,12 +60,16 @@ func StartMCPServer(cfg *Config) {
 			"Content type filter (code_filter parameter):\n"+
 			"- 'only-code': matches in code only, skipping comments and strings — e.g. find where a function is called, not just mentioned\n"+
 			"- 'only-strings': matches in string literals only — find SQL queries, error messages, config values, connection strings\n"+
-			"- 'only-comments': matches in comments only — find TODOs, developer explanations, annotations\n\n"+
+			"- 'only-comments': matches in comments only — find TODOs, developer explanations, annotations\n"+
+			"- 'only-declarations': matches only on declaration lines (func, type, class, def, struct, etc.) — find where something is defined\n"+
+			"- 'only-usages': matches only on non-declaration lines — find where something is called/referenced (impact analysis)\n\n"+
 			"Combined examples:\n"+
 			"- 'jwt middleware lang:go NOT path:vendor' — find Go JWT middleware outside vendor\n"+
 			"- query='dense_rank' code_filter='only-strings' — find the actual SQL string, not code references\n"+
 			"- query='middleware' code_filter='only-code' path filter='NOT path:vendor' — find middleware implementations\n"+
-			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow\n\n"+
+			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow\n"+
+			"- query='ConnectDB' code_filter='only-declarations' language='Go' — find where ConnectDB is defined (func/type/var declaration)\n"+
+			"- query='ConnectDB' code_filter='only-usages' language='Go' — find all call sites of ConnectDB, excluding its definition\n\n"+
 			"Tips and common mistakes:\n"+
 			"- Terms are ANDed: 'sql.Open pgx.Connect mongo.Connect' requires ALL terms in one file. Use OR for alternatives: 'sql.Open OR pgx.Connect OR mongo.Connect'\n"+
 			"- Too many AND terms = no results. Start with 1-2 specific terms, then narrow with filters.\n"+
@@ -115,8 +119,18 @@ func StartMCPServer(cfg *Config) {
 				"Use when searching for SQL queries (e.g. 'dense_rank'), error messages, log messages, config keys, dependency names, or connection strings.\n"+
 				"- 'only-comments': match only in comments. "+
 				"Use when searching for TODOs, FIXMEs, developer explanations of complex logic, or doc annotations.\n"+
+				"- 'only-declarations': match only on declaration lines (func, type, class, def, struct, const, var, interface, enum, trait, impl, etc.). "+
+				"Use to find where a function, type, class, or variable is DEFINED — answers 'where is this declared?'. "+
+				"Works by matching line-start heuristics after trimming whitespace, so indented methods/functions inside classes are detected. "+
+				"Supported languages: Go, Python, JavaScript, TypeScript, TSX, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift. "+
+				"Files in unsupported languages are excluded (conservative: can't identify declarations without patterns).\n"+
+				"- 'only-usages': match only on non-declaration lines (inverse of only-declarations). "+
+				"Use for impact analysis — answers 'where is this called/referenced?'. "+
+				"Returns every match that is NOT on a declaration line. "+
+				"For unsupported languages, all matches are returned (conservative: if we can't identify declarations, everything is a usage).\n"+
 				"Default: no filter (searches all content types).\n"+
-				"IMPORTANT: When using code_filter, always also set the 'language' parameter to scope results to the relevant language(s). Without it, results from all languages in the project (including dependency directories like node_modules, vendor, site-packages) will dominate."),
+				"IMPORTANT: When using code_filter, always also set the 'language' parameter to scope results to the relevant language(s). Without it, results from all languages in the project (including dependency directories like node_modules, vendor, site-packages) will dominate.\n"+
+				"NOTE: only-declarations/only-usages are mutually exclusive with only-code/only-comments/only-strings. Only one code_filter value can be active at a time."),
 		),
 	)
 
@@ -302,6 +316,10 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 					searchCfg.OnlyComments = true
 				case "only-strings":
 					searchCfg.OnlyStrings = true
+				case "only-declarations":
+					searchCfg.OnlyDeclarations = true
+				case "only-usages":
+					searchCfg.OnlyUsages = true
 				}
 				if searchCfg.HasContentFilter() {
 					searchCfg.Ranker = "structural"

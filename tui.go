@@ -747,26 +747,26 @@ func (m *model) cycleRanker() {
 	m.cfg.Ranker = "simple"
 }
 
-// cycleCodeFilter cycles: default → only-code → only-comments → only-strings → default…
+// cycleCodeFilter cycles: default → only-code → only-comments → only-strings → only-declarations → only-usages → default…
 // Auto-switches ranker to "structural" when a filter is active.
 func (m *model) cycleCodeFilter() {
 	switch {
-	case !m.cfg.OnlyCode && !m.cfg.OnlyComments && !m.cfg.OnlyStrings:
+	case !m.cfg.OnlyCode && !m.cfg.OnlyComments && !m.cfg.OnlyStrings && !m.cfg.OnlyDeclarations && !m.cfg.OnlyUsages:
 		m.cfg.OnlyCode = true
-		m.cfg.OnlyComments = false
-		m.cfg.OnlyStrings = false
 	case m.cfg.OnlyCode:
 		m.cfg.OnlyCode = false
 		m.cfg.OnlyComments = true
-		m.cfg.OnlyStrings = false
 	case m.cfg.OnlyComments:
-		m.cfg.OnlyCode = false
 		m.cfg.OnlyComments = false
 		m.cfg.OnlyStrings = true
-	default:
-		m.cfg.OnlyCode = false
-		m.cfg.OnlyComments = false
+	case m.cfg.OnlyStrings:
 		m.cfg.OnlyStrings = false
+		m.cfg.OnlyDeclarations = true
+	case m.cfg.OnlyDeclarations:
+		m.cfg.OnlyDeclarations = false
+		m.cfg.OnlyUsages = true
+	case m.cfg.OnlyUsages:
+		m.cfg.OnlyUsages = false
 	}
 	if m.cfg.HasContentFilter() {
 		m.cfg.Ranker = "structural"
@@ -812,6 +812,10 @@ func (m *model) codeFilterLabel() string {
 		return "only-comments"
 	case m.cfg.OnlyStrings:
 		return "only-strings"
+	case m.cfg.OnlyDeclarations:
+		return "only-declarations"
+	case m.cfg.OnlyUsages:
+		return "only-usages"
 	default:
 		return "default"
 	}

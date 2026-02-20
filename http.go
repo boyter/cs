@@ -230,6 +230,10 @@ func StartHttpServer(cfg *Config) {
 				searchCfg.OnlyCode = false
 				searchCfg.OnlyComments = false
 				searchCfg.OnlyStrings = true
+			case "only-declarations":
+				searchCfg.OnlyDeclarations = true
+			case "only-usages":
+				searchCfg.OnlyUsages = true
 			default:
 				searchCfg.OnlyCode = false
 				searchCfg.OnlyComments = false

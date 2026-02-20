@@ -54,7 +54,7 @@ func main() {
 			"- CTRL+k to clear from the cursor location forward\n" +
 			"\n" +
 			"- F1 cycle ranker (simple/tfidf/bm25/structural)\n" +
-			"- F2 cycle code filter (default/only-code/only-comments/only-strings)\n" +
+			"- F2 cycle code filter (default/only-code/only-comments/only-strings/only-declarations/only-usages)\n" +
 			"- F3 cycle gravity (off/low/default/logic/brain)\n" +
 			"- F4 cycle noise (silence/quiet/default/loud/raw)\n",
 		Version: Version,
@@ -72,8 +72,14 @@ func main() {
 			if cfg.OnlyStrings {
 				count++
 			}
+			if cfg.OnlyDeclarations {
+				count++
+			}
+			if cfg.OnlyUsages {
+				count++
+			}
 			if count > 1 {
-				fmt.Fprintf(os.Stderr, "error: --only-code, --only-comments, and --only-strings are mutually exclusive\n")
+				fmt.Fprintf(os.Stderr, "error: --only-code, --only-comments, --only-strings, --only-declarations, and --only-usages are mutually exclusive\n")
 				os.Exit(1)
 			}
 
@@ -342,6 +348,18 @@ func main() {
 		"only-strings",
 		false,
 		"only rank matches in string literals (auto-selects structural ranker)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyDeclarations,
+		"only-declarations",
+		false,
+		"only show matches on declaration lines (func, type, var, const, class, def, etc.)",
+	)
+	flags.BoolVar(
+		&cfg.OnlyUsages,
+		"only-usages",
+		false,
+		"only show matches on usage lines (excludes declarations)",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

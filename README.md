@@ -49,7 +49,7 @@ They solve different problems. You'll probably want both.
 
 #### Key capabilities
 
-- Structural Awareness: A match in code ranks higher than the same word in a comment (1.0 vs 0.2) — and it's configurable. Or filter strictly: `--only-code`, `--only-comments`, `--only-strings`.
+- Structural Awareness: A match in code ranks higher than the same word in a comment (1.0 vs 0.2) - and it's configurable. Or filter strictly: `--only-code`, `--only-comments`, `--only-strings`.
 - Complexity Gravity: Uses [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) as a ranking signal. Searching for `Authenticate`? The complex implementation file ranks above the interface definition. (`--gravity=brain`)
 - Smart Ranking: BM25 relevance scoring, file-location boosting, noise penalty for data blobs, and automatic test-file dampening — all on the fly with no pre-built index.
 - Multiple interfaces: Console output, a built-in TUI, an HTTP server with syntax highlighting, or an MCP server for LLM tooling.
@@ -64,6 +64,15 @@ cs "database" --only-code        # Ignore matches in comments/docs
 cs "FIXME" --only-comments       # Ignore matches in code/strings
 cs "error" --only-strings        # Find where error messages are defined
 ```
+
+The structural ranker also uses declaration detection to boost matches that appear on declaration lines 
+(e.g. `func`, `class`, `def`) over plain usages. This currently works for the following languages:
+
+Go, Python, JavaScript, TypeScript, TSX, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
+
+For unsupported languages, all matches are treated as usages and ranked by text relevance only. 
+Structural filtering (`--only-code`, `--only-comments`, `--only-strings`) still works for any language recognised 
+by [scc](https://github.com/boyter/scc).
 
 #### Complexity Gravity
 
