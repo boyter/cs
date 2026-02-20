@@ -332,6 +332,412 @@ func TestIsDeclarationLine_Swift(t *testing.T) {
 	}
 }
 
+func TestIsDeclarationLine_Shell(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"function my_func {", true},
+		{"function(", true},
+		{"echo hello", false},
+		{"# function comment", false},
+		{"my_func() {", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Shell")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Shell) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Lua(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"function foo()", true},
+		{"local function bar()", true},
+		{"print(x)", false},
+		{"local x = 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Lua")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Lua) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Scala(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"def foo(): Unit = {", true},
+		{"val x = 1", true},
+		{"var y = 2", true},
+		{"class Foo {", true},
+		{"trait Bar {", true},
+		{"object Baz {", true},
+		{"case class Point(x: Int)", true},
+		{"case object Nil", true},
+		{"sealed trait Base", true},
+		{"sealed class Node", true},
+		{"abstract class Base", true},
+		{"type Alias = String", true},
+		{"println(x)", false},
+		{"import scala.io", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Scala")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Scala) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Elixir(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"def foo do", true},
+		{"defp bar do", true},
+		{"defmodule MyApp do", true},
+		{"defmacro my_macro do", true},
+		{"defmacrop private_macro do", true},
+		{"defstruct [:name, :age]", true},
+		{"defprotocol Printable do", true},
+		{"defimpl Printable, for: Atom do", true},
+		{"IO.puts(x)", false},
+		{":ok", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Elixir")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Elixir) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Haskell(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"data Color = Red | Green | Blue", true},
+		{"type Name = String", true},
+		{"newtype Wrapper a = Wrapper a", true},
+		{"class Show a where", true},
+		{"instance Show Color where", true},
+		{"module Main where", true},
+		{"import Data.List", false},
+		{"main = putStrLn", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Haskell")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Haskell) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Perl(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"sub foo {", true},
+		{"package MyModule;", true},
+		{"use constant PI => 3.14;", true},
+		{"print $x;", false},
+		{"my $x = 1;", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Perl")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Perl) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Zig(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"fn main() void {", true},
+		{"pub fn foo() void {", true},
+		{"const x = 42;", true},
+		{"pub const MAX = 100;", true},
+		{"var y: i32 = 0;", true},
+		{"pub var z: i32 = 0;", true},
+		{"std.debug.print(x);", false},
+		{"return x;", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Zig")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Zig) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Dart(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"class Foo {", true},
+		{"abstract class Base {", true},
+		{"enum Color {", true},
+		{"mixin Printable {", true},
+		{"extension StringExt on String {", true},
+		{"typedef IntList = List<int>;", true},
+		{"print(x);", false},
+		{"var x = 1;", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Dart")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Dart) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Julia(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"function foo(x)", true},
+		{"struct Point", true},
+		{"mutable struct MPoint", true},
+		{"abstract type Shape end", true},
+		{"macro my_macro(ex)", true},
+		{"module MyModule", true},
+		{"println(x)", false},
+		{"x = 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Julia")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Julia) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Clojure(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"(defn foo [x]", true},
+		{"(def x 42)", true},
+		{"(defmacro my-macro [x]", true},
+		{"(defprotocol MyProto", true},
+		{"(defrecord Point [x y])", true},
+		{"(deftype MyType []", true},
+		{"(ns my.namespace", true},
+		{"(println x)", false},
+		{"(+ 1 2)", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Clojure")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Clojure) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Erlang(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"-module(my_module).", true},
+		{"-export([start/0]).", true},
+		{"-define(MAX, 100).", true},
+		{"-record(person, {name, age}).", true},
+		{"-type color() :: red | green.", true},
+		{"-spec foo(integer()) -> integer().", true},
+		{"io:format(\"hello\").", false},
+		{"X = 1.", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Erlang")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Erlang) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Groovy(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"def foo() {", true},
+		{"class Foo {", true},
+		{"interface Bar {", true},
+		{"enum Color {", true},
+		{"trait Printable {", true},
+		{"println x", false},
+		{"x = 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Groovy")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Groovy) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_OCaml(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"let x = 42", true},
+		{"type color = Red | Green", true},
+		{"module M = struct", true},
+		{"val x : int", true},
+		{"external print : string -> unit", true},
+		{"print_endline x", false},
+		{"match x with", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "OCaml")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, OCaml) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_MATLAB(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"function y = foo(x)", true},
+		{"function [a, b] = bar(x)", true},
+		{"disp(x)", false},
+		{"x = 1;", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "MATLAB")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, MATLAB) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Powershell(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"function Get-Item {", true},
+		{"class MyClass {", true},
+		{"enum Color {", true},
+		{"Write-Host $x", false},
+		{"$x = 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Powershell")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Powershell) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Nim(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"proc foo(x: int): int =", true},
+		{"func bar(): string =", true},
+		{"type Color = enum", true},
+		{"template myTemplate() =", true},
+		{"macro myMacro() =", true},
+		{"method draw(self: Shape) =", true},
+		{"echo x", false},
+		{"var x = 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Nim")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Nim) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_Crystal(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"def foo", true},
+		{"class Bar", true},
+		{"module Baz", true},
+		{"struct Point", true},
+		{"enum Color", true},
+		{"lib LibC", true},
+		{"macro my_macro", true},
+		{"puts x", false},
+		{"x = 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "Crystal")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, Crystal) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestIsDeclarationLine_V(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{"fn main() {", true},
+		{"pub fn foo() int {", true},
+		{"struct Point {", true},
+		{"pub struct Config {", true},
+		{"enum Color {", true},
+		{"type Callback = fn(int) int", true},
+		{"const x = 42", true},
+		{"println(x)", false},
+		{"mut x := 1", false},
+	}
+
+	for _, tc := range cases {
+		got := IsDeclarationLine([]byte(tc.line), "V")
+		if got != tc.want {
+			t.Errorf("IsDeclarationLine(%q, V) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
 func TestIsDeclarationLine_UnknownLanguage(t *testing.T) {
 	got := IsDeclarationLine([]byte("func foo() {"), "BrainFuck")
 	if got {
@@ -340,7 +746,7 @@ func TestIsDeclarationLine_UnknownLanguage(t *testing.T) {
 }
 
 func TestHasDeclarationPatterns(t *testing.T) {
-	known := []string{"Go", "Python", "JavaScript", "TypeScript", "TSX", "Rust", "Java", "C", "C++", "C#", "Ruby", "PHP", "Kotlin", "Swift"}
+	known := []string{"Go", "Python", "JavaScript", "TypeScript", "TSX", "Rust", "Java", "C", "C++", "C#", "Ruby", "PHP", "Kotlin", "Swift", "Shell", "Lua", "Scala", "Elixir", "Haskell", "Perl", "Zig", "Dart", "Julia", "Clojure", "Erlang", "Groovy", "OCaml", "MATLAB", "Powershell", "Nim", "Crystal", "V"}
 	for _, lang := range known {
 		if !HasDeclarationPatterns(lang) {
 			t.Errorf("HasDeclarationPatterns(%q) = false, want true", lang)
@@ -509,8 +915,8 @@ func TestClassifyMatchLocations_OutOfBounds(t *testing.T) {
 
 func TestSupportedDeclarationLanguages(t *testing.T) {
 	langs := SupportedDeclarationLanguages()
-	if len(langs) < 14 {
-		t.Errorf("expected at least 14 supported languages, got %d", len(langs))
+	if len(langs) < 32 {
+		t.Errorf("expected at least 32 supported languages, got %d", len(langs))
 	}
 
 	// Check that known languages are present
@@ -518,7 +924,7 @@ func TestSupportedDeclarationLanguages(t *testing.T) {
 	for _, l := range langs {
 		langSet[l] = true
 	}
-	required := []string{"Go", "Python", "JavaScript", "TypeScript", "TSX", "Rust", "Java", "C", "C++", "C#", "Ruby", "PHP", "Kotlin", "Swift"}
+	required := []string{"Go", "Python", "JavaScript", "TypeScript", "TSX", "Rust", "Java", "C", "C++", "C#", "Ruby", "PHP", "Kotlin", "Swift", "Shell", "Lua", "Scala", "Elixir", "Haskell", "Perl", "Zig", "Dart", "Julia", "Clojure", "Erlang", "Groovy", "OCaml", "MATLAB", "Powershell", "Nim", "Crystal", "V"}
 	for _, r := range required {
 		if !langSet[r] {
 			t.Errorf("missing required language: %s", r)
