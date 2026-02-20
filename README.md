@@ -77,7 +77,9 @@ These are mutually exclusive with `--only-code`, `--only-comments`, and `--only-
 The structural ranker also uses declaration detection to boost matches that appear on declaration lines 
 (e.g. `func`, `class`, `def`) over plain usages. This currently works for the following languages:
 
-Go, Python, JavaScript, TypeScript, TSX, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
+Go, Python, JavaScript, TypeScript, TSX, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift,
+Shell, Lua, Scala, Elixir, Haskell, Perl, Zig, Dart, Julia, Clojure, Erlang, Groovy, OCaml,
+MATLAB, Powershell, Nim, Crystal, V
 
 For unsupported languages, all matches are treated as usages and ranked by text relevance only. 
 Structural filtering (`--only-code`, `--only-comments`, `--only-strings`) still works for any language recognised 
