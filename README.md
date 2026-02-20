@@ -216,6 +216,9 @@ Searches by default use AND boolean syntax for all terms
  - exact match using quotes "find this"
  - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2
  - negate using NOT such as pride NOT prejudice
+ - OR syntax such as catch OR throw
+ - group with parentheses (cat OR dog) NOT fish
+ - note: NOT binds to next term, use () with OR
  - regex with toothpick syntax /pr[e-i]de/
 
 Searches can filter which files are searched by adding
@@ -244,6 +247,7 @@ Flags:
       --address string            address and port to listen on (default ":8080")
       --binary                    set to disable binary file detection and search binary files
   -c, --case-sensitive            make the search case sensitive
+      --dedup                     collapse byte-identical search matches, keeping the highest-scored representative
       --dir string                directory to search, if not set defaults to current working directory
       --exclude-dir strings       directories to exclude (default [.git,.hg,.svn])
   -x, --exclude-pattern strings   file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]

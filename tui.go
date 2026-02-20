@@ -32,6 +32,7 @@ type searchResult struct {
 	Comment        int64
 	Blank          int64
 	Complexity     int64
+	DuplicateCount int
 	MatchLocations map[string][][]int // absolute byte positions in file
 }
 
@@ -217,6 +218,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.fileJobs) > 0 {
 				testIntent := ranker.HasTestIntent(strings.Fields(m.searchInput.Value()))
 				ranked := ranker.RankResults(m.cfg.Ranker, m.textFileCount, m.fileJobs, m.cfg.StructuralRankerConfig(), m.cfg.ResolveGravityStrength(), m.cfg.ResolveNoiseSensitivity(), m.cfg.TestPenalty, testIntent)
+
+				if m.cfg.Dedup {
+					ranked = ranker.DeduplicateResults(ranked)
+				}
+
 				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
 
 				// Parse snippet length from input
@@ -249,6 +255,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Comment:        fj.Comment,
 							Blank:          fj.Blank,
 							Complexity:     fj.Complexity,
+							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
 						})
 					} else {
@@ -275,6 +282,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Comment:        fj.Comment,
 							Blank:          fj.Blank,
 							Complexity:     fj.Complexity,
+							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
 						})
 					}
@@ -928,6 +936,9 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 		titleText = fmt.Sprintf("%s (%s) (%0.4f) [%s]%s", r.Filename, r.Language, r.Score, r.LineRange, codeStats)
 	} else {
 		titleText = fmt.Sprintf("%s (%0.4f) [%s]%s", r.Filename, r.Score, r.LineRange, codeStats)
+	}
+	if r.DuplicateCount > 0 {
+		titleText += fmt.Sprintf(" [+%d duplicates]", r.DuplicateCount)
 	}
 
 	if isSelected {

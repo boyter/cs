@@ -103,6 +103,9 @@ func StartMCPServer(cfg *Config) {
 				"Values: brain (2.5) — find complex algorithmic code, logic (1.5) — prefer branching/control flow, "+
 				"default (1.0) — balanced, low (0.2) — mostly ignore complexity, off (0.0) — pure text relevance only."),
 		),
+		mcp.WithBoolean("dedup",
+			mcp.Description("Collapse byte-identical search matches, keeping the highest-scored representative. Useful in monorepos with duplicated code."),
+		),
 		mcp.WithString("code_filter",
 			mcp.Description("Content type filter — narrows matches to a specific part of the source file.\n"+
 				"Values:\n"+
@@ -318,6 +321,13 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		textFileCount := int(stats.TextFileCount.Load())
 		testIntent := ranker.HasTestIntent(strings.Fields(query))
 		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), searchCfg.TestPenalty, testIntent)
+
+		// Dedup (before limit, so freed slots get backfilled)
+		if v, ok := request.GetArguments()["dedup"]; ok {
+			if b, ok := v.(bool); ok && b {
+				results = ranker.DeduplicateResults(results)
+			}
+		}
 
 		// Apply max_results limit
 		if maxResults > 0 && len(results) > maxResults {

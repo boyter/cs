@@ -51,20 +51,22 @@ type httpLineResult struct {
 }
 
 type httpSearchResult struct {
-	Title       string           `json:"title"`
-	Location    string           `json:"location"`
-	Content     []template.HTML  `json:"content,omitempty"`
-	StartPos    int              `json:"startPos"`
-	EndPos      int              `json:"endPos"`
-	Score       float64          `json:"score"`
-	IsLineMode  bool             `json:"isLineMode,omitempty"`
-	LineResults []httpLineResult `json:"lineResults,omitempty"`
-	Language    string           `json:"language,omitempty"`
-	Lines       int64            `json:"lines,omitempty"`
-	Code        int64            `json:"code,omitempty"`
-	Comment     int64            `json:"comment,omitempty"`
-	Blank       int64            `json:"blank,omitempty"`
-	Complexity  int64            `json:"complexity,omitempty"`
+	Title              string           `json:"title"`
+	Location           string           `json:"location"`
+	Content            []template.HTML  `json:"content,omitempty"`
+	StartPos           int              `json:"startPos"`
+	EndPos             int              `json:"endPos"`
+	Score              float64          `json:"score"`
+	IsLineMode         bool             `json:"isLineMode,omitempty"`
+	LineResults        []httpLineResult `json:"lineResults,omitempty"`
+	Language           string           `json:"language,omitempty"`
+	Lines              int64            `json:"lines,omitempty"`
+	Code               int64            `json:"code,omitempty"`
+	Comment            int64            `json:"comment,omitempty"`
+	Blank              int64            `json:"blank,omitempty"`
+	Complexity         int64            `json:"complexity,omitempty"`
+	DuplicateCount     int              `json:"duplicateCount,omitempty"`
+	DuplicateLocations []string         `json:"duplicateLocations,omitempty"`
 }
 
 type httpFileDisplay struct {
@@ -251,6 +253,11 @@ func StartHttpServer(cfg *Config) {
 			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), testPenalty, testIntent)
 		}
 
+		// Dedup (before pagination, so freed slots get backfilled)
+		if r.URL.Query().Get("dedup") == "true" || r.URL.Query().Get("dedup") == "1" {
+			results = ranker.DeduplicateResults(results)
+		}
+
 		// Create a random str to define where the start and end of
 		// our highlight should be which we swap out later after we have
 		// HTML escaped everything
@@ -330,19 +337,21 @@ func StartHttpServer(cfg *Config) {
 				}
 
 				searchResults = append(searchResults, httpSearchResult{
-					Title:       res.Location,
-					Location:    res.Location,
-					Score:       res.Score,
-					StartPos:    startPos,
-					EndPos:      endPos,
-					IsLineMode:  true,
-					LineResults: httpLines,
-					Language:    res.Language,
-					Lines:       res.Lines,
-					Code:        res.Code,
-					Comment:     res.Comment,
-					Blank:       res.Blank,
-					Complexity:  res.Complexity,
+					Title:              res.Location,
+					Location:           res.Location,
+					Score:              res.Score,
+					StartPos:           startPos,
+					EndPos:             endPos,
+					IsLineMode:         true,
+					LineResults:        httpLines,
+					Language:           res.Language,
+					Lines:              res.Lines,
+					Code:               res.Code,
+					Comment:            res.Comment,
+					Blank:              res.Blank,
+					Complexity:         res.Complexity,
+					DuplicateCount:     res.DuplicateCount,
+					DuplicateLocations: res.DuplicateLocations,
 				})
 			} else {
 				snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
@@ -378,18 +387,20 @@ func StartHttpServer(cfg *Config) {
 				}
 
 				searchResults = append(searchResults, httpSearchResult{
-					Title:      res.Location,
-					Location:   res.Location,
-					Content:    []template.HTML{template.HTML(coloredContent)},
-					StartPos:   v3.StartPos,
-					EndPos:     v3.EndPos,
-					Score:      res.Score,
-					Language:   res.Language,
-					Lines:      res.Lines,
-					Code:       res.Code,
-					Comment:    res.Comment,
-					Blank:      res.Blank,
-					Complexity: res.Complexity,
+					Title:              res.Location,
+					Location:           res.Location,
+					Content:            []template.HTML{template.HTML(coloredContent)},
+					StartPos:           v3.StartPos,
+					EndPos:             v3.EndPos,
+					Score:              res.Score,
+					Language:           res.Language,
+					Lines:              res.Lines,
+					Code:               res.Code,
+					Comment:            res.Comment,
+					Blank:              res.Blank,
+					Complexity:         res.Complexity,
+					DuplicateCount:     res.DuplicateCount,
+					DuplicateLocations: res.DuplicateLocations,
 				})
 			}
 		}

@@ -259,6 +259,12 @@ func main() {
 		"maximum number of results to return (-1 for unlimited)",
 	)
 	flags.BoolVar(
+		&cfg.Dedup,
+		"dedup",
+		false,
+		"collapse byte-identical search matches, keeping the highest-scored representative",
+	)
+	flags.BoolVar(
 		&cfg.MCPServer,
 		"mcp",
 		false,

@@ -31,15 +31,20 @@ func ConsoleSearch(cfg *Config) {
 		results = append(results, fj)
 	}
 
-	// Apply result limit
-	if cfg.ResultLimit > 0 && len(results) > cfg.ResultLimit {
-		results = results[:cfg.ResultLimit]
-	}
-
 	// Rank results
 	textFileCount := int(stats.TextFileCount.Load())
 	testIntent := ranker.HasTestIntent(strings.Fields(query))
 	results = ranker.RankResults(cfg.Ranker, textFileCount, results, cfg.StructuralRankerConfig(), cfg.ResolveGravityStrength(), cfg.ResolveNoiseSensitivity(), cfg.TestPenalty, testIntent)
+
+	// Dedup (before limit, so freed slots get backfilled)
+	if cfg.Dedup {
+		results = ranker.DeduplicateResults(results)
+	}
+
+	// Apply result limit (after dedup)
+	if cfg.ResultLimit > 0 && len(results) > cfg.ResultLimit {
+		results = results[:cfg.ResultLimit]
+	}
 
 	// Route to formatter
 	switch cfg.Format {
@@ -81,6 +86,9 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 			} else {
 				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)%s", res.Location, lines, res.Score, codeStats))
 			}
+			if res.DuplicateCount > 0 {
+				color.Cyan(fmt.Sprintf("  +%d duplicate(s) in: %s", res.DuplicateCount, strings.Join(res.DuplicateLocations, ", ")))
+			}
 			prevLine := 0
 			for _, lr := range lineResults {
 				if prevLine > 0 && lr.LineNumber > prevLine+1 {
@@ -112,6 +120,9 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				color.Magenta(fmt.Sprintf("%s (%s) Lines %s(%.3f)%s", res.Location, res.Language, lines, res.Score, codeStats))
 			} else {
 				color.Magenta(fmt.Sprintf("%s Lines %s(%.3f)%s", res.Location, lines, res.Score, codeStats))
+			}
+			if res.DuplicateCount > 0 {
+				color.Cyan(fmt.Sprintf("  +%d duplicate(s) in: %s", res.DuplicateCount, strings.Join(res.DuplicateLocations, ", ")))
 			}
 
 			for i := 0; i < len(snippets); i++ {
@@ -168,18 +179,20 @@ type jsonLineResult struct {
 }
 
 type jsonResult struct {
-	Filename       string           `json:"filename"`
-	Location       string           `json:"location"`
-	Content        string           `json:"content,omitempty"`
-	Score          float64          `json:"score"`
-	MatchLocations [][]int          `json:"matchlocations,omitempty"`
-	Lines          []jsonLineResult `json:"lines,omitempty"`
-	Language       string           `json:"language,omitempty"`
-	TotalLines     int64            `json:"total_lines"`
-	Code           int64            `json:"code"`
-	Comment        int64            `json:"comment"`
-	Blank          int64            `json:"blank"`
-	Complexity     int64            `json:"complexity"`
+	Filename           string           `json:"filename"`
+	Location           string           `json:"location"`
+	Content            string           `json:"content,omitempty"`
+	Score              float64          `json:"score"`
+	MatchLocations     [][]int          `json:"matchlocations,omitempty"`
+	Lines              []jsonLineResult `json:"lines,omitempty"`
+	Language           string           `json:"language,omitempty"`
+	TotalLines         int64            `json:"total_lines"`
+	Code               int64            `json:"code"`
+	Comment            int64            `json:"comment"`
+	Blank              int64            `json:"blank"`
+	Complexity         int64            `json:"complexity"`
+	DuplicateCount     int              `json:"duplicate_count,omitempty"`
+	DuplicateLocations []string         `json:"duplicate_locations,omitempty"`
 }
 
 // buildJSONResults converts ranked FileJob results into a slice of jsonResult
@@ -206,16 +219,18 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				})
 			}
 			jsonResults = append(jsonResults, jsonResult{
-				Filename:   res.Filename,
-				Location:   res.Location,
-				Score:      res.Score,
-				Lines:      jLines,
-				Language:   res.Language,
-				TotalLines: res.Lines,
-				Code:       res.Code,
-				Comment:    res.Comment,
-				Blank:      res.Blank,
-				Complexity: res.Complexity,
+				Filename:           res.Filename,
+				Location:           res.Location,
+				Score:              res.Score,
+				Lines:              jLines,
+				Language:           res.Language,
+				TotalLines:         res.Lines,
+				Code:               res.Code,
+				Comment:            res.Comment,
+				Blank:              res.Blank,
+				Complexity:         res.Complexity,
+				DuplicateCount:     res.DuplicateCount,
+				DuplicateLocations: res.DuplicateLocations,
 			})
 		} else {
 			snippets := snippet.ExtractRelevant(res, documentFrequency, cfg.SnippetLength)
@@ -237,17 +252,19 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 			}
 
 			jsonResults = append(jsonResults, jsonResult{
-				Filename:       res.Filename,
-				Location:       res.Location,
-				Content:        v3.Content,
-				Score:          res.Score,
-				MatchLocations: l,
-				Language:       res.Language,
-				TotalLines:     res.Lines,
-				Code:           res.Code,
-				Comment:        res.Comment,
-				Blank:          res.Blank,
-				Complexity:     res.Complexity,
+				Filename:           res.Filename,
+				Location:           res.Location,
+				Content:            v3.Content,
+				Score:              res.Score,
+				MatchLocations:     l,
+				Language:           res.Language,
+				TotalLines:         res.Lines,
+				Code:               res.Code,
+				Comment:            res.Comment,
+				Blank:              res.Blank,
+				Complexity:         res.Complexity,
+				DuplicateCount:     res.DuplicateCount,
+				DuplicateLocations: res.DuplicateLocations,
 			})
 		}
 	}
