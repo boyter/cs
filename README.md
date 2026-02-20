@@ -10,6 +10,9 @@ It combines the speed of CLI tools with the relevance ranking usually reserved f
 cs "authenticate" --gravity=brain           # Find the complex implementation, not the interface
 cs "FIXME OR TODO OR HACK" --only-comments  # Search only in comments, not code or strings
 cs "error" --only-strings                   # Find where error messages are defined
+cs "handleRequest" --only-declarations      # Jump straight to where it's defined
+cs "handleRequest" --only-usages            # Find every call site, skip the definition
+cs "error" --dedup                          # Collapse duplicated matches into one result
 ```
 
 Licensed under MIT.
@@ -36,6 +39,8 @@ cs "authenticate" --gravity=brain    # Boost complex implementations over interf
 cs "TODO" --only-comments            # Only matches inside comments
 cs "error" --only-strings            # Only matches inside string literals
 cs "config OR setup" lang:go         # Boolean queries with language filters
+cs "handleRequest" --only-declarations  # Jump to definitions (func, class, def, etc.)
+cs "config" --dedup                     # Collapse byte-identical matches
 ```
 
 #### What makes it different from ripgrep or grep?
@@ -63,7 +68,11 @@ Stop grepping through false positives.
 cs "database" --only-code        # Ignore matches in comments/docs
 cs "FIXME" --only-comments       # Ignore matches in code/strings
 cs "error" --only-strings        # Find where error messages are defined
+cs "handleRequest" --only-declarations  # Jump to where it's defined (func, class, def, etc.)
+cs "handleRequest" --only-usages        # Every call site, skipping the definition
 ```
+
+These are mutually exclusive with `--only-code`, `--only-comments`, and `--only-strings`.
 
 The structural ranker also uses declaration detection to boost matches that appear on declaration lines 
 (e.g. `func`, `class`, `def`) over plain usages. This currently works for the following languages:
@@ -80,6 +89,14 @@ Find where the work happens.
 ```shell
 cs "login" --gravity=brain       # Boosts complex files (the implementation)
 cs "login" --gravity=low         # Boosts simple files (configs/interfaces)
+```
+
+#### Deduplication
+
+Collapse byte-identical matches into a single result.
+```shell
+cs "Copyright" --dedup                  # One result per unique copyright notice
+cs "error" --dedup                      # Skip vendored/copied duplicates
 ```
 
 **Smart Ranking**
@@ -245,7 +262,7 @@ The default input field in tui mode supports some nano commands
 - CTRL+k to clear from the cursor location forward
 
 - F1 cycle ranker (simple/tfidf/bm25/structural)
-- F2 cycle code filter (default/only-code/only-comments/only-strings)
+- F2 cycle code filter (default/only-code/only-comments/only-strings/only-declarations/only-usages)
 - F3 cycle gravity (off/low/default/logic/brain)
 - F4 cycle noise (silence/quiet/default/loud/raw)
 
@@ -277,7 +294,9 @@ Flags:
       --noise string              noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off) (default "default")
       --only-code                 only rank matches in code (auto-selects structural ranker)
       --only-comments             only rank matches in comments (auto-selects structural ranker)
+      --only-declarations         only show matches on declaration lines (func, type, var, const, class, def, etc.)
       --only-strings              only rank matches in string literals (auto-selects structural ranker)
+      --only-usages               only show matches on usage lines (excludes declarations)
   -o, --output string             output filename (default stdout)
       --ranker string             set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
@@ -312,6 +331,9 @@ cs NOT lang:go test           # search all languages except Go
 cs handler complexity:>=50    # find complex files containing "handler"
 cs "json" --only-code         # find "json" in code, ignoring string literals
 cs "hack" --only-comments     # find "hack" in comments only
+cs "func main" --only-declarations      # find main function declarations
+cs "logger" --only-usages               # find where logger is called, not defined
+cs "Copyright" --dedup                   # collapse identical copyright headers
 ```
 
 You can use it in a similar manner to `fzf` in TUI mode if you like, since `cs` will return the matching document path
