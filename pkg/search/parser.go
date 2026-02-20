@@ -150,6 +150,9 @@ func (p *Parser) parsePrefix() Node {
 		// Parse "term~N" into FuzzyNode
 		literal := p.tok.Literal
 		idx := strings.LastIndex(literal, "~")
+		if idx <= 0 {
+			return nil
+		}
 		term := literal[:idx]
 		dist, _ := strconv.Atoi(literal[idx+1:])
 		node = &FuzzyNode{Value: term, Distance: dist}

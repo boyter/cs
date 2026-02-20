@@ -460,21 +460,31 @@ func matchPathGlob(pattern, fullPath string) bool {
 // --- Filter Handlers ---
 
 func handleComplexityFilter(op string, val interface{}, doc *Document) bool {
-	complexity, ok := val.(int)
-	if !ok {
-		return false
+	switch v := val.(type) {
+	case int:
+		return complexityCompare(op, doc.Complexity, int64(v))
+	case []interface{}:
+		for _, item := range v {
+			if intItem, ok := item.(int); ok {
+				if complexityCompare(op, doc.Complexity, int64(intItem)) {
+					return true
+				}
+			}
+		}
 	}
-	complexity64 := int64(complexity)
+	return false
+}
 
+func complexityCompare(op string, docComplexity, target int64) bool {
 	switch op {
 	case "=":
-		return doc.Complexity == complexity64
+		return docComplexity == target
 	case "!=":
-		return doc.Complexity != complexity64
+		return docComplexity != target
 	case ">=":
-		return doc.Complexity >= complexity64
+		return docComplexity >= target
 	case "<=":
-		return doc.Complexity <= complexity64
+		return docComplexity <= target
 	}
 	return false
 }
@@ -500,25 +510,29 @@ func handleLanguageFilter(op string, val interface{}, doc *Document) bool {
 }
 
 func handleFilenameFilter(op string, val interface{}, doc *Document) bool {
-	filename, ok := val.(string)
-	if !ok {
-		return false
-	}
+	isEquality := (op == "=")
 
-	var match bool
-	if containsGlobMeta(filename) {
-		match = matchGlob(filename, doc.Filename)
-	} else {
-		match = strings.Contains(strings.ToLower(doc.Filename), strings.ToLower(filename))
-	}
-
-	switch op {
-	case "=":
-		return match
-	case "!=":
-		return !match
+	switch v := val.(type) {
+	case string:
+		return filenameMatch(v, doc.Filename) == isEquality
+	case []interface{}:
+		for _, item := range v {
+			if strItem, ok := item.(string); ok {
+				if filenameMatch(strItem, doc.Filename) {
+					return isEquality
+				}
+			}
+		}
+		return !isEquality
 	}
 	return false
+}
+
+func filenameMatch(pattern, filename string) bool {
+	if containsGlobMeta(pattern) {
+		return matchGlob(pattern, filename)
+	}
+	return strings.Contains(strings.ToLower(filename), strings.ToLower(pattern))
 }
 
 func handlePathFilter(op string, val interface{}, doc *Document) bool {

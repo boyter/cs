@@ -99,6 +99,33 @@ func TestCycleGravityUnknownResetsToOff(t *testing.T) {
 	}
 }
 
+func TestHighlightMatchOnly_NegativeIndex(t *testing.T) {
+	// Ensure negative loc[0] doesn't panic
+	line := "hello world"
+	locs := [][]int{{-5, 3}, {6, 11}}
+	result := highlightMatchOnly(line, locs, false)
+	if result == "" {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestHighlightMatchOnly_EmptyLocs(t *testing.T) {
+	line := "hello world"
+	result := highlightMatchOnly(line, nil, false)
+	if result == "" {
+		t.Error("expected non-empty result for nil locs")
+	}
+}
+
+func TestHighlightMatchOnly_LocBeyondLine(t *testing.T) {
+	line := "hello"
+	locs := [][]int{{0, 100}}
+	result := highlightMatchOnly(line, locs, false)
+	if result == "" {
+		t.Error("expected non-empty result when loc extends beyond line")
+	}
+}
+
 func TestCodeFilterLabel(t *testing.T) {
 	cfg := DefaultConfig()
 	m := &model{cfg: &cfg}

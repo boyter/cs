@@ -130,7 +130,7 @@ func rankResultsTFIDF(corpusCount int, results []*common.FileJob, documentFreque
 
 		for word, wordCount := range results[i].MatchLocations {
 			tf := float64(len(wordCount)) / words
-			idf := math.Log10(float64(corpusCount) / float64(documentFrequencies[word]))
+			idf := math.Log10(float64(corpusCount) / float64(maxInt(1, documentFrequencies[word])))
 
 			if classic {
 				weight += tf * idf
@@ -175,7 +175,7 @@ func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequen
 
 		for word, wordCount := range results[i].MatchLocations {
 			rawCount := float64(len(wordCount))
-			idf := math.Log10(1 + float64(corpusCount)/float64(documentFrequencies[word]))
+			idf := math.Log10(1 + float64(corpusCount)/float64(maxInt(1, documentFrequencies[word])))
 
 			step1 := idf * rawCount * (k1 + 1)
 			step2 := rawCount + k1*(1-b+(b*words/averageDocumentWords))
@@ -407,7 +407,7 @@ func rankResultsStructural(corpusCount int, results []*common.FileJob, documentF
 				weightedTf += matchWeight(results[i].ContentByteType, loc[0], cfg)
 			}
 
-			idf := math.Log10(1 + float64(corpusCount)/float64(documentFrequencies[word]))
+			idf := math.Log10(1 + float64(corpusCount)/float64(maxInt(1, documentFrequencies[word])))
 
 			step1 := idf * weightedTf * (k1 + 1)
 			step2 := weightedTf + k1*(1-b+(b*words/averageDocumentWords))

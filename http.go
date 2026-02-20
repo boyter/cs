@@ -277,7 +277,7 @@ func StartHttpServer(cfg *Config) {
 		if displayResults != nil && len(displayResults) > pageSize {
 			displayResults = displayResults[:pageSize]
 		}
-		if page != 0 && page <= len(pages) {
+		if page != 0 && page < len(pages) {
 			end := page*pageSize + pageSize
 			if end > len(results) {
 				end = len(results)

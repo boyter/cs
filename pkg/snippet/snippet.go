@@ -173,7 +173,11 @@ func ExtractRelevant(res *common.FileJob, documentFrequencies map[string]int, re
 			// weighted by how common that word is so that matches like 'a' impact the rank
 			// less than something like 'cromulent' which in theory should not occur as much
 			if abs(mid-p) < (relLength / 3) {
-				m.Score += 100 / float64(documentFrequencies[v.Word])
+				df := documentFrequencies[v.Word]
+				if df < 1 {
+					df = 1
+				}
+				m.Score += 100 / float64(df)
 			}
 		}
 
@@ -206,7 +210,11 @@ func ExtractRelevant(res *common.FileJob, documentFrequencies map[string]int, re
 		// This mod applies over the whole score because we want to most unique words to appear in the middle
 		// of the snippet over those where it is on the edge which this should achieve even if it means
 		// we may miss out on a slightly better match
-		m.Score = m.Score / float64(documentFrequencies[rv3[i].Word]) // Factor in how unique the word is
+		df := documentFrequencies[rv3[i].Word]
+		if df < 1 {
+			df = 1
+		}
+		m.Score = m.Score / float64(df) // Factor in how unique the word is
 		bestMatches = append(bestMatches, m)
 	}
 

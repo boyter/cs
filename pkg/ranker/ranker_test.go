@@ -3,6 +3,7 @@
 package ranker
 
 import (
+	"math"
 	"testing"
 
 	"github.com/boyter/cs/pkg/common"
@@ -505,6 +506,70 @@ func TestNoisePenalty_DataFileRankedBelowCodeFile(t *testing.T) {
 	rankResultsNoisePenalty([]*common.FileJob{jsonFile, goFile}, 1.0)
 	if jsonFile.Score >= goFile.Score {
 		t.Errorf("expected JSON file score (%f) < Go file score (%f)", jsonFile.Score, goFile.Score)
+	}
+}
+
+// --- Division-by-zero guard tests ---
+
+func TestTFIDF_ZeroDocumentFrequency_NoInf(t *testing.T) {
+	file := &common.FileJob{
+		Filename:       "test.go",
+		Location:       "test.go",
+		Content:        make([]byte, 100),
+		Bytes:          100,
+		MatchLocations: map[string][][]int{"missingterm": {{0, 11}}},
+	}
+
+	// documentFrequencies has no entry for "missingterm" → defaults to 0
+	df := map[string]int{}
+	results := RankResults("tfidf", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	_ = df
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if math.IsInf(results[0].Score, 0) || math.IsNaN(results[0].Score) {
+		t.Errorf("expected finite score, got %f", results[0].Score)
+	}
+}
+
+func TestBM25_ZeroDocumentFrequency_NoInf(t *testing.T) {
+	file := &common.FileJob{
+		Filename:       "test.go",
+		Location:       "test.go",
+		Content:        make([]byte, 100),
+		Bytes:          100,
+		MatchLocations: map[string][][]int{"missingterm": {{0, 11}}},
+	}
+
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if math.IsInf(results[0].Score, 0) || math.IsNaN(results[0].Score) {
+		t.Errorf("expected finite score, got %f", results[0].Score)
+	}
+}
+
+func TestStructural_ZeroDocumentFrequency_NoInf(t *testing.T) {
+	codeByteType := make([]byte, 100)
+	for i := range codeByteType {
+		codeByteType[i] = processor.ByteTypeCode
+	}
+	file := &common.FileJob{
+		Filename:        "test.go",
+		Location:        "test.go",
+		Content:         make([]byte, 100),
+		ContentByteType: codeByteType,
+		Bytes:           100,
+		MatchLocations:  map[string][][]int{"missingterm": {{0, 11}}},
+	}
+
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if math.IsInf(results[0].Score, 0) || math.IsNaN(results[0].Score) {
+		t.Errorf("expected finite score, got %f", results[0].Score)
 	}
 }
 

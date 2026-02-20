@@ -1042,7 +1042,7 @@ func highlightMatchOnly(line string, locs [][]int, isSelected bool) string {
 
 	marked := make([]bool, len(line))
 	for _, loc := range locs {
-		if len(loc) < 2 {
+		if len(loc) < 2 || loc[0] < 0 {
 			continue
 		}
 		for i := loc[0]; i < loc[1] && i < len(marked); i++ {

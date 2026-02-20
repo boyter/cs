@@ -1301,10 +1301,47 @@ func TestFilterHandlerEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("Filename with unsupported operator", func(t *testing.T) {
-		doc := &Document{Path: "a.go", Filename: "a.go"}
-		if handleFilenameFilter(">=", "a.go", doc) {
-			t.Error("filename filter with >= should return false")
+	t.Run("Complexity multi-value equal", func(t *testing.T) {
+		doc := &Document{Path: "a.go", Complexity: 5}
+		vals := []interface{}{3, 5, 8}
+		if !handleComplexityFilter("=", vals, doc) {
+			t.Error("complexity=3,5,8 should match doc with complexity 5")
+		}
+	})
+
+	t.Run("Complexity multi-value no match", func(t *testing.T) {
+		doc := &Document{Path: "a.go", Complexity: 5}
+		vals := []interface{}{3, 8, 10}
+		if handleComplexityFilter("=", vals, doc) {
+			t.Error("complexity=3,8,10 should not match doc with complexity 5")
+		}
+	})
+
+	t.Run("Filename multi-value equal", func(t *testing.T) {
+		doc := &Document{Path: "a.go", Filename: "main.go"}
+		vals := []interface{}{"main.go", "test.go"}
+		if !handleFilenameFilter("=", vals, doc) {
+			t.Error("file=main.go,test.go should match doc with filename main.go")
+		}
+	})
+
+	t.Run("Filename multi-value no match", func(t *testing.T) {
+		doc := &Document{Path: "a.go", Filename: "main.go"}
+		vals := []interface{}{"test.go", "helper.go"}
+		if handleFilenameFilter("=", vals, doc) {
+			t.Error("file=test.go,helper.go should not match doc with filename main.go")
+		}
+	})
+
+	t.Run("Filename multi-value not equal", func(t *testing.T) {
+		doc := &Document{Path: "a.go", Filename: "main.go"}
+		vals := []interface{}{"test.go", "helper.go"}
+		if !handleFilenameFilter("!=", vals, doc) {
+			t.Error("file!=test.go,helper.go should match doc with filename main.go")
+		}
+		valsWithMain := []interface{}{"main.go", "helper.go"}
+		if handleFilenameFilter("!=", valsWithMain, doc) {
+			t.Error("file!=main.go,helper.go should not match doc with filename main.go")
 		}
 	})
 
@@ -1577,6 +1614,64 @@ func TestColonOperatorFilterAST(t *testing.T) {
 				t.Errorf("Operator = %q, want %q", fn.Operator, tc.wantOp)
 			}
 		})
+	}
+}
+
+// --- Parser fuzzy guard tests ---
+
+func TestParserFuzzyValidParse(t *testing.T) {
+	// Normal fuzzy query should parse correctly
+	lexer := NewLexer(strings.NewReader("hello~1"))
+	parser := NewParser(lexer)
+	ast, _ := parser.ParseQuery()
+	if ast == nil {
+		t.Fatal("expected non-nil AST for valid fuzzy query")
+	}
+	fn, ok := ast.(*FuzzyNode)
+	if !ok {
+		t.Fatalf("expected *FuzzyNode, got %T", ast)
+	}
+	if fn.Value != "hello" {
+		t.Errorf("expected term 'hello', got %q", fn.Value)
+	}
+	if fn.Distance != 1 {
+		t.Errorf("expected distance 1, got %d", fn.Distance)
+	}
+}
+
+func TestParserFuzzyDistance2(t *testing.T) {
+	lexer := NewLexer(strings.NewReader("world~2"))
+	parser := NewParser(lexer)
+	ast, _ := parser.ParseQuery()
+	if ast == nil {
+		t.Fatal("expected non-nil AST for fuzzy~2 query")
+	}
+	fn, ok := ast.(*FuzzyNode)
+	if !ok {
+		t.Fatalf("expected *FuzzyNode, got %T", ast)
+	}
+	if fn.Value != "world" {
+		t.Errorf("expected term 'world', got %q", fn.Value)
+	}
+	if fn.Distance != 2 {
+		t.Errorf("expected distance 2, got %d", fn.Distance)
+	}
+}
+
+func TestParserFuzzyInCombination(t *testing.T) {
+	// Fuzzy query combined with AND should parse without panic
+	lexer := NewLexer(strings.NewReader("hello~1 AND world"))
+	parser := NewParser(lexer)
+	ast, _ := parser.ParseQuery()
+	if ast == nil {
+		t.Fatal("expected non-nil AST for fuzzy AND keyword query")
+	}
+	andNode, ok := ast.(*AndNode)
+	if !ok {
+		t.Fatalf("expected *AndNode, got %T", ast)
+	}
+	if _, ok := andNode.Left.(*FuzzyNode); !ok {
+		t.Errorf("expected left to be *FuzzyNode, got %T", andNode.Left)
 	}
 }
 
