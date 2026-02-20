@@ -309,6 +309,12 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		}
 		if v, ok := request.GetArguments()["code_filter"]; ok {
 			if s, ok := v.(string); ok && s != "" {
+				// Clear all content filters before setting the requested one
+				searchCfg.OnlyCode = false
+				searchCfg.OnlyComments = false
+				searchCfg.OnlyStrings = false
+				searchCfg.OnlyDeclarations = false
+				searchCfg.OnlyUsages = false
 				switch s {
 				case "only-code":
 					searchCfg.OnlyCode = true

@@ -217,27 +217,23 @@ func StartHttpServer(cfg *Config) {
 			searchCfg.Ranker = rankerParam
 			searchCfg.GravityIntent = gravityParam
 			searchCfg.NoiseIntent = noiseParam
+			// Clear all content filters before setting the requested one
+			searchCfg.OnlyCode = false
+			searchCfg.OnlyComments = false
+			searchCfg.OnlyStrings = false
+			searchCfg.OnlyDeclarations = false
+			searchCfg.OnlyUsages = false
 			switch codeFilter {
 			case "only-code":
 				searchCfg.OnlyCode = true
-				searchCfg.OnlyComments = false
-				searchCfg.OnlyStrings = false
 			case "only-comments":
-				searchCfg.OnlyCode = false
 				searchCfg.OnlyComments = true
-				searchCfg.OnlyStrings = false
 			case "only-strings":
-				searchCfg.OnlyCode = false
-				searchCfg.OnlyComments = false
 				searchCfg.OnlyStrings = true
 			case "only-declarations":
 				searchCfg.OnlyDeclarations = true
 			case "only-usages":
 				searchCfg.OnlyUsages = true
-			default:
-				searchCfg.OnlyCode = false
-				searchCfg.OnlyComments = false
-				searchCfg.OnlyStrings = false
 			}
 			// Auto-switch ranker to structural when code filter is active (matches TUI behavior)
 			if searchCfg.HasContentFilter() {
@@ -371,10 +367,14 @@ func StartHttpServer(cfg *Config) {
 				var l [][]int
 				for _, value := range res.MatchLocations {
 					for _, s := range value {
+						if len(s) < 2 {
+							continue
+						}
 						if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-							s[0] = s[0] - v3.StartPos
-							s[1] = s[1] - v3.StartPos
-							l = append(l, s)
+							l = append(l, []int{
+								s[0] - v3.StartPos,
+								s[1] - v3.StartPos,
+							})
 						}
 					}
 				}

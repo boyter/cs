@@ -237,6 +237,9 @@ func ClassifyMatchLocations(
 	// For each match location, find its line and classify
 	for term, locs := range matchLocations {
 		for _, loc := range locs {
+			if len(loc) < 2 {
+				continue
+			}
 			startByte := loc[0]
 			if startByte < 0 || startByte >= len(content) {
 				usages[term] = append(usages[term], loc)

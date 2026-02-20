@@ -107,6 +107,7 @@ type model struct {
 	searchCancel  context.CancelFunc    // cancels in-flight search; nil if none
 	searchResults chan searchResultsMsg // channel from search goroutine
 	lastQuery     string                // query that produced current results
+	errMsg        string                // transient error message shown in status line
 	fileCount     int                   // total files scanned (for status line)
 	textFileCount int                   // non-binary, successfully read files (for BM25 ranking)
 	snippetMode   string                // "snippet" or "lines"
@@ -299,12 +300,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, listenForResults(m.searchResults)
 
 	case tea.MouseMsg:
+		m.errMsg = ""
 		if m.viewing {
+			maxViewScroll := max(0, len(m.viewLines)-(m.windowHeight-3))
 			switch msg.Type {
 			case tea.MouseWheelUp:
 				m.viewScroll = max(0, m.viewScroll-3)
 			case tea.MouseWheelDown:
-				m.viewScroll = min(len(m.viewLines)-1, m.viewScroll+3)
+				m.viewScroll = min(maxViewScroll, m.viewScroll+3)
 			}
 			return m, nil
 		}
@@ -328,7 +331,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
+		m.errMsg = ""
 		if m.viewing {
+			maxViewScroll := max(0, len(m.viewLines)-(m.windowHeight-3))
 			switch msg.Type {
 			case tea.KeyEsc, tea.KeyF5, tea.KeyCtrlO, tea.KeyCtrlP:
 				m.viewing = false
@@ -338,13 +343,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewScroll = max(0, m.viewScroll-1)
 				return m, nil
 			case tea.KeyDown:
-				m.viewScroll = min(len(m.viewLines)-1, m.viewScroll+1)
+				m.viewScroll = min(maxViewScroll, m.viewScroll+1)
 				return m, nil
 			case tea.KeyPgUp:
 				m.viewScroll = max(0, m.viewScroll-(m.windowHeight-4))
 				return m, nil
 			case tea.KeyPgDown:
-				m.viewScroll = min(len(m.viewLines)-1, m.viewScroll+(m.windowHeight-4))
+				m.viewScroll = min(maxViewScroll, m.viewScroll+(m.windowHeight-4))
 				return m, nil
 			case tea.KeyEnter:
 				m.chosen = m.viewLocation
@@ -445,7 +450,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.retriggerSearch()
 		case tea.KeyF5, tea.KeyCtrlO, tea.KeyCtrlP:
 			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
-				m.openViewer(m.results[m.selectedIndex])
+				if err := m.openViewer(m.results[m.selectedIndex]); err != nil {
+					m.errMsg = fmt.Sprintf("cannot open file: %v", err)
+				}
 			}
 			return m, nil
 		}
@@ -602,6 +609,9 @@ func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [
 	var locs [][]int
 	for _, value := range matchLocations {
 		for _, s := range value {
+			if len(s) < 2 {
+				continue
+			}
 			if s[0] >= startPos && s[1] <= endPos {
 				locs = append(locs, []int{
 					s[0] - startPos,
@@ -851,7 +861,9 @@ func (m model) View() string {
 	// === Status line ===
 	query := m.searchInput.Value()
 	var status string
-	if query == "" {
+	if m.errMsg != "" {
+		status = m.errMsg
+	} else if query == "" {
 		status = "type a query to search"
 	} else if m.searching {
 		status = fmt.Sprintf("%d results for '%s' from %d files (searching...)",
@@ -1030,6 +1042,9 @@ func highlightMatchOnly(line string, locs [][]int, isSelected bool) string {
 
 	marked := make([]bool, len(line))
 	for _, loc := range locs {
+		if len(loc) < 2 {
+			continue
+		}
 		for i := loc[0]; i < loc[1] && i < len(marked); i++ {
 			marked[i] = true
 		}
@@ -1082,7 +1097,8 @@ func (m *model) openViewer(r searchResult) error {
 
 	m.viewing = true
 	m.viewLines = lines
-	m.viewScroll = max(0, startLine-(m.windowHeight-4)/2) // center match
+	maxViewScroll := max(0, len(lines)-(m.windowHeight-3))
+	m.viewScroll = min(maxViewScroll, max(0, startLine-(m.windowHeight-4)/2)) // center match
 	m.viewFilename = r.Filename
 	m.viewLocation = r.Location
 	m.viewLanguage = r.Language

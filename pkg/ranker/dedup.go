@@ -21,7 +21,12 @@ func ComputeMatchHash(fj *common.FileJob) string {
 	// Collect all [start, end] spans
 	var spans [][]int
 	for _, locs := range fj.MatchLocations {
-		spans = append(spans, locs...)
+		for _, loc := range locs {
+			if len(loc) < 2 {
+				continue
+			}
+			spans = append(spans, loc)
+		}
 	}
 
 	// Sort by start position, then by end position

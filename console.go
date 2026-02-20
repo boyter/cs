@@ -130,6 +130,9 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				var l [][]int
 				for _, value := range res.MatchLocations {
 					for _, s := range value {
+						if len(s) < 2 {
+							continue
+						}
 						if s[0] >= snippets[i].StartPos && s[1] <= snippets[i].EndPos {
 							l = append(l, []int{
 								s[0] - snippets[i].StartPos,
@@ -242,6 +245,9 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 			var l [][]int
 			for _, value := range res.MatchLocations {
 				for _, s := range value {
+					if len(s) < 2 {
+						continue
+					}
 					if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
 						l = append(l, []int{
 							s[0] - v3.StartPos,

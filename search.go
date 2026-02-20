@@ -289,6 +289,9 @@ func filterMatchLocations(matchLocations map[string][][]int, contentByteType []b
 	for term, locs := range matchLocations {
 		var kept [][]int
 		for _, loc := range locs {
+			if len(loc) < 2 {
+				continue
+			}
 			startByte := loc[0]
 			if startByte >= 0 && startByte < len(contentByteType) && allowed[contentByteType[startByte]] {
 				kept = append(kept, loc)
