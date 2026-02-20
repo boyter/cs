@@ -49,7 +49,7 @@ They solve different problems. You'll probably want both.
 
 #### Key capabilities
 
-- Structural Awareness: A match in code ranks higher than the same word in a comment (1.0 vs 0.2) — and it's configurable. Or filter strictly: `--only-code`, `--only-comments`, `--only-strings`.
+- Structural Awareness: A match in code ranks higher than the same word in a comment (1.0 vs 0.2) - and it's configurable. Or filter strictly: `--only-code`, `--only-comments`, `--only-strings`.
 - Complexity Gravity: Uses [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) as a ranking signal. Searching for `Authenticate`? The complex implementation file ranks above the interface definition. (`--gravity=brain`)
 - Smart Ranking: BM25 relevance scoring, file-location boosting, noise penalty for data blobs, and automatic test-file dampening — all on the fly with no pre-built index.
 - Multiple interfaces: Console output, a built-in TUI, an HTTP server with syntax highlighting, or an MCP server for LLM tooling.
@@ -64,6 +64,15 @@ cs "database" --only-code        # Ignore matches in comments/docs
 cs "FIXME" --only-comments       # Ignore matches in code/strings
 cs "error" --only-strings        # Find where error messages are defined
 ```
+
+The structural ranker also uses declaration detection to boost matches that appear on declaration lines 
+(e.g. `func`, `class`, `def`) over plain usages. This currently works for the following languages:
+
+Go, Python, JavaScript, TypeScript, TSX, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
+
+For unsupported languages, all matches are treated as usages and ranked by text relevance only. 
+Structural filtering (`--only-code`, `--only-comments`, `--only-strings`) still works for any language recognised 
+by [scc](https://github.com/boyter/scc).
 
 #### Complexity Gravity
 
@@ -216,6 +225,9 @@ Searches by default use AND boolean syntax for all terms
  - exact match using quotes "find this"
  - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2
  - negate using NOT such as pride NOT prejudice
+ - OR syntax such as catch OR throw
+ - group with parentheses (cat OR dog) NOT fish
+ - note: NOT binds to next term, use () with OR
  - regex with toothpick syntax /pr[e-i]de/
 
 Searches can filter which files are searched by adding
@@ -244,6 +256,7 @@ Flags:
       --address string            address and port to listen on (default ":8080")
       --binary                    set to disable binary file detection and search binary files
   -c, --case-sensitive            make the search case sensitive
+      --dedup                     collapse byte-identical search matches, keeping the highest-scored representative
       --dir string                directory to search, if not set defaults to current working directory
       --exclude-dir strings       directories to exclude (default [.git,.hg,.svn])
   -x, --exclude-pattern strings   file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]

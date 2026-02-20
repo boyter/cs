@@ -401,6 +401,9 @@ func rankResultsStructural(corpusCount int, results []*common.FileJob, documentF
 		for word, wordLocs := range results[i].MatchLocations {
 			var weightedTf float64
 			for _, loc := range wordLocs {
+				if len(loc) < 2 {
+					continue
+				}
 				weightedTf += matchWeight(results[i].ContentByteType, loc[0], cfg)
 			}
 

@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -18,19 +19,21 @@ import (
 
 // searchResult represents a single search result
 type searchResult struct {
-	Filename    string
-	Location    string
-	Score       float64
-	Snippet     string               // plain text snippet (snippet mode)
-	SnippetLocs [][]int              // match positions within Snippet [start, end]
-	LineRange   string               // line range info
-	LineResults []snippet.LineResult // per-line results with positions (lines mode)
-	Language    string
-	TotalLines  int64
-	Code        int64
-	Comment     int64
-	Blank       int64
-	Complexity  int64
+	Filename       string
+	Location       string
+	Score          float64
+	Snippet        string               // plain text snippet (snippet mode)
+	SnippetLocs    [][]int              // match positions within Snippet [start, end]
+	LineRange      string               // line range info
+	LineResults    []snippet.LineResult // per-line results with positions (lines mode)
+	Language       string
+	TotalLines     int64
+	Code           int64
+	Comment        int64
+	Blank          int64
+	Complexity     int64
+	DuplicateCount int
+	MatchLocations map[string][][]int // absolute byte positions in file
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -56,15 +59,13 @@ var (
 
 	selectedTitleStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("5")).
-				Bold(true).
-				Background(lipgloss.Color("236"))
+				Bold(true)
 
 	snippetStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
 
 	selectedSnippetStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("252")).
-				Background(lipgloss.Color("236"))
+				Foreground(lipgloss.Color("252"))
 
 	matchStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("1")). // red
@@ -72,8 +73,7 @@ var (
 
 	selectedMatchStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("1")).
-				Bold(true).
-				Background(lipgloss.Color("236"))
+				Bold(true)
 
 	statusStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("243"))
@@ -107,10 +107,23 @@ type model struct {
 	searchCancel  context.CancelFunc    // cancels in-flight search; nil if none
 	searchResults chan searchResultsMsg // channel from search goroutine
 	lastQuery     string                // query that produced current results
+	errMsg        string                // transient error message shown in status line
 	fileCount     int                   // total files scanned (for status line)
 	textFileCount int                   // non-binary, successfully read files (for BM25 ranking)
 	snippetMode   string                // "snippet" or "lines"
 	searchCache   *SearchCache          // caches file locations across progressive queries
+
+	// File viewer overlay state
+	viewing         bool               // true when viewer is open
+	viewLines       []string           // lines of the viewed file
+	viewScroll      int                // scroll offset (line index of top of viewport)
+	viewFilename    string             // display filename
+	viewLocation    string             // full file path (for Enter-to-select)
+	viewLanguage    string             // language for title
+	viewLineRange   string             // original match line range
+	viewMatchLocs   map[string][][]int // absolute byte match positions
+	viewLineOffsets []int              // byte offset where each line starts
+	viewStartLine   int                // line to initially center on
 }
 
 func initialModel(cfg *Config) model {
@@ -206,6 +219,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.fileJobs) > 0 {
 				testIntent := ranker.HasTestIntent(strings.Fields(m.searchInput.Value()))
 				ranked := ranker.RankResults(m.cfg.Ranker, m.textFileCount, m.fileJobs, m.cfg.StructuralRankerConfig(), m.cfg.ResolveGravityStrength(), m.cfg.ResolveNoiseSensitivity(), m.cfg.TestPenalty, testIntent)
+
+				if m.cfg.Dedup {
+					ranked = ranker.DeduplicateResults(ranked)
+				}
+
 				docFreq := ranker.CalculateDocumentTermFrequency(ranked)
 
 				// Parse snippet length from input
@@ -227,17 +245,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
-							Filename:    fj.Location,
-							Location:    fj.Location,
-							Score:       fj.Score,
-							LineResults: lineResults,
-							LineRange:   lineRange,
-							Language:    fj.Language,
-							TotalLines:  fj.Lines,
-							Code:        fj.Code,
-							Comment:     fj.Comment,
-							Blank:       fj.Blank,
-							Complexity:  fj.Complexity,
+							Filename:       fj.Location,
+							Location:       fj.Location,
+							Score:          fj.Score,
+							LineResults:    lineResults,
+							LineRange:      lineRange,
+							Language:       fj.Language,
+							TotalLines:     fj.Lines,
+							Code:           fj.Code,
+							Comment:        fj.Comment,
+							Blank:          fj.Blank,
+							Complexity:     fj.Complexity,
+							DuplicateCount: fj.DuplicateCount,
+							MatchLocations: fj.MatchLocations,
 						})
 					} else {
 						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
@@ -251,18 +271,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
-							Filename:    fj.Location,
-							Location:    fj.Location,
-							Score:       fj.Score,
-							Snippet:     snippetText,
-							SnippetLocs: sLocs,
-							LineRange:   lineRange,
-							Language:    fj.Language,
-							TotalLines:  fj.Lines,
-							Code:        fj.Code,
-							Comment:     fj.Comment,
-							Blank:       fj.Blank,
-							Complexity:  fj.Complexity,
+							Filename:       fj.Location,
+							Location:       fj.Location,
+							Score:          fj.Score,
+							Snippet:        snippetText,
+							SnippetLocs:    sLocs,
+							LineRange:      lineRange,
+							Language:       fj.Language,
+							TotalLines:     fj.Lines,
+							Code:           fj.Code,
+							Comment:        fj.Comment,
+							Blank:          fj.Blank,
+							Complexity:     fj.Complexity,
+							DuplicateCount: fj.DuplicateCount,
+							MatchLocations: fj.MatchLocations,
 						})
 					}
 				}
@@ -277,7 +299,64 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Keep listening for more results
 		return m, listenForResults(m.searchResults)
 
+	case tea.MouseMsg:
+		m.errMsg = ""
+		if m.viewing {
+			maxViewScroll := max(0, len(m.viewLines)-(m.windowHeight-3))
+			switch msg.Type {
+			case tea.MouseWheelUp:
+				m.viewScroll = max(0, m.viewScroll-3)
+			case tea.MouseWheelDown:
+				m.viewScroll = min(maxViewScroll, m.viewScroll+3)
+			}
+			return m, nil
+		}
+		switch msg.Type {
+		case tea.MouseWheelUp:
+			m.scrollOffset -= 3
+			m.clampScroll()
+			m.syncSelectedToScroll()
+			return m, nil
+		case tea.MouseWheelDown:
+			m.scrollOffset += 3
+			m.clampScroll()
+			m.syncSelectedToScroll()
+			return m, nil
+		case tea.MouseLeft:
+			idx := m.resultIndexAtY(msg.Y)
+			if idx >= 0 && idx < len(m.results) {
+				m.selectedIndex = idx
+			}
+			return m, nil
+		}
+
 	case tea.KeyMsg:
+		m.errMsg = ""
+		if m.viewing {
+			maxViewScroll := max(0, len(m.viewLines)-(m.windowHeight-3))
+			switch msg.Type {
+			case tea.KeyEsc, tea.KeyF5, tea.KeyCtrlO, tea.KeyCtrlP:
+				m.viewing = false
+				m.viewLines = nil // free memory
+				return m, nil
+			case tea.KeyUp:
+				m.viewScroll = max(0, m.viewScroll-1)
+				return m, nil
+			case tea.KeyDown:
+				m.viewScroll = min(maxViewScroll, m.viewScroll+1)
+				return m, nil
+			case tea.KeyPgUp:
+				m.viewScroll = max(0, m.viewScroll-(m.windowHeight-4))
+				return m, nil
+			case tea.KeyPgDown:
+				m.viewScroll = min(maxViewScroll, m.viewScroll+(m.windowHeight-4))
+				return m, nil
+			case tea.KeyEnter:
+				m.chosen = m.viewLocation
+				return m, tea.Quit
+			}
+			return m, nil
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			if m.searchCancel != nil {
@@ -369,6 +448,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyF4:
 			m.cycleNoise()
 			return m, m.retriggerSearch()
+		case tea.KeyF5, tea.KeyCtrlO, tea.KeyCtrlP:
+			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
+				if err := m.openViewer(m.results[m.selectedIndex]); err != nil {
+					m.errMsg = fmt.Sprintf("cannot open file: %v", err)
+				}
+			}
+			return m, nil
 		}
 	}
 
@@ -448,16 +534,17 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 					lineResults[len(lineResults)-1].LineNumber)
 			}
 			sr = searchResult{
-				Filename:    fj.Location,
-				Location:    fj.Location,
-				LineResults: lineResults,
-				LineRange:   lineRange,
-				Language:    fj.Language,
-				TotalLines:  fj.Lines,
-				Code:        fj.Code,
-				Comment:     fj.Comment,
-				Blank:       fj.Blank,
-				Complexity:  fj.Complexity,
+				Filename:       fj.Location,
+				Location:       fj.Location,
+				LineResults:    lineResults,
+				LineRange:      lineRange,
+				Language:       fj.Language,
+				TotalLines:     fj.Lines,
+				Code:           fj.Code,
+				Comment:        fj.Comment,
+				Blank:          fj.Blank,
+				Complexity:     fj.Complexity,
+				MatchLocations: fj.MatchLocations,
 			}
 		} else {
 			docFreq := make(map[string]int, len(fj.MatchLocations))
@@ -474,17 +561,18 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
 			}
 			sr = searchResult{
-				Filename:    fj.Location,
-				Location:    fj.Location,
-				Snippet:     snippetText,
-				SnippetLocs: sLocs,
-				LineRange:   lineRange,
-				Language:    fj.Language,
-				TotalLines:  fj.Lines,
-				Code:        fj.Code,
-				Comment:     fj.Comment,
-				Blank:       fj.Blank,
-				Complexity:  fj.Complexity,
+				Filename:       fj.Location,
+				Location:       fj.Location,
+				Snippet:        snippetText,
+				SnippetLocs:    sLocs,
+				LineRange:      lineRange,
+				Language:       fj.Language,
+				TotalLines:     fj.Lines,
+				Code:           fj.Code,
+				Comment:        fj.Comment,
+				Blank:          fj.Blank,
+				Complexity:     fj.Complexity,
+				MatchLocations: fj.MatchLocations,
 			}
 		}
 
@@ -521,6 +609,9 @@ func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [
 	var locs [][]int
 	for _, value := range matchLocations {
 		for _, s := range value {
+			if len(s) < 2 {
+				continue
+			}
 			if s[0] >= startPos && s[1] <= endPos {
 				locs = append(locs, []int{
 					s[0] - startPos,
@@ -535,16 +626,92 @@ func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [
 // resultHeight returns the number of terminal lines a result takes up
 func resultHeight(r searchResult) int {
 	if len(r.LineResults) > 0 {
-		return 1 + len(r.LineResults) + 1
+		gaps := 0
+		for i := 1; i < len(r.LineResults); i++ {
+			if r.LineResults[i].LineNumber > r.LineResults[i-1].LineNumber+1 {
+				gaps++
+			}
+		}
+		return 1 + len(r.LineResults) + gaps + 1
 	}
 	// 1 for title + lines in snippet + 1 blank line separator
 	lines := strings.Count(r.Snippet, "\n") + 1
 	return 1 + lines + 1
 }
 
+func (m *model) totalContentHeight() int {
+	total := 0
+	for _, r := range m.results {
+		total += resultHeight(r)
+	}
+	return total
+}
+
 func (m *model) clampScroll() {
 	if m.scrollOffset < 0 {
 		m.scrollOffset = 0
+	}
+	availHeight := m.windowHeight - 5
+	if availHeight < 1 {
+		availHeight = 1
+	}
+	maxScroll := m.totalContentHeight() - availHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.scrollOffset > maxScroll {
+		m.scrollOffset = maxScroll
+	}
+}
+
+func (m *model) resultIndexAtY(y int) int {
+	const headerLines = 2
+	if y < headerLines {
+		return -1
+	}
+	contentLine := m.scrollOffset + (y - headerLines)
+	accum := 0
+	for i, r := range m.results {
+		rh := resultHeight(r)
+		if contentLine < accum+rh {
+			return i
+		}
+		accum += rh
+	}
+	return -1
+}
+
+func (m *model) syncSelectedToScroll() {
+	if len(m.results) == 0 {
+		return
+	}
+	availHeight := m.windowHeight - 5
+	if availHeight < 1 {
+		availHeight = 1
+	}
+	accum := 0
+	firstVisible, lastVisible := -1, -1
+	for i, r := range m.results {
+		rh := resultHeight(r)
+		if accum+rh > m.scrollOffset && accum < m.scrollOffset+availHeight {
+			if firstVisible == -1 {
+				firstVisible = i
+			}
+			lastVisible = i
+		}
+		accum += rh
+		if accum >= m.scrollOffset+availHeight && lastVisible >= 0 {
+			break
+		}
+	}
+	if firstVisible == -1 {
+		return
+	}
+	if m.selectedIndex < firstVisible {
+		m.selectedIndex = firstVisible
+	}
+	if m.selectedIndex > lastVisible {
+		m.selectedIndex = lastVisible
 	}
 }
 
@@ -590,26 +757,26 @@ func (m *model) cycleRanker() {
 	m.cfg.Ranker = "simple"
 }
 
-// cycleCodeFilter cycles: default → only-code → only-comments → only-strings → default…
+// cycleCodeFilter cycles: default → only-code → only-comments → only-strings → only-declarations → only-usages → default…
 // Auto-switches ranker to "structural" when a filter is active.
 func (m *model) cycleCodeFilter() {
 	switch {
-	case !m.cfg.OnlyCode && !m.cfg.OnlyComments && !m.cfg.OnlyStrings:
+	case !m.cfg.OnlyCode && !m.cfg.OnlyComments && !m.cfg.OnlyStrings && !m.cfg.OnlyDeclarations && !m.cfg.OnlyUsages:
 		m.cfg.OnlyCode = true
-		m.cfg.OnlyComments = false
-		m.cfg.OnlyStrings = false
 	case m.cfg.OnlyCode:
 		m.cfg.OnlyCode = false
 		m.cfg.OnlyComments = true
-		m.cfg.OnlyStrings = false
 	case m.cfg.OnlyComments:
-		m.cfg.OnlyCode = false
 		m.cfg.OnlyComments = false
 		m.cfg.OnlyStrings = true
-	default:
-		m.cfg.OnlyCode = false
-		m.cfg.OnlyComments = false
+	case m.cfg.OnlyStrings:
 		m.cfg.OnlyStrings = false
+		m.cfg.OnlyDeclarations = true
+	case m.cfg.OnlyDeclarations:
+		m.cfg.OnlyDeclarations = false
+		m.cfg.OnlyUsages = true
+	case m.cfg.OnlyUsages:
+		m.cfg.OnlyUsages = false
 	}
 	if m.cfg.HasContentFilter() {
 		m.cfg.Ranker = "structural"
@@ -655,6 +822,10 @@ func (m *model) codeFilterLabel() string {
 		return "only-comments"
 	case m.cfg.OnlyStrings:
 		return "only-strings"
+	case m.cfg.OnlyDeclarations:
+		return "only-declarations"
+	case m.cfg.OnlyUsages:
+		return "only-usages"
 	default:
 		return "default"
 	}
@@ -663,6 +834,10 @@ func (m *model) codeFilterLabel() string {
 func (m model) View() string {
 	if m.windowWidth == 0 {
 		return "loading..."
+	}
+
+	if m.viewing {
+		return m.renderViewer()
 	}
 
 	var b strings.Builder
@@ -686,7 +861,9 @@ func (m model) View() string {
 	// === Status line ===
 	query := m.searchInput.Value()
 	var status string
-	if query == "" {
+	if m.errMsg != "" {
+		status = m.errMsg
+	} else if query == "" {
 		status = "type a query to search"
 	} else if m.searching {
 		status = fmt.Sprintf("%d results for '%s' from %d files (searching...)",
@@ -754,7 +931,7 @@ func (m model) View() string {
 
 	// === Bottom bar (nano-style keybinding hints) ===
 	bottomBar := snippetLabelStyle.Render(fmt.Sprintf(
-		"F1 Ranker:%s  F2 Filter:%s  F3 Gravity:%s  F4 Noise:%s",
+		"F1 Ranker:%s  F2 Filter:%s  F3 Gravity:%s  F4 Noise:%s  F5/^O/^P View",
 		m.cfg.Ranker, m.codeFilterLabel(), m.cfg.GravityIntent, m.cfg.NoiseIntent))
 	b.WriteString("\n")
 	b.WriteString(bottomBar)
@@ -776,6 +953,9 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	} else {
 		titleText = fmt.Sprintf("%s (%0.4f) [%s]%s", r.Filename, r.Score, r.LineRange, codeStats)
 	}
+	if r.DuplicateCount > 0 {
+		titleText += fmt.Sprintf(" [+%d duplicates]", r.DuplicateCount)
+	}
 
 	if isSelected {
 		b.WriteString(selectedIndicator.String())
@@ -788,7 +968,12 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 
 	// Render content: line-based or snippet-based
 	if len(r.LineResults) > 0 {
+		prevLine := 0
 		for _, lr := range r.LineResults {
+			if prevLine > 0 && lr.LineNumber > prevLine+1 {
+				b.WriteString("\n")
+			}
+			prevLine = lr.LineNumber
 			prefix := "  "
 			if isSelected {
 				prefix = selectedIndicator.String() + " "
@@ -857,6 +1042,9 @@ func highlightMatchOnly(line string, locs [][]int, isSelected bool) string {
 
 	marked := make([]bool, len(line))
 	for _, loc := range locs {
+		if len(loc) < 2 {
+			continue
+		}
 		for i := loc[0]; i < loc[1] && i < len(marked); i++ {
 			marked[i] = true
 		}
@@ -881,4 +1069,153 @@ func highlightMatchOnly(line string, locs [][]int, isSelected bool) string {
 	}
 
 	return result.String()
+}
+
+// openViewer reads the file from disk and sets up the viewer overlay state.
+func (m *model) openViewer(r searchResult) error {
+	data, err := os.ReadFile(r.Location)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	// Build line byte offsets for match position mapping
+	offsets := make([]int, len(lines))
+	pos := 0
+	for i, line := range lines {
+		offsets[i] = pos
+		pos += len(line) + 1 // +1 for \n
+	}
+
+	// Parse start line from LineRange (e.g. "42-58")
+	startLine := 0
+	if r.LineRange != "" {
+		fmt.Sscanf(r.LineRange, "%d", &startLine)
+		startLine-- // convert to 0-based
+	}
+
+	m.viewing = true
+	m.viewLines = lines
+	maxViewScroll := max(0, len(lines)-(m.windowHeight-3))
+	m.viewScroll = min(maxViewScroll, max(0, startLine-(m.windowHeight-4)/2)) // center match
+	m.viewFilename = r.Filename
+	m.viewLocation = r.Location
+	m.viewLanguage = r.Language
+	m.viewLineRange = r.LineRange
+	m.viewMatchLocs = r.MatchLocations
+	m.viewLineOffsets = offsets
+	m.viewStartLine = startLine
+	return nil
+}
+
+// viewerMatchLocsForLine converts absolute byte-offset match locations to
+// per-line relative positions for a given line index.
+func (m model) viewerMatchLocsForLine(lineIdx int) [][]int {
+	if lineIdx < 0 || lineIdx >= len(m.viewLines) || m.viewMatchLocs == nil {
+		return nil
+	}
+	lineStart := m.viewLineOffsets[lineIdx]
+	lineEnd := lineStart + len(m.viewLines[lineIdx])
+
+	var locs [][]int
+	for _, positions := range m.viewMatchLocs {
+		for _, loc := range positions {
+			if len(loc) < 2 {
+				continue
+			}
+			if loc[1] <= lineStart || loc[0] >= lineEnd {
+				continue
+			}
+			start := loc[0] - lineStart
+			end := loc[1] - lineStart
+			if start < 0 {
+				start = 0
+			}
+			if end > len(m.viewLines[lineIdx]) {
+				end = len(m.viewLines[lineIdx])
+			}
+			locs = append(locs, []int{start, end})
+		}
+	}
+	return locs
+}
+
+// renderViewer renders the full-screen file viewer overlay.
+func (m model) renderViewer() string {
+	var b strings.Builder
+
+	// === Title bar ===
+	langStr := ""
+	if m.viewLanguage != "" {
+		langStr = " (" + m.viewLanguage + ")"
+	}
+	rangeStr := ""
+	if m.viewLineRange != "" {
+		rangeStr = " [" + m.viewLineRange + "]"
+	}
+	titleLeft := fmt.Sprintf("  %s%s%s", m.viewFilename, langStr, rangeStr)
+	titleRight := fmt.Sprintf("line %d/%d  ", m.viewScroll+1, len(m.viewLines))
+
+	padding := m.windowWidth - lipgloss.Width(titleLeft) - lipgloss.Width(titleRight)
+	if padding < 1 {
+		padding = 1
+	}
+	titleBar := selectedTitleStyle.Render(titleLeft) + strings.Repeat(" ", padding) + statusStyle.Render(titleRight)
+	b.WriteString(titleBar)
+	b.WriteString("\n")
+
+	// === Content area ===
+	contentHeight := m.windowHeight - 3 // title + bottom bar + bottom bar newline
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	// Parse match line range for gutter indicators
+	matchStart, matchEnd := -1, -1
+	if m.viewLineRange != "" {
+		fmt.Sscanf(m.viewLineRange, "%d-%d", &matchStart, &matchEnd)
+		matchStart-- // convert to 0-based
+		matchEnd--
+	}
+
+	// Determine line number width
+	maxLineNum := m.viewScroll + contentHeight
+	if maxLineNum > len(m.viewLines) {
+		maxLineNum = len(m.viewLines)
+	}
+	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum))
+	if lineNumWidth < 4 {
+		lineNumWidth = 4
+	}
+
+	for i := 0; i < contentHeight; i++ {
+		lineIdx := m.viewScroll + i
+		if lineIdx >= len(m.viewLines) {
+			b.WriteString("\n")
+			continue
+		}
+
+		// Gutter indicator for match range
+		indicator := " "
+		if lineIdx >= matchStart && lineIdx <= matchEnd {
+			indicator = selectedIndicator.String()
+		}
+
+		lineNum := snippetLabelStyle.Render(fmt.Sprintf("%*d", lineNumWidth, lineIdx+1))
+		sep := snippetLabelStyle.Render(" │ ")
+
+		// Get match locations for this line and render
+		locs := m.viewerMatchLocsForLine(lineIdx)
+		content := m.highlightWithLocs(m.viewLines[lineIdx], locs, false)
+
+		b.WriteString(indicator + lineNum + sep + content)
+		b.WriteString("\n")
+	}
+
+	// === Bottom bar ===
+	bottomBar := snippetLabelStyle.Render("Esc close  ↑↓ scroll  PgUp/PgDn page  Enter select")
+	b.WriteString(bottomBar)
+
+	return b.String()
 }

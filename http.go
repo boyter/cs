@@ -47,23 +47,26 @@ type httpSearch struct {
 type httpLineResult struct {
 	LineNumber int           `json:"lineNumber"`
 	Content    template.HTML `json:"content"`
+	Gap        bool          `json:"gap,omitempty"`
 }
 
 type httpSearchResult struct {
-	Title       string           `json:"title"`
-	Location    string           `json:"location"`
-	Content     []template.HTML  `json:"content,omitempty"`
-	StartPos    int              `json:"startPos"`
-	EndPos      int              `json:"endPos"`
-	Score       float64          `json:"score"`
-	IsLineMode  bool             `json:"isLineMode,omitempty"`
-	LineResults []httpLineResult `json:"lineResults,omitempty"`
-	Language    string           `json:"language,omitempty"`
-	Lines       int64            `json:"lines,omitempty"`
-	Code        int64            `json:"code,omitempty"`
-	Comment     int64            `json:"comment,omitempty"`
-	Blank       int64            `json:"blank,omitempty"`
-	Complexity  int64            `json:"complexity,omitempty"`
+	Title              string           `json:"title"`
+	Location           string           `json:"location"`
+	Content            []template.HTML  `json:"content,omitempty"`
+	StartPos           int              `json:"startPos"`
+	EndPos             int              `json:"endPos"`
+	Score              float64          `json:"score"`
+	IsLineMode         bool             `json:"isLineMode,omitempty"`
+	LineResults        []httpLineResult `json:"lineResults,omitempty"`
+	Language           string           `json:"language,omitempty"`
+	Lines              int64            `json:"lines,omitempty"`
+	Code               int64            `json:"code,omitempty"`
+	Comment            int64            `json:"comment,omitempty"`
+	Blank              int64            `json:"blank,omitempty"`
+	Complexity         int64            `json:"complexity,omitempty"`
+	DuplicateCount     int              `json:"duplicateCount,omitempty"`
+	DuplicateLocations []string         `json:"duplicateLocations,omitempty"`
 }
 
 type httpFileDisplay struct {
@@ -214,23 +217,23 @@ func StartHttpServer(cfg *Config) {
 			searchCfg.Ranker = rankerParam
 			searchCfg.GravityIntent = gravityParam
 			searchCfg.NoiseIntent = noiseParam
+			// Clear all content filters before setting the requested one
+			searchCfg.OnlyCode = false
+			searchCfg.OnlyComments = false
+			searchCfg.OnlyStrings = false
+			searchCfg.OnlyDeclarations = false
+			searchCfg.OnlyUsages = false
 			switch codeFilter {
 			case "only-code":
 				searchCfg.OnlyCode = true
-				searchCfg.OnlyComments = false
-				searchCfg.OnlyStrings = false
 			case "only-comments":
-				searchCfg.OnlyCode = false
 				searchCfg.OnlyComments = true
-				searchCfg.OnlyStrings = false
 			case "only-strings":
-				searchCfg.OnlyCode = false
-				searchCfg.OnlyComments = false
 				searchCfg.OnlyStrings = true
-			default:
-				searchCfg.OnlyCode = false
-				searchCfg.OnlyComments = false
-				searchCfg.OnlyStrings = false
+			case "only-declarations":
+				searchCfg.OnlyDeclarations = true
+			case "only-usages":
+				searchCfg.OnlyUsages = true
 			}
 			// Auto-switch ranker to structural when code filter is active (matches TUI behavior)
 			if searchCfg.HasContentFilter() {
@@ -248,6 +251,11 @@ func StartHttpServer(cfg *Config) {
 			processedFileCount = stats.TextFileCount.Load()
 			testIntent := ranker.HasTestIntent(strings.Fields(query))
 			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), testPenalty, testIntent)
+		}
+
+		// Dedup (before pagination, so freed slots get backfilled)
+		if r.URL.Query().Get("dedup") == "true" || r.URL.Query().Get("dedup") == "1" {
+			results = ranker.DeduplicateResults(results)
 		}
 
 		// Create a random str to define where the start and end of
@@ -291,14 +299,18 @@ func StartHttpServer(cfg *Config) {
 					continue
 				}
 				var httpLines []httpLineResult
+				prevLine := 0
 				for _, lr := range lineResults {
 					coloredLine := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
 					coloredLine = html.EscapeString(coloredLine)
 					coloredLine = strings.Replace(coloredLine, fmtBegin, "<strong>", -1)
 					coloredLine = strings.Replace(coloredLine, fmtEnd, "</strong>", -1)
+					gap := prevLine > 0 && lr.LineNumber > prevLine+1
+					prevLine = lr.LineNumber
 					httpLines = append(httpLines, httpLineResult{
 						LineNumber: lr.LineNumber,
 						Content:    template.HTML(coloredLine),
+						Gap:        gap,
 					})
 				}
 				// Compute byte range covering the displayed lines for click-through highlighting
@@ -325,19 +337,21 @@ func StartHttpServer(cfg *Config) {
 				}
 
 				searchResults = append(searchResults, httpSearchResult{
-					Title:       res.Location,
-					Location:    res.Location,
-					Score:       res.Score,
-					StartPos:    startPos,
-					EndPos:      endPos,
-					IsLineMode:  true,
-					LineResults: httpLines,
-					Language:    res.Language,
-					Lines:       res.Lines,
-					Code:        res.Code,
-					Comment:     res.Comment,
-					Blank:       res.Blank,
-					Complexity:  res.Complexity,
+					Title:              res.Location,
+					Location:           res.Location,
+					Score:              res.Score,
+					StartPos:           startPos,
+					EndPos:             endPos,
+					IsLineMode:         true,
+					LineResults:        httpLines,
+					Language:           res.Language,
+					Lines:              res.Lines,
+					Code:               res.Code,
+					Comment:            res.Comment,
+					Blank:              res.Blank,
+					Complexity:         res.Complexity,
+					DuplicateCount:     res.DuplicateCount,
+					DuplicateLocations: res.DuplicateLocations,
 				})
 			} else {
 				snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
@@ -353,10 +367,14 @@ func StartHttpServer(cfg *Config) {
 				var l [][]int
 				for _, value := range res.MatchLocations {
 					for _, s := range value {
+						if len(s) < 2 {
+							continue
+						}
 						if s[0] >= v3.StartPos && s[1] <= v3.EndPos {
-							s[0] = s[0] - v3.StartPos
-							s[1] = s[1] - v3.StartPos
-							l = append(l, s)
+							l = append(l, []int{
+								s[0] - v3.StartPos,
+								s[1] - v3.StartPos,
+							})
 						}
 					}
 				}
@@ -373,18 +391,20 @@ func StartHttpServer(cfg *Config) {
 				}
 
 				searchResults = append(searchResults, httpSearchResult{
-					Title:      res.Location,
-					Location:   res.Location,
-					Content:    []template.HTML{template.HTML(coloredContent)},
-					StartPos:   v3.StartPos,
-					EndPos:     v3.EndPos,
-					Score:      res.Score,
-					Language:   res.Language,
-					Lines:      res.Lines,
-					Code:       res.Code,
-					Comment:    res.Comment,
-					Blank:      res.Blank,
-					Complexity: res.Complexity,
+					Title:              res.Location,
+					Location:           res.Location,
+					Content:            []template.HTML{template.HTML(coloredContent)},
+					StartPos:           v3.StartPos,
+					EndPos:             v3.EndPos,
+					Score:              res.Score,
+					Language:           res.Language,
+					Lines:              res.Lines,
+					Code:               res.Code,
+					Comment:            res.Comment,
+					Blank:              res.Blank,
+					Complexity:         res.Complexity,
+					DuplicateCount:     res.DuplicateCount,
+					DuplicateLocations: res.DuplicateLocations,
 				})
 			}
 		}

@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/pkg/ranker"
 	"github.com/boyter/cs/pkg/search"
 	"github.com/boyter/cs/pkg/snippet"
 	"github.com/boyter/gocodewalker"
@@ -177,10 +178,32 @@ startWorkers:
 				}
 
 				// Filter match locations by content type when a filter is active
-				if cfg.HasContentFilter() {
+				if cfg.OnlyCode || cfg.OnlyComments || cfg.OnlyStrings {
 					var survived bool
 					matchLocations, survived = filterMatchLocations(matchLocations, contentByteType, cfg)
 					if !survived {
+						continue
+					}
+				}
+
+				// Filter by declaration/usage when filter is active
+				if cfg.OnlyDeclarations || cfg.OnlyUsages {
+					declarations, usages := ranker.ClassifyMatchLocations(content, matchLocations, lang)
+
+					if cfg.OnlyDeclarations {
+						matchLocations = declarations
+					} else {
+						matchLocations = usages
+					}
+
+					anySurvived := false
+					for _, locs := range matchLocations {
+						if len(locs) > 0 {
+							anySurvived = true
+							break
+						}
+					}
+					if !anySurvived {
 						continue
 					}
 				}
@@ -266,6 +289,9 @@ func filterMatchLocations(matchLocations map[string][][]int, contentByteType []b
 	for term, locs := range matchLocations {
 		var kept [][]int
 		for _, loc := range locs {
+			if len(loc) < 2 {
+				continue
+			}
 			startByte := loc[0]
 			if startByte >= 0 && startByte < len(contentByteType) && allowed[contentByteType[startByte]] {
 				kept = append(kept, loc)
