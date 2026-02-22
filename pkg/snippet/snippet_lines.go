@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/v3/pkg/common"
 )
 
 // LineResult represents a single line from a search result,

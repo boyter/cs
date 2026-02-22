@@ -5,7 +5,7 @@ package main
 import (
 	"testing"
 
-	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/v3/pkg/common"
 )
 
 func TestHttpCalculatePages_Empty(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/v3/pkg/common"
 )
 
 func TestExtractRelevant_ZeroDocumentFrequency_NoInf(t *testing.T) {

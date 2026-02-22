@@ -5,8 +5,8 @@ package main
 import (
 	"strings"
 
-	"github.com/boyter/cs/pkg/ranker"
-	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/cs/v3/pkg/ranker"
+	"github.com/boyter/cs/v3/pkg/snippet"
 	"github.com/boyter/gocodewalker"
 )
 

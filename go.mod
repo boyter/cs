@@ -1,4 +1,4 @@
-module github.com/boyter/cs
+module github.com/boyter/cs/v3
 
 go 1.25.2
 

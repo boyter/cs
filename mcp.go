@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/boyter/cs/pkg/common"
-	"github.com/boyter/cs/pkg/ranker"
+	"github.com/boyter/cs/v3/pkg/common"
+	"github.com/boyter/cs/v3/pkg/ranker"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

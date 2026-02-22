@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"sort"
 
-	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/v3/pkg/common"
 )
 
 // ComputeMatchHash returns a SHA-256 hex digest of the concatenated matched

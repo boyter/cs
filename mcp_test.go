@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 

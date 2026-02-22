@@ -5,7 +5,7 @@ package ranker
 import (
 	"testing"
 
-	"github.com/boyter/cs/pkg/common"
+	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/boyter/scc/v3/processor"
 )
 

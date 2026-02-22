@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boyter/cs/pkg/common"
-	"github.com/boyter/cs/pkg/ranker"
-	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/cs/v3/pkg/common"
+	"github.com/boyter/cs/v3/pkg/ranker"
+	"github.com/boyter/cs/v3/pkg/snippet"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

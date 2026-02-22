@@ -13,9 +13,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/mattn/go-isatty"
 
-	"github.com/boyter/cs/pkg/common"
-	"github.com/boyter/cs/pkg/ranker"
-	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/cs/v3/pkg/common"
+	"github.com/boyter/cs/v3/pkg/ranker"
+	"github.com/boyter/cs/v3/pkg/snippet"
 )
 
 // ConsoleSearch runs a non-interactive search and prints results to stdout.

@@ -22,9 +22,9 @@ import (
 	str "github.com/boyter/go-string"
 	"github.com/boyter/gocodewalker"
 
-	"github.com/boyter/cs/pkg/common"
-	"github.com/boyter/cs/pkg/ranker"
-	"github.com/boyter/cs/pkg/snippet"
+	"github.com/boyter/cs/v3/pkg/common"
+	"github.com/boyter/cs/v3/pkg/ranker"
+	"github.com/boyter/cs/v3/pkg/snippet"
 )
 
 // HTTP template types — prefixed with "http" to avoid collision with TUI's searchResult.
