@@ -238,7 +238,7 @@ features listed below may be missing from your installation.
 ```
 $ cs -h
 code spelunker (cs) code search.
-Version 2.1.0
+Version 3.0.0
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
