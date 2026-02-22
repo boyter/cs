@@ -4,7 +4,8 @@
 
 Ever searched for `authenticate` and gotten 200 results from config files, comments, and test stubs before finding the actual implementation? `cs` fixes that.
 
-It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines like Sourcegraph or Zoekt, but without needing to maintain an index.
+It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines 
+like Sourcegraph or Zoekt, but without needing to maintain an index.
 
 ```shell
 cs "authenticate" --gravity=brain           # Find the complex implementation, not the interface
@@ -34,7 +35,7 @@ It parses every file on the fly to understand what is a comment, what is a strin
 then uses that structure to rank by relevance, not just list them by occurrence.
 
 ```shell
-cs "authenticate"                    # BM25-ranked results, best match first
+cs "authenticate"                    # BM25-ranked variant results, best match first
 cs "authenticate" --gravity=brain    # Boost complex implementations over interfaces
 cs "TODO" --only-comments            # Only matches inside comments
 cs "error" --only-strings            # Only matches inside string literals
@@ -43,9 +44,16 @@ cs "handleRequest" --only-declarations  # Jump to definitions (func, class, def,
 cs "config" --dedup                     # Collapse byte-identical matches
 ```
 
+It comes with a TUI and HTTP mode for Interactive Exploration.
+
+```shell
+cs      # enter TUI mode from this location
+cs -d   # enter HTTP mode on port 8080 by default
+```
+
 #### What makes it different from ripgrep or grep?
 
-`ripgrep` is a fast text matcher. It finds lines and prints them. It's the best at what it does.
+`ripgrep` is a fast text matcher. It finds lines and prints them. It's the *best* at what it does.
 
 `cs` is a search engine. It finds files, ranks by relevance, extracts the best snippet, 
 and shows the most relevant results. Think Sourcegraph-quality ranked search as a CLI tool, no index required.
