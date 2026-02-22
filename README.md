@@ -152,7 +152,7 @@ As far as I know what `cs` does is unique for a command line tool.
 `cs` runs a full lexical analysis and complexity calculation from [scc](https://github.com/boyter/scc) on every matching file. 
 This is expensive compared to the raw byte-scanning of `ripgrep`, but probably not as slow as you may think.
 
-On a modern machine (such as Apple Silicon M1), it can search and rank the entire Linux kernel source in ~2.5 seconds.
+On a modern machine (such as Apple Silicon M1), it can search and rank the entire Linux kernel source in ~6 seconds.
 
 #### Does it work on normal documents?
 
