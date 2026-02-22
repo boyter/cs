@@ -24,8 +24,9 @@ Licensed under MIT.
 
 [//]: # ([![asciicast]&#40;https://asciinema.org/a/589640.svg&#41;]&#40;https://asciinema.org/a/589640&#41;)
 
+cs TUI demo
 
-<img alt="cs tui" src=https://github.com/boyter/cs/raw/master/cs_tui.png>
+https://github.com/user-attachments/assets/3b7f4bb2-d542-406d-9c53-29c0430dd60a
 
 ### Pitch: Why use cs?
 
