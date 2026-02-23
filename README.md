@@ -125,7 +125,7 @@ If you want to create a package to install, please make it. Let me know, and I w
 
 If you have Go >= 1.25.2 installed
 
-`go install github.com/boyter/cs@v2.0.0`
+`go install github.com/boyter/cs/v3@latest`
 
 #### Nixos
 
