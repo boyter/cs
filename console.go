@@ -46,6 +46,13 @@ func ConsoleSearch(cfg *Config) {
 		results = results[:cfg.ResultLimit]
 	}
 
+	// Reverse result order if requested
+	if cfg.Reverse {
+		for i, j := 0, len(results)-1; i < j; i, j = i+1, j-1 {
+			results[i], results[j] = results[j], results[i]
+		}
+	}
+
 	// Route to formatter
 	switch cfg.Format {
 	case "json":

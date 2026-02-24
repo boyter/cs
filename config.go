@@ -65,6 +65,7 @@ type Config struct {
 	NoSyntax   bool   // disable syntax highlighting
 	Dedup      bool   // collapse byte-identical matches
 	Color      string // color mode: auto, always, never
+	Reverse    bool   // reverse result order (lowest score first)
 
 	// MCP
 	MCPServer bool

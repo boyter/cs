@@ -319,6 +319,12 @@ func main() {
 		"auto",
 		"color output mode [auto, always, never]",
 	)
+	flags.BoolVar(
+		&cfg.Reverse,
+		"reverse",
+		false,
+		"reverse the result order",
+	)
 	flags.Float64Var(
 		&cfg.WeightCode,
 		"weight-code",
