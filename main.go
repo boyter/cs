@@ -313,6 +313,12 @@ func main() {
 		false,
 		"disable syntax highlighting in output",
 	)
+	flags.StringVar(
+		&cfg.Color,
+		"color",
+		"auto",
+		"color output mode [auto, always, never]",
+	)
 	flags.Float64Var(
 		&cfg.WeightCode,
 		"weight-code",

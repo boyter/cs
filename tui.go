@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 // searchResult represents a single search result
@@ -127,6 +128,13 @@ type model struct {
 }
 
 func initialModel(cfg *Config) model {
+	switch cfg.Color {
+	case "always":
+		lipgloss.SetColorProfile(termenv.ANSI256)
+	case "never":
+		lipgloss.SetColorProfile(termenv.Ascii)
+	}
+
 	si := textinput.New()
 	si.Placeholder = "search query..."
 	si.Prompt = "> "
