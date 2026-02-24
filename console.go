@@ -58,15 +58,23 @@ func ConsoleSearch(cfg *Config) {
 }
 
 func formatDefault(cfg *Config, results []*common.FileJob) {
-	noColor := os.Getenv("TERM") == "dumb" ||
-		(!isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()))
+	var noColor bool
+	switch cfg.Color {
+	case "always":
+		noColor = false
+	case "never":
+		noColor = true
+	default: // "auto"
+		noColor = os.Getenv("TERM") == "dumb" ||
+			(!isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()))
+	}
+	color.NoColor = noColor
 
 	fmtBegin := "\033[1;31m"
 	fmtEnd := "\033[0m"
 	if noColor {
 		fmtBegin = ""
 		fmtEnd = ""
-		color.NoColor = true
 	}
 
 	documentFrequency := ranker.CalculateDocumentTermFrequency(results)

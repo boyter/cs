@@ -62,8 +62,9 @@ type Config struct {
 	Format     string
 	FileOutput string
 	Verbose    bool
-	NoSyntax   bool // disable syntax highlighting
-	Dedup      bool // collapse byte-identical matches
+	NoSyntax   bool   // disable syntax highlighting
+	Dedup      bool   // collapse byte-identical matches
+	Color      string // color mode: auto, always, never
 
 	// MCP
 	MCPServer bool
