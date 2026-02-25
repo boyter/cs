@@ -552,7 +552,14 @@ func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
 func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippetLen int, snippetMode string, cache *SearchCache, ch chan<- searchResultsMsg) {
 	defer close(ch)
 
-	searchCh, stats := DoSearch(ctx, cfg, query, cache)
+	searchCh, stats, err := DoSearch(ctx, cfg, query, cache)
+	if err != nil {
+		select {
+		case ch <- searchResultsMsg{seq: seq, done: true}:
+		case <-ctx.Done():
+		}
+		return
+	}
 
 	var batch []searchResult
 	var batchJobs []*common.FileJob

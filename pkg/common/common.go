@@ -2,6 +2,14 @@
 
 package common
 
+// Query complexity limits — stricter for MCP, relaxed for interactive modes.
+const (
+	MaxQueryCharsMCP     = 250
+	MaxQueryTermsMCP     = 12
+	MaxQueryCharsDefault = 1000
+	MaxQueryTermsDefault = 50
+)
+
 // FileJob is a struct used to hold the results of processing internally before sent to the formatter
 type FileJob struct {
 	Filename           string

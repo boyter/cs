@@ -249,7 +249,22 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			ctx := context.Background()
-			ch, stats := DoSearch(ctx, &searchCfg, query, cache)
+			ch, stats, searchErr := DoSearch(ctx, &searchCfg, query, cache)
+			if searchErr != nil {
+				err := searchTmpl.Execute(w, httpSearch{
+					SearchTerm:  query,
+					SnippetSize: snippetLength,
+					Ranker:      rankerParam,
+					CodeFilter:  codeFilter,
+					Gravity:     gravityParam,
+					Noise:       noiseParam,
+					SnippetMode: snippetModeParam,
+				})
+				if err != nil {
+					log.Printf("template execute error: %v", err)
+				}
+				return
+			}
 
 			for fj := range ch {
 				results = append(results, fj)

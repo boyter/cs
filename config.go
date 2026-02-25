@@ -5,6 +5,7 @@ package main
 import (
 	"strings"
 
+	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/boyter/cs/v3/pkg/ranker"
 	"github.com/boyter/cs/v3/pkg/snippet"
 	"github.com/boyter/gocodewalker"
@@ -73,6 +74,10 @@ type Config struct {
 	Color      string // color mode: auto, always, never
 	Reverse    bool   // reverse result order (lowest score first)
 
+	// Query complexity limits (0 = no limit)
+	MaxQueryChars int
+	MaxQueryTerms int
+
 	// MCP
 	MCPServer bool
 
@@ -103,6 +108,8 @@ func DefaultConfig() Config {
 		WeightCode:             defaults.WeightCode,
 		WeightComment:          defaults.WeightComment,
 		WeightString:           defaults.WeightString,
+		MaxQueryChars:          common.MaxQueryCharsDefault,
+		MaxQueryTerms:          common.MaxQueryTermsDefault,
 		Format:                 "text",
 		Address:                ":8080",
 		TemplateStyle:          "dark",

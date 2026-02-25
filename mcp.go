@@ -84,7 +84,8 @@ func StartMCPServer(cfg *Config) {
 			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
 				"grouping ('(auth OR login) AND handler'), quoted phrases ('\"exact match\"'), regex (/pattern/), fuzzy (term~1, term~2). "+
 				"In-query filters: file:name, path:dir, lang:go, ext:ts. Operators: = != (lang!=python, file!=test). "+
-				"Multi-value: lang=go,python, ext=ts,tsx. 'file:' matches filename only; 'path:' matches the full directory path."),
+				"Multi-value: lang=go,python, ext=ts,tsx. 'file:' matches filename only; 'path:' matches the full directory path. "+
+				"Query limits: max 250 characters and 12 unique search terms."),
 			mcp.Required(),
 		),
 		mcp.WithNumber("max_results",
@@ -280,6 +281,8 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		// Copy config so we can override per-request without mutating the shared config
 		searchCfg := *cfg
 		searchCfg.Format = "json"
+		searchCfg.MaxQueryChars = common.MaxQueryCharsMCP
+		searchCfg.MaxQueryTerms = common.MaxQueryTermsMCP
 
 		// Apply optional parameters
 		maxResults := 20
@@ -350,7 +353,10 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		}
 
 		// Run search
-		ch, stats := DoSearch(ctx, &searchCfg, query, cache)
+		ch, stats, searchErr := DoSearch(ctx, &searchCfg, query, cache)
+		if searchErr != nil {
+			return mcp.NewToolResultError(searchErr.Error()), nil
+		}
 
 		var results []*common.FileJob
 		for fj := range ch {
