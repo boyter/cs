@@ -139,6 +139,15 @@ func StartMCPServer(cfg *Config) {
 		mcp.WithNumber("line_limit",
 			mcp.Description("Max matching lines per file in grep mode. Defaults to -1 (unlimited). Only applies when snippet_mode is 'grep'."),
 		),
+		mcp.WithNumber("context_before",
+			mcp.Description("Lines of context to show before each matching line in grep mode (like grep -B). Only applies when snippet_mode is 'grep'."),
+		),
+		mcp.WithNumber("context_after",
+			mcp.Description("Lines of context to show after each matching line in grep mode (like grep -A). Only applies when snippet_mode is 'grep'."),
+		),
+		mcp.WithNumber("context",
+			mcp.Description("Lines of context to show before and after each matching line in grep mode (like grep -C). Sets both context_before and context_after. Individual context_before/context_after override this value."),
+		),
 	)
 
 	mcpServer.AddTool(searchTool, mcpSearchHandler(cfg, cache))
@@ -349,6 +358,21 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		if v, ok := request.GetArguments()["line_limit"]; ok {
 			if n, ok := v.(float64); ok {
 				searchCfg.LineLimit = int(n)
+			}
+		}
+		if v, ok := request.GetArguments()["context"]; ok {
+			if n, ok := v.(float64); ok && n >= 0 {
+				searchCfg.ContextAround = int(n)
+			}
+		}
+		if v, ok := request.GetArguments()["context_before"]; ok {
+			if n, ok := v.(float64); ok && n >= 0 {
+				searchCfg.ContextBefore = int(n)
+			}
+		}
+		if v, ok := request.GetArguments()["context_after"]; ok {
+			if n, ok := v.(float64); ok && n >= 0 {
+				searchCfg.ContextAfter = int(n)
 			}
 		}
 
