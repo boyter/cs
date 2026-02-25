@@ -54,3 +54,48 @@ func (v *termExtractor) walk(node Node) {
 		// Do nothing
 	}
 }
+
+// CountAllTerms counts all unique leaf-node values in the AST, including
+// terms inside NOT and filter values. This is used for query complexity
+// validation, unlike ExtractTerms which only returns positive terms for
+// highlighting.
+func CountAllTerms(node Node) int {
+	seen := make(map[string]struct{})
+	countWalk(node, seen)
+	return len(seen)
+}
+
+func countWalk(node Node, seen map[string]struct{}) {
+	if node == nil {
+		return
+	}
+	switch n := node.(type) {
+	case *AndNode:
+		countWalk(n.Left, seen)
+		countWalk(n.Right, seen)
+	case *OrNode:
+		countWalk(n.Left, seen)
+		countWalk(n.Right, seen)
+	case *NotNode:
+		countWalk(n.Expr, seen)
+	case *KeywordNode:
+		seen[n.Value] = struct{}{}
+	case *PhraseNode:
+		seen[n.Value] = struct{}{}
+	case *RegexNode:
+		seen[n.Pattern] = struct{}{}
+	case *FuzzyNode:
+		seen[n.Value] = struct{}{}
+	case *FilterNode:
+		switch v := n.Value.(type) {
+		case string:
+			seen[v] = struct{}{}
+		case []interface{}:
+			for _, elem := range v {
+				if s, ok := elem.(string); ok {
+					seen[s] = struct{}{}
+				}
+			}
+		}
+	}
+}

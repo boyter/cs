@@ -5,6 +5,7 @@ package main
 import (
 	"strings"
 
+	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/boyter/cs/v3/pkg/ranker"
 	"github.com/boyter/cs/v3/pkg/snippet"
 	"github.com/boyter/gocodewalker"
@@ -32,6 +33,7 @@ type Config struct {
 	NoiseIntent   string
 	TestPenalty   float64
 	ResultLimit   int
+	LineLimit     int
 
 	// File walker
 	Directory              string
@@ -58,6 +60,11 @@ type Config struct {
 	OnlyDeclarations bool
 	OnlyUsages       bool
 
+	// Grep context
+	ContextBefore int // -B: lines before each match
+	ContextAfter  int // -A: lines after each match
+	ContextAround int // -C: lines before and after (sets both)
+
 	// Output
 	Format     string
 	FileOutput string
@@ -66,6 +73,10 @@ type Config struct {
 	Dedup      bool   // collapse byte-identical matches
 	Color      string // color mode: auto, always, never
 	Reverse    bool   // reverse result order (lowest score first)
+
+	// Query complexity limits (0 = no limit)
+	MaxQueryChars int
+	MaxQueryTerms int
 
 	// MCP
 	MCPServer bool
@@ -90,12 +101,15 @@ func DefaultConfig() Config {
 		NoiseIntent:            "default",
 		TestPenalty:            0.4,
 		ResultLimit:            -1,
+		LineLimit:              -1,
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,
 		MaxReadSizeBytes:       1_000_000,
 		WeightCode:             defaults.WeightCode,
 		WeightComment:          defaults.WeightComment,
 		WeightString:           defaults.WeightString,
+		MaxQueryChars:          common.MaxQueryCharsDefault,
+		MaxQueryTerms:          common.MaxQueryTermsDefault,
 		Format:                 "text",
 		Address:                ":8080",
 		TemplateStyle:          "dark",
@@ -135,6 +149,20 @@ func (c *Config) ContentFilterCachePrefix() string {
 	default:
 		return ""
 	}
+}
+
+// ResolveContext returns the effective before/after context line counts.
+// -C sets both; -B/-A override individually (matching grep semantics).
+func (c *Config) ResolveContext() (before, after int) {
+	before = c.ContextAround
+	after = c.ContextAround
+	if c.ContextBefore > 0 {
+		before = c.ContextBefore
+	}
+	if c.ContextAfter > 0 {
+		after = c.ContextAfter
+	}
+	return
 }
 
 // ResolveNoiseSensitivity maps the NoiseIntent string to a numeric sensitivity value

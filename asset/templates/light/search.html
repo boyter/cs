@@ -158,6 +158,12 @@
 				<option value="loud" {{ if eq .Noise "loud" }}selected{{ end }}>noise: loud</option>
 				<option value="raw" {{ if eq .Noise "raw" }}selected{{ end }}>noise: raw</option>
 			</select>
+			<select name="sm" onchange="this.form.submit()">
+				<option value="auto" {{ if eq .SnippetMode "auto" }}selected{{ end }}>snippet: auto</option>
+				<option value="snippet" {{ if eq .SnippetMode "snippet" }}selected{{ end }}>snippet: snippet</option>
+				<option value="lines" {{ if eq .SnippetMode "lines" }}selected{{ end }}>snippet: lines</option>
+				<option value="grep" {{ if eq .SnippetMode "grep" }}selected{{ end }}>snippet: grep</option>
+			</select>
 			<span id="search-stats" class="stats">[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} ms]</span>
 		</form>
 
@@ -179,7 +185,7 @@
 
 				<div class="pages">
 				{{- range .Pages }}
-					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}&rk={{ .Ranker }}&cf={{ .CodeFilter }}&gv={{ .Gravity }}&ns={{ .Noise }}">{{ .Name }}</a>
+					<a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&p={{ .Value }}&ext={{ .Ext }}&rk={{ .Ranker }}&cf={{ .CodeFilter }}&gv={{ .Gravity }}&ns={{ .Noise }}&sm={{ .SnippetMode }}">{{ .Name }}</a>
 				{{- end }}
 				</div>
 			</div>
@@ -189,7 +195,7 @@
 				<div class="sidebar-heading">Extensions</div>
 				<ul class="facet-list">
 				{{- range .ExtensionFacet }}
-					<li><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}&rk={{ .Ranker }}&cf={{ .CodeFilter }}&gv={{ .Gravity }}&ns={{ .Noise }}">{{ .Title }}</a> <span class="facet-count">({{ .Count }})</span></li>
+					<li><a href="/?q={{ .SearchTerm }}&ss={{ .SnippetSize }}&ext={{ .Title }}&rk={{ .Ranker }}&cf={{ .CodeFilter }}&gv={{ .Gravity }}&ns={{ .Noise }}&sm={{ .SnippetMode }}">{{ .Title }}</a> <span class="facet-count">({{ .Count }})</span></li>
 				{{- end }}
 				</ul>
 			</div>
@@ -217,7 +223,8 @@
 		var cf = form.querySelector('select[name="cf"]').value;
 		var gv = form.querySelector('select[name="gv"]').value;
 		var ns = form.querySelector('select[name="ns"]').value;
-		return 'rk=' + encodeURIComponent(rk) + '&cf=' + encodeURIComponent(cf) + '&gv=' + encodeURIComponent(gv) + '&ns=' + encodeURIComponent(ns);
+		var sm = form.querySelector('select[name="sm"]').value;
+		return 'rk=' + encodeURIComponent(rk) + '&cf=' + encodeURIComponent(cf) + '&gv=' + encodeURIComponent(gv) + '&ns=' + encodeURIComponent(ns) + '&sm=' + encodeURIComponent(sm);
 	}
 
 	function doSearch() {
@@ -282,7 +289,7 @@
 			if (data.pages) {
 				for (var i = 0; i < data.pages.length; i++) {
 					var p = data.pages[i];
-					html += '<a href="/?q=' + encodeURIComponent(p.searchTerm) + '&ss=' + p.snippetSize + '&p=' + p.value + '&ext=' + encodeURIComponent(p.ext || '') + '&rk=' + encodeURIComponent(p.ranker) + '&cf=' + encodeURIComponent(p.codeFilter) + '&gv=' + encodeURIComponent(p.gravity) + '&ns=' + encodeURIComponent(p.noise) + '">' + escapeHTML(p.name) + '</a>';
+					html += '<a href="/?q=' + encodeURIComponent(p.searchTerm) + '&ss=' + p.snippetSize + '&p=' + p.value + '&ext=' + encodeURIComponent(p.ext || '') + '&rk=' + encodeURIComponent(p.ranker) + '&cf=' + encodeURIComponent(p.codeFilter) + '&gv=' + encodeURIComponent(p.gravity) + '&ns=' + encodeURIComponent(p.noise) + '&sm=' + encodeURIComponent(p.snippetMode || '') + '">' + escapeHTML(p.name) + '</a>';
 				}
 			}
 			html += '</div></div>';
@@ -291,7 +298,7 @@
 			html += '<div class="results-sidebar"><div class="sidebar-heading">Extensions</div><ul class="facet-list">';
 			for (var i = 0; i < data.extensionFacet.length; i++) {
 				var f = data.extensionFacet[i];
-				html += '<li><a href="/?q=' + encodeURIComponent(f.searchTerm) + '&ss=' + f.snippetSize + '&ext=' + encodeURIComponent(f.title) + '&rk=' + encodeURIComponent(f.ranker) + '&cf=' + encodeURIComponent(f.codeFilter) + '&gv=' + encodeURIComponent(f.gravity) + '&ns=' + encodeURIComponent(f.noise) + '">' + escapeHTML(f.title) + '</a> <span class="facet-count">(' + f.count + ')</span></li>';
+				html += '<li><a href="/?q=' + encodeURIComponent(f.searchTerm) + '&ss=' + f.snippetSize + '&ext=' + encodeURIComponent(f.title) + '&rk=' + encodeURIComponent(f.ranker) + '&cf=' + encodeURIComponent(f.codeFilter) + '&gv=' + encodeURIComponent(f.gravity) + '&ns=' + encodeURIComponent(f.noise) + '&sm=' + encodeURIComponent(f.snippetMode || '') + '">' + escapeHTML(f.title) + '</a> <span class="facet-count">(' + f.count + ')</span></li>';
 			}
 			html += '</ul></div>';
 		}

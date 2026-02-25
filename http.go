@@ -42,6 +42,7 @@ type httpSearch struct {
 	CodeFilter          string             `json:"codeFilter"`
 	Gravity             string             `json:"gravity"`
 	Noise               string             `json:"noise"`
+	SnippetMode         string             `json:"snippetMode"`
 }
 
 type httpLineResult struct {
@@ -90,6 +91,7 @@ type httpFacetResult struct {
 	CodeFilter  string `json:"codeFilter"`
 	Gravity     string `json:"gravity"`
 	Noise       string `json:"noise"`
+	SnippetMode string `json:"snippetMode"`
 }
 
 type httpPageResult struct {
@@ -102,6 +104,7 @@ type httpPageResult struct {
 	CodeFilter  string `json:"codeFilter"`
 	Gravity     string `json:"gravity"`
 	Noise       string `json:"noise"`
+	SnippetMode string `json:"snippetMode"`
 }
 
 func StartHttpServer(cfg *Config) {
@@ -193,6 +196,10 @@ func StartHttpServer(cfg *Config) {
 		if noiseParam == "" {
 			noiseParam = cfg.NoiseIntent
 		}
+		snippetModeParam := r.URL.Query().Get("sm")
+		if snippetModeParam == "" {
+			snippetModeParam = cfg.SnippetMode
+		}
 
 		testPenalty := cfg.TestPenalty
 		if tp := r.URL.Query().Get("tp"); tp != "" {
@@ -242,7 +249,22 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			ctx := context.Background()
-			ch, stats := DoSearch(ctx, &searchCfg, query, cache)
+			ch, stats, searchErr := DoSearch(ctx, &searchCfg, query, cache)
+			if searchErr != nil {
+				err := searchTmpl.Execute(w, httpSearch{
+					SearchTerm:  query,
+					SnippetSize: snippetLength,
+					Ranker:      rankerParam,
+					CodeFilter:  codeFilter,
+					Gravity:     gravityParam,
+					Noise:       noiseParam,
+					SnippetMode: snippetModeParam,
+				})
+				if err != nil {
+					log.Printf("template execute error: %v", err)
+				}
+				return
+			}
 
 			for fj := range ch {
 				results = append(results, fj)
@@ -272,7 +294,7 @@ func StartHttpServer(cfg *Config) {
 
 		// if we have more than the page size of results, lets just show the first page
 		displayResults := results
-		pages := httpCalculatePages(results, pageSize, query, snippetLength, ext, rankerParam, codeFilter, gravityParam, noiseParam)
+		pages := httpCalculatePages(results, pageSize, query, snippetLength, ext, rankerParam, codeFilter, gravityParam, noiseParam, snippetModeParam)
 
 		if displayResults != nil && len(displayResults) > pageSize {
 			displayResults = displayResults[:pageSize]
@@ -291,9 +313,68 @@ func StartHttpServer(cfg *Config) {
 		}
 
 		for _, res := range displayResults {
-			fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
+			fileMode := resolveSnippetMode(snippetModeParam, res.Filename)
 
-			if fileMode == "lines" {
+			if fileMode == "grep" {
+				lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit, 0, 0)
+				if len(lineResults) == 0 {
+					continue
+				}
+				var httpLines []httpLineResult
+				prevLine := 0
+				for _, lr := range lineResults {
+					coloredLine := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
+					coloredLine = html.EscapeString(coloredLine)
+					coloredLine = strings.Replace(coloredLine, fmtBegin, "<strong>", -1)
+					coloredLine = strings.Replace(coloredLine, fmtEnd, "</strong>", -1)
+					gap := prevLine > 0 && lr.LineNumber > prevLine+1
+					prevLine = lr.LineNumber
+					httpLines = append(httpLines, httpLineResult{
+						LineNumber: lr.LineNumber,
+						Content:    template.HTML(coloredLine),
+						Gap:        gap,
+					})
+				}
+				var startPos, endPos int
+				if len(lineResults) > 0 {
+					firstLine := lineResults[0].LineNumber
+					lastLine := lineResults[len(lineResults)-1].LineNumber
+					line := 1
+					for i := 0; i < len(res.Content); i++ {
+						if line == firstLine && (i == 0 || res.Content[i-1] == '\n') {
+							startPos = i
+						}
+						if res.Content[i] == '\n' && line == lastLine {
+							endPos = i
+							break
+						}
+						if res.Content[i] == '\n' {
+							line++
+						}
+					}
+					if endPos == 0 {
+						endPos = len(res.Content)
+					}
+				}
+
+				searchResults = append(searchResults, httpSearchResult{
+					Title:              res.Location,
+					Location:           res.Location,
+					Score:              res.Score,
+					StartPos:           startPos,
+					EndPos:             endPos,
+					IsLineMode:         true,
+					LineResults:        httpLines,
+					Language:           res.Language,
+					Lines:              res.Lines,
+					Code:               res.Code,
+					Comment:            res.Comment,
+					Blank:              res.Blank,
+					Complexity:         res.Complexity,
+					DuplicateCount:     res.DuplicateCount,
+					DuplicateLocations: res.DuplicateLocations,
+				})
+			} else if fileMode == "lines" {
 				lineResults := snippet.FindMatchingLines(res, 2)
 				if len(lineResults) == 0 {
 					continue
@@ -416,13 +497,14 @@ func StartHttpServer(cfg *Config) {
 			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  processedFileCount,
-			ExtensionFacet:      httpCalculateExtensionFacet(extensionFacets, query, snippetLength, rankerParam, codeFilter, gravityParam, noiseParam),
+			ExtensionFacet:      httpCalculateExtensionFacet(extensionFacets, query, snippetLength, rankerParam, codeFilter, gravityParam, noiseParam, snippetModeParam),
 			Pages:               pages,
 			Ext:                 ext,
 			Ranker:              rankerParam,
 			CodeFilter:          codeFilter,
 			Gravity:             gravityParam,
 			Noise:               noiseParam,
+			SnippetMode:         snippetModeParam,
 		}
 
 		if r.URL.Query().Get("format") == "json" {
@@ -441,7 +523,7 @@ func StartHttpServer(cfg *Config) {
 	log.Fatal(http.ListenAndServe(cfg.Address, nil))
 }
 
-func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int, rankerParam, codeFilter, gravityParam, noiseParam string) []httpFacetResult {
+func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, snippetLength int, rankerParam, codeFilter, gravityParam, noiseParam, snippetModeParam string) []httpFacetResult {
 	var ef []httpFacetResult
 
 	for k, v := range extensionFacets {
@@ -454,6 +536,7 @@ func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, s
 			CodeFilter:  codeFilter,
 			Gravity:     gravityParam,
 			Noise:       noiseParam,
+			SnippetMode: snippetModeParam,
 		})
 	}
 
@@ -467,7 +550,7 @@ func httpCalculateExtensionFacet(extensionFacets map[string]int, query string, s
 	return ef
 }
 
-func httpCalculatePages(results []*common.FileJob, pageSize int, query string, snippetLength int, ext string, rankerParam, codeFilter, gravityParam, noiseParam string) []httpPageResult {
+func httpCalculatePages(results []*common.FileJob, pageSize int, query string, snippetLength int, ext string, rankerParam, codeFilter, gravityParam, noiseParam, snippetModeParam string) []httpPageResult {
 	var pages []httpPageResult
 
 	if len(results) == 0 {
@@ -484,6 +567,7 @@ func httpCalculatePages(results []*common.FileJob, pageSize int, query string, s
 			CodeFilter:  codeFilter,
 			Gravity:     gravityParam,
 			Noise:       noiseParam,
+			SnippetMode: snippetModeParam,
 		})
 		return pages
 	}
@@ -504,6 +588,7 @@ func httpCalculatePages(results []*common.FileJob, pageSize int, query string, s
 			CodeFilter:  codeFilter,
 			Gravity:     gravityParam,
 			Noise:       noiseParam,
+			SnippetMode: snippetModeParam,
 		})
 	}
 	return pages

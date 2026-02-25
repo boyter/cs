@@ -240,10 +240,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fmt.Sscanf(v, "%d", &snippetLen)
 				}
 
+				ctxBefore, ctxAfter := m.cfg.ResolveContext()
 				var newResults []searchResult
 				for _, fj := range ranked {
 					fileMode := resolveSnippetMode(m.snippetMode, fj.Filename)
-					if fileMode == "lines" {
+					if fileMode == "grep" {
+						lineResults := snippet.FindAllMatchingLines(fj, m.cfg.LineLimit, ctxBefore, ctxAfter)
+						lineRange := ""
+						if len(lineResults) > 0 {
+							lineRange = fmt.Sprintf("%d-%d",
+								lineResults[0].LineNumber,
+								lineResults[len(lineResults)-1].LineNumber)
+						}
+						fj.Content = nil
+						newResults = append(newResults, searchResult{
+							Filename:       fj.Location,
+							Location:       fj.Location,
+							Score:          fj.Score,
+							LineResults:    lineResults,
+							LineRange:      lineRange,
+							Language:       fj.Language,
+							TotalLines:     fj.Lines,
+							Code:           fj.Code,
+							Comment:        fj.Comment,
+							Blank:          fj.Blank,
+							Complexity:     fj.Complexity,
+							DuplicateCount: fj.DuplicateCount,
+							MatchLocations: fj.MatchLocations,
+						})
+					} else if fileMode == "lines" {
 						lineResults := snippet.FindMatchingLines(fj, 2)
 						lineRange := ""
 						if len(lineResults) > 0 {
@@ -463,6 +488,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, nil
+		case tea.KeyF6:
+			m.cycleSnippetMode()
+			return m, m.retriggerSearch()
 		}
 	}
 
@@ -524,16 +552,45 @@ func listenForResults(ch <-chan searchResultsMsg) tea.Cmd {
 func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippetLen int, snippetMode string, cache *SearchCache, ch chan<- searchResultsMsg) {
 	defer close(ch)
 
-	searchCh, stats := DoSearch(ctx, cfg, query, cache)
+	searchCh, stats, err := DoSearch(ctx, cfg, query, cache)
+	if err != nil {
+		select {
+		case ch <- searchResultsMsg{seq: seq, done: true}:
+		case <-ctx.Done():
+		}
+		return
+	}
 
 	var batch []searchResult
 	var batchJobs []*common.FileJob
 
+	ctxBefore, ctxAfter := cfg.ResolveContext()
 	for fj := range searchCh {
 		// Build a preliminary searchResult for immediate display
 		fileMode := resolveSnippetMode(snippetMode, fj.Filename)
 		var sr searchResult
-		if fileMode == "lines" {
+		if fileMode == "grep" {
+			lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit, ctxBefore, ctxAfter)
+			lineRange := ""
+			if len(lineResults) > 0 {
+				lineRange = fmt.Sprintf("%d-%d",
+					lineResults[0].LineNumber,
+					lineResults[len(lineResults)-1].LineNumber)
+			}
+			sr = searchResult{
+				Filename:       fj.Location,
+				Location:       fj.Location,
+				LineResults:    lineResults,
+				LineRange:      lineRange,
+				Language:       fj.Language,
+				TotalLines:     fj.Lines,
+				Code:           fj.Code,
+				Comment:        fj.Comment,
+				Blank:          fj.Blank,
+				Complexity:     fj.Complexity,
+				MatchLocations: fj.MatchLocations,
+			}
+		} else if fileMode == "lines" {
 			lineResults := snippet.FindMatchingLines(fj, 2)
 			lineRange := ""
 			if len(lineResults) > 0 {
@@ -815,6 +872,18 @@ func (m *model) cycleNoise() {
 	m.cfg.NoiseIntent = "silence"
 }
 
+// cycleSnippetMode cycles: auto → snippet → lines → grep → auto…
+func (m *model) cycleSnippetMode() {
+	order := []string{"auto", "snippet", "lines", "grep"}
+	for i, v := range order {
+		if v == m.snippetMode {
+			m.snippetMode = order[(i+1)%len(order)]
+			return
+		}
+	}
+	m.snippetMode = "auto"
+}
+
 // retriggerSearch bumps the search sequence and returns a debounce command to re-execute the current query.
 func (m *model) retriggerSearch() tea.Cmd {
 	m.searchSeq++
@@ -939,8 +1008,8 @@ func (m model) View() string {
 
 	// === Bottom bar (nano-style keybinding hints) ===
 	bottomBar := snippetLabelStyle.Render(fmt.Sprintf(
-		"F1 Ranker:%s  F2 Filter:%s  F3 Gravity:%s  F4 Noise:%s  F5/^O/^P View",
-		m.cfg.Ranker, m.codeFilterLabel(), m.cfg.GravityIntent, m.cfg.NoiseIntent))
+		"F1 Ranker:%s  F2 Filter:%s  F3 Gravity:%s  F4 Noise:%s  F5/^O/^P View  F6 Snippet:%s",
+		m.cfg.Ranker, m.codeFilterLabel(), m.cfg.GravityIntent, m.cfg.NoiseIntent, m.snippetMode))
 	b.WriteString("\n")
 	b.WriteString(bottomBar)
 

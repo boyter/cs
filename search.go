@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -30,9 +31,15 @@ type SearchStats struct {
 // plus stats that are populated as the search runs.
 // If cache is non-nil, it will attempt to use cached file locations from a previous
 // prefix query instead of walking the filesystem, and will store results for future use.
-func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache) (<-chan *common.FileJob, *SearchStats) {
+func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache) (<-chan *common.FileJob, *SearchStats, error) {
 	out := make(chan *common.FileJob, runtime.NumCPU())
 	stats := &SearchStats{}
+
+	// Validate query character length
+	if cfg.MaxQueryChars > 0 && len(query) > cfg.MaxQueryChars {
+		close(out)
+		return out, stats, fmt.Errorf("query too long: %d characters exceeds maximum of %d", len(query), cfg.MaxQueryChars)
+	}
 
 	// Parse query into AST
 	lexer := search.NewLexer(strings.NewReader(query))
@@ -40,7 +47,13 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 	ast, _ := parser.ParseQuery()
 	if ast == nil {
 		close(out)
-		return out, stats
+		return out, stats, nil
+	}
+
+	// Validate query term count
+	if cfg.MaxQueryTerms > 0 && search.CountAllTerms(ast) > cfg.MaxQueryTerms {
+		close(out)
+		return out, stats, fmt.Errorf("query too complex: %d unique terms exceeds maximum of %d. Please refine your search terms.", search.CountAllTerms(ast), cfg.MaxQueryTerms)
 	}
 	transformer := &search.Transformer{}
 	ast, _ = transformer.TransformAST(ast)
@@ -253,7 +266,7 @@ startWorkers:
 		}
 	}()
 
-	return out, stats
+	return out, stats, nil
 }
 
 // filterMatchLocations removes match locations that don't belong to the

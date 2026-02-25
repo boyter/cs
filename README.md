@@ -239,7 +239,7 @@ features listed below may be missing from your installation.
 ```
 $ cs -h
 code spelunker (cs) code search.
-Version 3.0.0
+Version 3.1.0
 Ben Boyter <ben@boyter.org>
 
 cs recursively searches the current directory using some boolean logic
@@ -282,8 +282,12 @@ Usage:
 
 Flags:
       --address string            address and port to listen on (default ":8080")
+  -A, --after-context int         lines of context after each match (grep mode)
+  -B, --before-context int        lines of context before each match (grep mode)
       --binary                    set to disable binary file detection and search binary files
   -c, --case-sensitive            make the search case sensitive
+      --color string              color output mode [auto, always, never] (default "auto")
+  -C, --context int               lines of context before and after each match (grep mode)
       --dedup                     collapse byte-identical search matches, keeping the highest-scored representative
       --dir string                directory to search, if not set defaults to current working directory
       --exclude-dir strings       directories to exclude (default [.git,.hg,.svn])
@@ -295,6 +299,7 @@ Flags:
       --hidden                    include hidden files
   -d, --http-server               start the HTTP server
   -i, --include-ext strings       limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]
+      --line-limit int            max matching lines per file in grep mode (-1 = unlimited) (default -1)
       --max-read-size-bytes int   number of bytes to read into a file with the remaining content ignored (default 1000000)
       --mcp                       start as an MCP (Model Context Protocol) server over stdio
       --min                       include minified files
@@ -311,9 +316,10 @@ Flags:
   -o, --output string             output filename (default stdout)
       --ranker string             set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
+      --reverse                   reverse the result order
   -s, --snippet-count int         number of snippets to display (default 1)
   -n, --snippet-length int        size of the snippet to display (default 300)
-      --snippet-mode string       snippet extraction mode: auto, snippet, or lines (default "auto")
+      --snippet-mode string       snippet extraction mode: auto, snippet, lines, or grep (default "auto")
       --template-display string   path to a custom display template
       --template-search string    path to a custom search template
       --template-style string     built-in theme for the HTTP server UI [dark, light, bare] (default "dark")

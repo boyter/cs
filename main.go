@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const Version = "3.0.0"
+const Version = "3.1.0"
 
 func main() {
 	cfg := DefaultConfig()
@@ -256,13 +256,40 @@ func main() {
 		&cfg.SnippetMode,
 		"snippet-mode",
 		"auto",
-		"snippet extraction mode: auto, snippet, or lines",
+		"snippet extraction mode: auto, snippet, lines, or grep",
 	)
 	flags.IntVar(
 		&cfg.ResultLimit,
 		"result-limit",
 		-1,
 		"maximum number of results to return (-1 for unlimited)",
+	)
+	flags.IntVar(
+		&cfg.LineLimit,
+		"line-limit",
+		-1,
+		"max matching lines per file in grep mode (-1 = unlimited)",
+	)
+	flags.IntVarP(
+		&cfg.ContextBefore,
+		"before-context",
+		"B",
+		0,
+		"lines of context before each match (grep mode)",
+	)
+	flags.IntVarP(
+		&cfg.ContextAfter,
+		"after-context",
+		"A",
+		0,
+		"lines of context after each match (grep mode)",
+	)
+	flags.IntVarP(
+		&cfg.ContextAround,
+		"context",
+		"C",
+		0,
+		"lines of context before and after each match (grep mode)",
 	)
 	flags.BoolVar(
 		&cfg.Dedup,
