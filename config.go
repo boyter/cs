@@ -59,6 +59,11 @@ type Config struct {
 	OnlyDeclarations bool
 	OnlyUsages       bool
 
+	// Grep context
+	ContextBefore int // -B: lines before each match
+	ContextAfter  int // -A: lines after each match
+	ContextAround int // -C: lines before and after (sets both)
+
 	// Output
 	Format     string
 	FileOutput string
@@ -137,6 +142,20 @@ func (c *Config) ContentFilterCachePrefix() string {
 	default:
 		return ""
 	}
+}
+
+// ResolveContext returns the effective before/after context line counts.
+// -C sets both; -B/-A override individually (matching grep semantics).
+func (c *Config) ResolveContext() (before, after int) {
+	before = c.ContextAround
+	after = c.ContextAround
+	if c.ContextBefore > 0 {
+		before = c.ContextBefore
+	}
+	if c.ContextAfter > 0 {
+		after = c.ContextAfter
+	}
+	return
 }
 
 // ResolveNoiseSensitivity maps the NoiseIntent string to a numeric sensitivity value

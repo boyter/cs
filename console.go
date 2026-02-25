@@ -90,7 +90,8 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
 		if fileMode == "grep" {
-			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+			ctxBefore, ctxAfter := cfg.ResolveContext()
+			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit, ctxBefore, ctxAfter)
 			if len(lineResults) == 0 {
 				continue
 			}
@@ -254,7 +255,8 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
 		if fileMode == "grep" {
-			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+			ctxBefore, ctxAfter := cfg.ResolveContext()
+			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit, ctxBefore, ctxAfter)
 			if len(lineResults) == 0 {
 				continue
 			}
@@ -370,7 +372,7 @@ func formatVimGrep(cfg *Config, results []*common.FileJob) {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
 		if fileMode == "grep" {
-			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit, 0, 0)
 			for _, lr := range lineResults {
 				col := 1
 				if len(lr.Locs) > 0 {

@@ -302,7 +302,7 @@ func TestFindAllMatchingLinesEmpty(t *testing.T) {
 		Content:        []byte{},
 		MatchLocations: map[string][][]int{},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if result != nil {
 		t.Errorf("expected nil for empty input, got %v", result)
 	}
@@ -313,7 +313,7 @@ func TestFindAllMatchingLinesNoMatches(t *testing.T) {
 		Content:        []byte("hello world\nfoo bar\n"),
 		MatchLocations: map[string][][]int{},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if result != nil {
 		t.Errorf("expected nil for no matches, got %v", result)
 	}
@@ -327,7 +327,7 @@ func TestFindAllMatchingLinesReturnsAllMatches(t *testing.T) {
 			"foo": {{0, 3}, {12, 15}, {24, 27}},
 		},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if len(result) != 3 {
 		t.Fatalf("expected 3 matching lines, got %d", len(result))
 	}
@@ -348,7 +348,7 @@ func TestFindAllMatchingLinesRespectsLimit(t *testing.T) {
 			"foo": {{0, 3}, {12, 15}, {24, 27}},
 		},
 	}
-	result := FindAllMatchingLines(res, 2)
+	result := FindAllMatchingLines(res, 2, 0, 0)
 	if len(result) != 2 {
 		t.Fatalf("expected 2 matching lines with limit=2, got %d", len(result))
 	}
@@ -365,7 +365,7 @@ func TestFindAllMatchingLinesNoContextLines(t *testing.T) {
 			"three": {{19, 24}},
 		},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if len(result) != 1 {
 		t.Fatalf("expected exactly 1 line (no context), got %d", len(result))
 	}
@@ -382,7 +382,7 @@ func TestFindAllMatchingLines1Based(t *testing.T) {
 			"match": {{0, 5}},
 		},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if len(result) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(result))
 	}
@@ -399,7 +399,7 @@ func TestFindAllMatchingLinesCRLF(t *testing.T) {
 			"two": {{15, 18}},
 		},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if len(result) == 0 {
 		t.Fatal("expected results")
 	}
@@ -433,8 +433,205 @@ func TestFindAllMatchingLinesLargeFile(t *testing.T) {
 			"import": positions,
 		},
 	}
-	result := FindAllMatchingLines(res, -1)
+	result := FindAllMatchingLines(res, -1, 0, 0)
 	if len(result) != 200 {
 		t.Errorf("expected 200 matching lines (no cap), got %d", len(result))
+	}
+}
+
+// --- FindAllMatchingLines context tests ---
+
+func TestFindAllMatchingLinesContextNoOverlap(t *testing.T) {
+	// 7 lines, match on line 5 (0-based index 4), -B 2 -A 2 → lines 3-7
+	content := []byte("line one\nline two\nline three\nline four\nline five\nline six\nline seven")
+	// "five" at byte 44-48 within "line five" (line starts at byte 39)
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"five": {{44, 48}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 2, 2)
+	if len(result) != 5 {
+		t.Fatalf("expected 5 lines (match + 2 before + 2 after), got %d", len(result))
+	}
+	expected := []int{3, 4, 5, 6, 7}
+	for i, lr := range result {
+		if lr.LineNumber != expected[i] {
+			t.Errorf("result[%d]: expected line %d, got %d", i, expected[i], lr.LineNumber)
+		}
+	}
+	// Only line 5 should have Locs
+	for _, lr := range result {
+		if lr.LineNumber == 5 {
+			if len(lr.Locs) == 0 {
+				t.Error("expected Locs on match line 5")
+			}
+		} else {
+			if len(lr.Locs) != 0 {
+				t.Errorf("expected no Locs on context line %d, got %v", lr.LineNumber, lr.Locs)
+			}
+		}
+	}
+}
+
+func TestFindAllMatchingLinesContextOverlapping(t *testing.T) {
+	// Matches on lines 1 and 3 (1-based), -C 1 → lines 1-4 merged
+	content := []byte("foo bar\nbaz qux\nfoo quux\nend line")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"foo": {{0, 3}, {16, 19}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 1, 1)
+	if len(result) != 4 {
+		t.Fatalf("expected 4 lines (merged overlapping context), got %d", len(result))
+	}
+	expected := []int{1, 2, 3, 4}
+	for i, lr := range result {
+		if lr.LineNumber != expected[i] {
+			t.Errorf("result[%d]: expected line %d, got %d", i, expected[i], lr.LineNumber)
+		}
+	}
+	// Lines 1 and 3 are matches, 2 and 4 are context
+	if len(result[0].Locs) == 0 {
+		t.Error("line 1 should have Locs")
+	}
+	if len(result[1].Locs) != 0 {
+		t.Error("line 2 should be context (no Locs)")
+	}
+	if len(result[2].Locs) == 0 {
+		t.Error("line 3 should have Locs")
+	}
+	if len(result[3].Locs) != 0 {
+		t.Error("line 4 should be context (no Locs)")
+	}
+}
+
+func TestFindAllMatchingLinesContextAdjacentRanges(t *testing.T) {
+	// Matches on lines 2 and 5 (1-based), -C 1 → two groups: 1-3, 4-6
+	content := []byte("aaa\nbbb\nccc\nddd\neee\nfff")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"bbb": {{4, 7}},
+			"eee": {{16, 19}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 1, 1)
+	// Adjacent ranges (end of first = 2, start of second = 3) should merge → lines 1-6
+	if len(result) != 6 {
+		t.Fatalf("expected 6 lines (adjacent ranges merge), got %d", len(result))
+	}
+	expected := []int{1, 2, 3, 4, 5, 6}
+	for i, lr := range result {
+		if lr.LineNumber != expected[i] {
+			t.Errorf("result[%d]: expected line %d, got %d", i, expected[i], lr.LineNumber)
+		}
+	}
+}
+
+func TestFindAllMatchingLinesContextClampedToBounds(t *testing.T) {
+	// Match on line 1 with -B 3 → should clamp to start of file
+	content := []byte("match\nsecond\nthird")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"match": {{0, 5}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 3, 0)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 line (clamped before), got %d", len(result))
+	}
+	if result[0].LineNumber != 1 {
+		t.Errorf("expected line 1, got %d", result[0].LineNumber)
+	}
+}
+
+func TestFindAllMatchingLinesContextZeroBackwardCompat(t *testing.T) {
+	// Zero context should return only match lines (same as before)
+	content := []byte("aaa\nbbb\nccc\nddd")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"bbb": {{4, 7}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 0, 0)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 line with zero context, got %d", len(result))
+	}
+	if result[0].LineNumber != 2 {
+		t.Errorf("expected line 2, got %d", result[0].LineNumber)
+	}
+}
+
+func TestFindAllMatchingLinesContextLimitAppliesToMatches(t *testing.T) {
+	// 3 matches, limit=2, with -C 0 → only first 2 matches
+	content := []byte("foo\nbar\nfoo\nbaz\nfoo")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"foo": {{0, 3}, {8, 11}, {16, 19}},
+		},
+	}
+	result := FindAllMatchingLines(res, 2, 1, 1)
+	// limit=2 means only 2 match lines; with -C 1 that's lines 1-4
+	matchCount := 0
+	for _, lr := range result {
+		if len(lr.Locs) > 0 {
+			matchCount++
+		}
+	}
+	if matchCount != 2 {
+		t.Errorf("expected 2 match lines with limit=2, got %d", matchCount)
+	}
+	// Should include context around both matches
+	if len(result) < 3 {
+		t.Errorf("expected at least 3 total lines (2 matches + context), got %d", len(result))
+	}
+}
+
+func TestFindAllMatchingLinesContextBeforeOnly(t *testing.T) {
+	// -B 2, -A 0: only lines before
+	content := []byte("aaa\nbbb\nccc\nddd\neee")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"ddd": {{12, 15}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 2, 0)
+	if len(result) != 3 {
+		t.Fatalf("expected 3 lines (2 before + match), got %d", len(result))
+	}
+	expected := []int{2, 3, 4}
+	for i, lr := range result {
+		if lr.LineNumber != expected[i] {
+			t.Errorf("result[%d]: expected line %d, got %d", i, expected[i], lr.LineNumber)
+		}
+	}
+}
+
+func TestFindAllMatchingLinesContextAfterOnly(t *testing.T) {
+	// -B 0, -A 2: only lines after
+	content := []byte("aaa\nbbb\nccc\nddd\neee")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"bbb": {{4, 7}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1, 0, 2)
+	if len(result) != 3 {
+		t.Fatalf("expected 3 lines (match + 2 after), got %d", len(result))
+	}
+	expected := []int{2, 3, 4}
+	for i, lr := range result {
+		if lr.LineNumber != expected[i] {
+			t.Errorf("result[%d]: expected line %d, got %d", i, expected[i], lr.LineNumber)
+		}
 	}
 }

@@ -270,6 +270,27 @@ func main() {
 		-1,
 		"max matching lines per file in grep mode (-1 = unlimited)",
 	)
+	flags.IntVarP(
+		&cfg.ContextBefore,
+		"before-context",
+		"B",
+		0,
+		"lines of context before each match (grep mode)",
+	)
+	flags.IntVarP(
+		&cfg.ContextAfter,
+		"after-context",
+		"A",
+		0,
+		"lines of context after each match (grep mode)",
+	)
+	flags.IntVarP(
+		&cfg.ContextAround,
+		"context",
+		"C",
+		0,
+		"lines of context before and after each match (grep mode)",
+	)
 	flags.BoolVar(
 		&cfg.Dedup,
 		"dedup",

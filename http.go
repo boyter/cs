@@ -301,7 +301,7 @@ func StartHttpServer(cfg *Config) {
 			fileMode := resolveSnippetMode(snippetModeParam, res.Filename)
 
 			if fileMode == "grep" {
-				lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+				lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit, 0, 0)
 				if len(lineResults) == 0 {
 					continue
 				}

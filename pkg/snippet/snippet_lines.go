@@ -217,7 +217,9 @@ func FindMatchingLines(res *common.FileJob, surroundLines int) []LineResult {
 // does not add context lines, and does not sort by score.
 // When limit > 0, at most that many matching lines are returned.
 // When limit <= 0, all matching lines are returned.
-func FindAllMatchingLines(res *common.FileJob, limit int) []LineResult {
+// contextBefore/contextAfter add surrounding context lines (like grep -B/-A).
+// Context lines have nil Locs. The limit applies to match count, not total lines.
+func FindAllMatchingLines(res *common.FileJob, limit int, contextBefore, contextAfter int) []LineResult {
 	if len(res.MatchLocations) == 0 || len(res.Content) == 0 {
 		return nil
 	}
@@ -233,7 +235,12 @@ func FindAllMatchingLines(res *common.FileJob, limit int) []LineResult {
 
 	filterShort := shouldFilterShortTerms(res.MatchLocations)
 
-	var results []LineResult
+	// Build per-line match locs
+	type lineMatch struct {
+		index int
+		locs  [][]int
+	}
+	var matches []lineMatch
 	for i, rawLine := range rawLines {
 		lineStart := lineOffsets[i]
 		lineEnd := lineStart + len(rawLine)
@@ -261,20 +268,89 @@ func FindAllMatchingLines(res *common.FileJob, limit int) []LineResult {
 		}
 
 		if len(locs) > 0 {
-			content := strings.TrimRight(string(rawLine), "\r")
-			for j := range locs {
-				if locs[j][1] > len(content) {
-					locs[j][1] = len(content)
-				}
-			}
-			results = append(results, LineResult{
-				LineNumber: i + 1, // 1-based
-				Content:    content,
-				Locs:       locs,
-			})
-			if limit > 0 && len(results) >= limit {
+			matches = append(matches, lineMatch{index: i, locs: locs})
+			if limit > 0 && len(matches) >= limit {
 				break
 			}
+		}
+	}
+
+	if len(matches) == 0 {
+		return nil
+	}
+
+	// No context requested — fast path
+	if contextBefore <= 0 && contextAfter <= 0 {
+		results := make([]LineResult, len(matches))
+		for i, m := range matches {
+			content := strings.TrimRight(string(rawLines[m.index]), "\r")
+			for j := range m.locs {
+				if m.locs[j][1] > len(content) {
+					m.locs[j][1] = len(content)
+				}
+			}
+			results[i] = LineResult{
+				LineNumber: m.index + 1,
+				Content:    content,
+				Locs:       m.locs,
+			}
+		}
+		return results
+	}
+
+	// Build ranges and merge overlapping/adjacent ones
+	type lineRange struct{ start, end int }
+	ranges := make([]lineRange, 0, len(matches))
+	maxLine := len(rawLines) - 1
+	for _, m := range matches {
+		s := m.index - contextBefore
+		if s < 0 {
+			s = 0
+		}
+		e := m.index + contextAfter
+		if e > maxLine {
+			e = maxLine
+		}
+		ranges = append(ranges, lineRange{s, e})
+	}
+
+	// Merge overlapping/adjacent ranges
+	merged := []lineRange{ranges[0]}
+	for _, r := range ranges[1:] {
+		last := &merged[len(merged)-1]
+		if r.start <= last.end+1 {
+			if r.end > last.end {
+				last.end = r.end
+			}
+		} else {
+			merged = append(merged, r)
+		}
+	}
+
+	// Build a lookup from line index to match locs
+	matchByLine := make(map[int][][]int, len(matches))
+	for _, m := range matches {
+		matchByLine[m.index] = m.locs
+	}
+
+	// Emit results for each merged range
+	var results []LineResult
+	for _, r := range merged {
+		for i := r.start; i <= r.end; i++ {
+			content := strings.TrimRight(string(rawLines[i]), "\r")
+			lr := LineResult{
+				LineNumber: i + 1,
+				Content:    content,
+			}
+			if locs, ok := matchByLine[i]; ok {
+				for j := range locs {
+					if locs[j][1] > len(content) {
+						locs[j][1] = len(content)
+					}
+				}
+				lr.Locs = locs
+			}
+			results = append(results, lr)
 		}
 	}
 

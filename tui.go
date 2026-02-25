@@ -240,11 +240,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fmt.Sscanf(v, "%d", &snippetLen)
 				}
 
+				ctxBefore, ctxAfter := m.cfg.ResolveContext()
 				var newResults []searchResult
 				for _, fj := range ranked {
 					fileMode := resolveSnippetMode(m.snippetMode, fj.Filename)
 					if fileMode == "grep" {
-						lineResults := snippet.FindAllMatchingLines(fj, m.cfg.LineLimit)
+						lineResults := snippet.FindAllMatchingLines(fj, m.cfg.LineLimit, ctxBefore, ctxAfter)
 						lineRange := ""
 						if len(lineResults) > 0 {
 							lineRange = fmt.Sprintf("%d-%d",
@@ -556,12 +557,13 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 	var batch []searchResult
 	var batchJobs []*common.FileJob
 
+	ctxBefore, ctxAfter := cfg.ResolveContext()
 	for fj := range searchCh {
 		// Build a preliminary searchResult for immediate display
 		fileMode := resolveSnippetMode(snippetMode, fj.Filename)
 		var sr searchResult
 		if fileMode == "grep" {
-			lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit)
+			lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit, ctxBefore, ctxAfter)
 			lineRange := ""
 			if len(lineResults) > 0 {
 				lineRange = fmt.Sprintf("%d-%d",
