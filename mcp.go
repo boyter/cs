@@ -42,6 +42,9 @@ func StartMCPServer(cfg *Config) {
 
 	searchTool := mcp.NewTool("search",
 		mcp.WithDescription("Search code files recursively using boolean queries, regex, and fuzzy matching with relevance ranking.\n\n"+
+			"Two modes:\n"+
+			"- Default: finds and ranks the most relevant FILES. Use when discovering where something lives.\n"+
+			"- Grep (snippet_mode='grep'): returns every matching LINE with context (like grep -C). Use when reading/tracing code: understanding implementations, following call chains, seeing all usages. Pair with 'context' (e.g. 5-15) and optionally 'line_limit'.\n\n"+
 			"Query syntax:\n"+
 			"- Keywords: terms are ANDed by default (e.g. 'jwt middleware' finds files with both terms)\n"+
 			"- OR: 'error OR exception' matches either term\n"+
@@ -78,7 +81,11 @@ func StartMCPServer(cfg *Config) {
 			"- File exclusion with many AND terms: 'process calculate transform aggregate NOT file:*_test.go' fails because no file contains all four keywords. Reduce terms: 'process aggregate NOT file:*_test.go lang:go'\n"+
 			"- For structural patterns use regex: '/type\\s+\\w+Error\\s+struct/' not 'type Error struct'. Keywords match anywhere in the file, not adjacently.\n"+
 			"- NOT binds to the next term only, not the whole query. 'a OR b NOT path:vendor' means 'a OR (b AND NOT path:vendor)'. To exclude globally, use grouping: '(a OR b) NOT path:vendor'. Precedence: NOT (tightest) > AND > OR (loosest).\n"+
-			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code."),
+			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code.\n\n"+
+			"Workflow tips:\n"+
+			"- Searching for a specific term, identifier, or function name → use snippet_mode='grep' with context=5-10. This gives every occurrence with surrounding code in one call.\n"+
+			"- Conceptual or discovery queries ('how does auth work', 'what handles errors') → use the default auto mode. The ranker surfaces the most relevant files.\n"+
+			"- Once a specific file is identified, switch to get_file to read it — don't keep searching the same file."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
 			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
@@ -134,7 +141,23 @@ func StartMCPServer(cfg *Config) {
 				"NOTE: only-declarations/only-usages are mutually exclusive with only-code/only-comments/only-strings. Only one code_filter value can be active at a time."),
 		),
 		mcp.WithString("snippet_mode",
-			mcp.Description("Snippet extraction mode: auto (default), snippet, lines, or grep. Use 'grep' to return every matching line in each file (like grep output)."),
+			mcp.Description("Snippet extraction mode. Valid values: 'auto' (default), 'snippet', 'lines', 'grep'.\n"+
+				"DEFAULT TO GREP for any query containing a specific known term, identifier, function name, or keyword. Only use 'auto' for broad conceptual or discovery queries where you do not know the exact term.\n\n"+
+				"WHEN TO USE GREP:\n"+
+				"- You are searching for a specific term, identifier, or function name\n"+
+				"- You need exhaustive results (every occurrence, not a ranked subset)\n"+
+				"- You are tracing a function through call sites or following a value through code\n"+
+				"- The query intent is 'where is X', 'find all X', 'how is X used', 'show me every X'\n"+
+				"Returns every matching line with context (like grep -C). You see ALL matches.\n\n"+
+				"WHEN NOT TO USE GREP:\n"+
+				"- Conceptual or discovery queries ('how does auth work', 'what handles errors')\n"+
+				"- You want the ranker to surface the most relevant files, not every mention\n"+
+				"- The query is broad and would produce hundreds of matches\n"+
+				"For these, use 'auto' — it returns ranked, relevance-focused snippets.\n\n"+
+				"GREP SETTINGS:\n"+
+				"- Always pair with 'context': 5 for quick lookups, 10-15 for understanding logic flow\n"+
+				"- Use 'line_limit' to cap output for high-frequency terms (e.g. line_limit=5)\n\n"+
+				"Example: query='BM25' snippet_mode='grep' context=10 — find every occurrence of BM25 with surrounding code."),
 		),
 		mcp.WithNumber("line_limit",
 			mcp.Description("Max matching lines per file in grep mode. Defaults to -1 (unlimited). Only applies when snippet_mode is 'grep'."),
@@ -146,14 +169,17 @@ func StartMCPServer(cfg *Config) {
 			mcp.Description("Lines of context to show after each matching line in grep mode (like grep -A). Only applies when snippet_mode is 'grep'."),
 		),
 		mcp.WithNumber("context",
-			mcp.Description("Lines of context to show before and after each matching line in grep mode (like grep -C). Sets both context_before and context_after. Individual context_before/context_after override this value."),
+			mcp.Description("Lines of context to show before and after each matching line in grep mode (like grep -C). "+
+				"Sets both context_before and context_after. Individual context_before/context_after override this value. "+
+				"ALWAYS set this when using grep mode — omitting it gives bare matching lines with no surrounding code, which is rarely useful. "+
+				"Start with context=5 for quick identifier lookups. Use context=10-15 when you need to understand surrounding logic flow."),
 		),
 	)
 
 	mcpServer.AddTool(searchTool, mcpSearchHandler(cfg, cache))
 
 	getFileTool := mcp.NewTool("get_file",
-		mcp.WithDescription("Read the contents of a file within the project directory. Returns JSON with 'content' (line-numbered file text) and, for recognised source files, 'language', 'lines', 'code', 'comment', 'blank', 'complexity' fields."),
+		mcp.WithDescription("Read a file's full contents by path. Prefer this over repeated searches once a file is identified — search snippets are truncated and miss logic between matches. Use start_line/end_line for large files. Returns JSON with line-numbered 'content' and, for source files, language/complexity stats."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("path",
 			mcp.Description("File path relative to the project directory, or absolute path within the project."),
