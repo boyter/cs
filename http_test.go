@@ -9,7 +9,7 @@ import (
 )
 
 func TestHttpCalculatePages_Empty(t *testing.T) {
-	pages := httpCalculatePages(nil, 10, "test", 300, "", "bm25", "", "", "")
+	pages := httpCalculatePages(nil, 10, "test", 300, "", "bm25", "", "", "", "")
 	if len(pages) != 0 {
 		t.Errorf("expected 0 pages for nil results, got %d", len(pages))
 	}
@@ -20,7 +20,7 @@ func TestHttpCalculatePages_SinglePage(t *testing.T) {
 	for i := range results {
 		results[i] = &common.FileJob{}
 	}
-	pages := httpCalculatePages(results, 10, "test", 300, "", "bm25", "", "", "")
+	pages := httpCalculatePages(results, 10, "test", 300, "", "bm25", "", "", "", "")
 	if len(pages) != 1 {
 		t.Errorf("expected 1 page for 5 results with pageSize 10, got %d", len(pages))
 	}
@@ -31,7 +31,7 @@ func TestHttpCalculatePages_MultiplePages(t *testing.T) {
 	for i := range results {
 		results[i] = &common.FileJob{}
 	}
-	pages := httpCalculatePages(results, 10, "test", 300, "", "bm25", "", "", "")
+	pages := httpCalculatePages(results, 10, "test", 300, "", "bm25", "", "", "", "")
 	// 25 results / 10 per page = 3 pages (0, 1, 2)
 	if len(pages) != 3 {
 		t.Errorf("expected 3 pages for 25 results with pageSize 10, got %d", len(pages))
@@ -43,7 +43,7 @@ func TestHttpCalculatePages_ExactMultiple(t *testing.T) {
 	for i := range results {
 		results[i] = &common.FileJob{}
 	}
-	pages := httpCalculatePages(results, 10, "test", 300, "", "bm25", "", "", "")
+	pages := httpCalculatePages(results, 10, "test", 300, "", "bm25", "", "", "", "")
 	// 20 results / 10 per page = exactly 2 pages
 	if len(pages) != 2 {
 		t.Errorf("expected 2 pages for 20 results with pageSize 10, got %d", len(pages))
@@ -59,7 +59,7 @@ func TestHttpPaginationBoundary_NoOutOfBounds(t *testing.T) {
 		results[i] = &common.FileJob{Filename: "test.go", Location: "test.go"}
 	}
 
-	pages := httpCalculatePages(results, pageSize, "test", 300, "", "bm25", "", "", "")
+	pages := httpCalculatePages(results, pageSize, "test", 300, "", "bm25", "", "", "", "")
 	// pages has 3 entries (indices 0, 1, 2)
 
 	// Test that page == len(pages) (which is 3) does NOT enter the pagination block.
@@ -92,7 +92,7 @@ func TestHttpPaginationLastValidPage(t *testing.T) {
 		results[i] = &common.FileJob{Filename: "test.go", Location: "test.go"}
 	}
 
-	pages := httpCalculatePages(results, pageSize, "test", 300, "", "bm25", "", "", "")
+	pages := httpCalculatePages(results, pageSize, "test", 300, "", "bm25", "", "", "", "")
 
 	page := len(pages) - 1 // Last valid page (index 2)
 	displayResults := results

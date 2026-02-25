@@ -294,3 +294,147 @@ func TestAddPhraseMatchLocations(t *testing.T) {
 		}
 	})
 }
+
+// --- FindAllMatchingLines tests ---
+
+func TestFindAllMatchingLinesEmpty(t *testing.T) {
+	res := &common.FileJob{
+		Content:        []byte{},
+		MatchLocations: map[string][][]int{},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if result != nil {
+		t.Errorf("expected nil for empty input, got %v", result)
+	}
+}
+
+func TestFindAllMatchingLinesNoMatches(t *testing.T) {
+	res := &common.FileJob{
+		Content:        []byte("hello world\nfoo bar\n"),
+		MatchLocations: map[string][][]int{},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if result != nil {
+		t.Errorf("expected nil for no matches, got %v", result)
+	}
+}
+
+func TestFindAllMatchingLinesReturnsAllMatches(t *testing.T) {
+	content := []byte("foo bar\nbaz foo\nqux quux\nfoo again")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"foo": {{0, 3}, {12, 15}, {24, 27}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if len(result) != 3 {
+		t.Fatalf("expected 3 matching lines, got %d", len(result))
+	}
+	// Lines 1, 2, 4 (1-based)
+	expected := []int{1, 2, 4}
+	for i, lr := range result {
+		if lr.LineNumber != expected[i] {
+			t.Errorf("result[%d]: expected line %d, got %d", i, expected[i], lr.LineNumber)
+		}
+	}
+}
+
+func TestFindAllMatchingLinesRespectsLimit(t *testing.T) {
+	content := []byte("foo bar\nbaz foo\nqux quux\nfoo again")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"foo": {{0, 3}, {12, 15}, {24, 27}},
+		},
+	}
+	result := FindAllMatchingLines(res, 2)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 matching lines with limit=2, got %d", len(result))
+	}
+	if result[0].LineNumber != 1 || result[1].LineNumber != 2 {
+		t.Errorf("expected lines 1,2 got %d,%d", result[0].LineNumber, result[1].LineNumber)
+	}
+}
+
+func TestFindAllMatchingLinesNoContextLines(t *testing.T) {
+	content := []byte("line one\nline two\nline three\nline four\nline five")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"three": {{19, 24}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if len(result) != 1 {
+		t.Fatalf("expected exactly 1 line (no context), got %d", len(result))
+	}
+	if result[0].LineNumber != 3 {
+		t.Errorf("expected line 3, got %d", result[0].LineNumber)
+	}
+}
+
+func TestFindAllMatchingLines1Based(t *testing.T) {
+	content := []byte("match here")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"match": {{0, 5}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].LineNumber != 1 {
+		t.Errorf("expected 1-based line number 1, got %d", result[0].LineNumber)
+	}
+}
+
+func TestFindAllMatchingLinesCRLF(t *testing.T) {
+	content := []byte("line one\r\nline two\r\nline three")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"two": {{15, 18}},
+		},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if len(result) == 0 {
+		t.Fatal("expected results")
+	}
+	if result[0].Content != "line two" {
+		t.Errorf("expected 'line two' (no \\r), got %q", result[0].Content)
+	}
+}
+
+func TestFindAllMatchingLinesLargeFile(t *testing.T) {
+	// Build a 200-line file where every line contains the word "import"
+	var lines []byte
+	for i := 0; i < 200; i++ {
+		if i > 0 {
+			lines = append(lines, '\n')
+		}
+		line := []byte("import something")
+		lines = append(lines, line...)
+	}
+
+	// Build match locations for "import" on every line
+	var positions [][]int
+	offset := 0
+	for i := 0; i < 200; i++ {
+		positions = append(positions, []int{offset, offset + 6})
+		offset += len("import something") + 1
+	}
+
+	res := &common.FileJob{
+		Content: lines,
+		MatchLocations: map[string][][]int{
+			"import": positions,
+		},
+	}
+	result := FindAllMatchingLines(res, -1)
+	if len(result) != 200 {
+		t.Errorf("expected 200 matching lines (no cap), got %d", len(result))
+	}
+}

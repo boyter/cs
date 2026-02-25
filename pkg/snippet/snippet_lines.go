@@ -212,6 +212,75 @@ func FindMatchingLines(res *common.FileJob, surroundLines int) []LineResult {
 	return clean
 }
 
+// FindAllMatchingLines returns every line with at least one match, in file order.
+// Unlike FindMatchingLines it has no artificial cap on the number of lines,
+// does not add context lines, and does not sort by score.
+// When limit > 0, at most that many matching lines are returned.
+// When limit <= 0, all matching lines are returned.
+func FindAllMatchingLines(res *common.FileJob, limit int) []LineResult {
+	if len(res.MatchLocations) == 0 || len(res.Content) == 0 {
+		return nil
+	}
+
+	// Split content into lines, tracking byte offsets
+	rawLines := bytes.Split(res.Content, []byte("\n"))
+	lineOffsets := make([]int, len(rawLines))
+	offset := 0
+	for i, line := range rawLines {
+		lineOffsets[i] = offset
+		offset += len(line) + 1
+	}
+
+	filterShort := shouldFilterShortTerms(res.MatchLocations)
+
+	var results []LineResult
+	for i, rawLine := range rawLines {
+		lineStart := lineOffsets[i]
+		lineEnd := lineStart + len(rawLine)
+
+		var locs [][]int
+
+		for term, positions := range res.MatchLocations {
+			if filterShort && len(term) < minTermLen {
+				continue
+			}
+			for _, pos := range positions {
+				mStart, mEnd := pos[0], pos[1]
+				if mStart < lineEnd && mEnd > lineStart {
+					relStart := mStart - lineStart
+					relEnd := mEnd - lineStart
+					if relStart < 0 {
+						relStart = 0
+					}
+					if relEnd > len(rawLine) {
+						relEnd = len(rawLine)
+					}
+					locs = append(locs, []int{relStart, relEnd})
+				}
+			}
+		}
+
+		if len(locs) > 0 {
+			content := strings.TrimRight(string(rawLine), "\r")
+			for j := range locs {
+				if locs[j][1] > len(content) {
+					locs[j][1] = len(content)
+				}
+			}
+			results = append(results, LineResult{
+				LineNumber: i + 1, // 1-based
+				Content:    content,
+				Locs:       locs,
+			})
+			if limit > 0 && len(results) >= limit {
+				break
+			}
+		}
+	}
+
+	return results
+}
+
 func containsLineNumber(lineNum int, results []LineResult) bool {
 	for _, r := range results {
 		if r.LineNumber == lineNum {

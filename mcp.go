@@ -132,6 +132,12 @@ func StartMCPServer(cfg *Config) {
 				"IMPORTANT: When using code_filter, always also set the 'language' parameter to scope results to the relevant language(s). Without it, results from all languages in the project (including dependency directories like node_modules, vendor, site-packages) will dominate.\n"+
 				"NOTE: only-declarations/only-usages are mutually exclusive with only-code/only-comments/only-strings. Only one code_filter value can be active at a time."),
 		),
+		mcp.WithString("snippet_mode",
+			mcp.Description("Snippet extraction mode: auto (default), snippet, lines, or grep. Use 'grep' to return every matching line in each file (like grep output)."),
+		),
+		mcp.WithNumber("line_limit",
+			mcp.Description("Max matching lines per file in grep mode. Defaults to -1 (unlimited). Only applies when snippet_mode is 'grep'."),
+		),
 	)
 
 	mcpServer.AddTool(searchTool, mcpSearchHandler(cfg, cache))
@@ -330,6 +336,16 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 				if searchCfg.HasContentFilter() {
 					searchCfg.Ranker = "structural"
 				}
+			}
+		}
+		if v, ok := request.GetArguments()["snippet_mode"]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				searchCfg.SnippetMode = s
+			}
+		}
+		if v, ok := request.GetArguments()["line_limit"]; ok {
+			if n, ok := v.(float64); ok {
+				searchCfg.LineLimit = int(n)
 			}
 		}
 

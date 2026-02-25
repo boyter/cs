@@ -89,7 +89,37 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 	for _, res := range results {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-		if fileMode == "lines" {
+		if fileMode == "grep" {
+			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+			if len(lineResults) == 0 {
+				continue
+			}
+			lines := fmt.Sprintf("%d-%d", lineResults[0].LineNumber, lineResults[len(lineResults)-1].LineNumber)
+			codeStats := formatCodeStats(res)
+			if res.Language != "" {
+				color.Magenta(fmt.Sprintf("%s (%s) Lines %s (%.3f)%s", res.Location, res.Language, lines, res.Score, codeStats))
+			} else {
+				color.Magenta(fmt.Sprintf("%s Lines %s (%.3f)%s", res.Location, lines, res.Score, codeStats))
+			}
+			if res.DuplicateCount > 0 {
+				color.Cyan(fmt.Sprintf("  +%d duplicate(s) in: %s", res.DuplicateCount, strings.Join(res.DuplicateLocations, ", ")))
+			}
+			prevLine := 0
+			for _, lr := range lineResults {
+				if prevLine > 0 && lr.LineNumber > prevLine+1 {
+					fmt.Println("")
+				}
+				prevLine = lr.LineNumber
+				var displayContent string
+				if !noColor && !cfg.NoSyntax {
+					displayContent = RenderANSILine(lr.Content, lr.Locs)
+				} else {
+					displayContent = str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
+				}
+				fmt.Printf("%4d %s\n", lr.LineNumber, displayContent)
+			}
+			fmt.Println("")
+		} else if fileMode == "lines" {
 			lineResults := snippet.FindMatchingLines(res, 2)
 			if len(lineResults) == 0 {
 				continue
@@ -223,7 +253,34 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 	for _, res := range results {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-		if fileMode == "lines" {
+		if fileMode == "grep" {
+			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+			if len(lineResults) == 0 {
+				continue
+			}
+			var jLines []jsonLineResult
+			for _, lr := range lineResults {
+				jLines = append(jLines, jsonLineResult{
+					LineNumber: lr.LineNumber,
+					Content:    lr.Content,
+					Locs:       lr.Locs,
+				})
+			}
+			jsonResults = append(jsonResults, jsonResult{
+				Filename:           res.Filename,
+				Location:           res.Location,
+				Score:              res.Score,
+				Lines:              jLines,
+				Language:           res.Language,
+				TotalLines:         res.Lines,
+				Code:               res.Code,
+				Comment:            res.Comment,
+				Blank:              res.Blank,
+				Complexity:         res.Complexity,
+				DuplicateCount:     res.DuplicateCount,
+				DuplicateLocations: res.DuplicateLocations,
+			})
+		} else if fileMode == "lines" {
 			lineResults := snippet.FindMatchingLines(res, 2)
 			if len(lineResults) == 0 {
 				continue
@@ -312,7 +369,18 @@ func formatVimGrep(cfg *Config, results []*common.FileJob) {
 	for _, res := range results {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
 
-		if fileMode == "lines" {
+		if fileMode == "grep" {
+			lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit)
+			for _, lr := range lineResults {
+				col := 1
+				if len(lr.Locs) > 0 {
+					col = lr.Locs[0][0] + 1
+				}
+				hint := strings.ReplaceAll(lr.Content, "\n", "\\n")
+				line := fmt.Sprintf("%v:%v:%v:%v", res.Location, lr.LineNumber, col, hint)
+				vimGrepOutput = append(vimGrepOutput, line)
+			}
+		} else if fileMode == "lines" {
 			lineResults := snippet.FindMatchingLines(res, 0)
 			for _, lr := range lineResults {
 				col := 1

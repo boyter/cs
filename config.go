@@ -32,6 +32,7 @@ type Config struct {
 	NoiseIntent   string
 	TestPenalty   float64
 	ResultLimit   int
+	LineLimit     int
 
 	// File walker
 	Directory              string
@@ -90,6 +91,7 @@ func DefaultConfig() Config {
 		NoiseIntent:            "default",
 		TestPenalty:            0.4,
 		ResultLimit:            -1,
+		LineLimit:              -1,
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,
 		MaxReadSizeBytes:       1_000_000,
