@@ -107,6 +107,16 @@ func TestCountAllTerms_ComplexTree(t *testing.T) {
 	}
 }
 
+func TestCountAllTerms_MultiValueFilter(t *testing.T) {
+	ast := &AndNode{
+		Left:  &KeywordNode{Value: "search"},
+		Right: &FilterNode{Field: "lang", Operator: "=", Value: []interface{}{"go", "python"}},
+	}
+	if got := CountAllTerms(ast); got != 3 {
+		t.Errorf("CountAllTerms = %d, want 3 (keyword + 2 filter values)", got)
+	}
+}
+
 func TestExtractTerms_IgnoresNotTerms(t *testing.T) {
 	ast := &AndNode{
 		Left:  &KeywordNode{Value: "hello"},

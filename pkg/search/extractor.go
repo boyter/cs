@@ -87,8 +87,15 @@ func countWalk(node Node, seen map[string]struct{}) {
 	case *FuzzyNode:
 		seen[n.Value] = struct{}{}
 	case *FilterNode:
-		if s, ok := n.Value.(string); ok {
-			seen[s] = struct{}{}
+		switch v := n.Value.(type) {
+		case string:
+			seen[v] = struct{}{}
+		case []interface{}:
+			for _, elem := range v {
+				if s, ok := elem.(string); ok {
+					seen[s] = struct{}{}
+				}
+			}
 		}
 	}
 }
