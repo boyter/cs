@@ -206,14 +206,16 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// ends up performing case folding on the same thing over and over again which
 		// can become the most expensive operation. So we keep a VERY small cache
 		// to avoid that being an issue.
+		needlePrefix := string(needleRune[:charLimit])
+
 		_permuteCacheLock.Lock()
-		searchTerms, ok := _permuteCache[string(needleRune[:charLimit])]
+		searchTerms, ok := _permuteCache[needlePrefix]
 		if !ok {
 			if len(_permuteCache) > CacheSize {
 				_permuteCache = map[string][]string{}
 			}
-			searchTerms = PermuteCaseFolding(string(needleRune[:charLimit]))
-			_permuteCache[string(needleRune[:charLimit])] = searchTerms
+			searchTerms = PermuteCaseFolding(needlePrefix)
+			_permuteCache[needlePrefix] = searchTerms
 		}
 		_permuteCacheLock.Unlock()
 
@@ -226,71 +228,40 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// However after some investigation it turns out that this turns
 		// into a fancy  vector instruction on AMD64 (which is all we care about)
 		// and as such its pretty hard to beat.
-		haystackRune := []rune(haystack)
-
 		for _, term := range searchTerms {
 			potentialMatches := IndexAll(haystack, term, -1)
 
 			for _, match := range potentialMatches {
-				// We have a potential match, so now see if it actually matches
-				// by getting the actual value out of our haystack
-				if len(haystackRune) < match[0]+len(needleRune) {
-					continue
-				}
+				pos := match[0]
+				isMatch := true
 
-				// Because the length of the needle might be different to what we just found as a match
-				// based on byte size we add enough extra on the end to deal with the difference
-				e := len(needle) + len(needle) - 1
-				for match[0]+e > len(haystack) {
-					e--
-				}
-
-				// Cut off the number at the end to the number we need which is the length of the needle runes
-				toMatchRune := []rune(haystack[match[0] : match[0]+e])
-				toMatchEnd := len(needleRune)
-				if len(toMatchRune) < len(needleRune) {
-					toMatchEnd = len(toMatchRune)
-				}
-
-				toMatch := toMatchRune[:toMatchEnd]
-
-				// old logic here
-				//toMatch = []rune(haystack[match[0] : match[0]+e])[:len(needleRune)]
-
-				// what we need to do is iterate the runes of the haystack portion we are trying to
-				// match and confirm that the same rune position is a actual match or case fold match
-				// if they are keep looking, if they are not bail out as its not a real match
-				isMatch := false
-				for i := 0; i < len(toMatch); i++ {
-					isMatch = false
-
-					// Check against the actual term and if that's a match we can avoid folding
-					// and doing those comparisons to hopefully save some CPU time
-					if toMatch[i] == needleRune[i] {
-						isMatch = true
-					} else {
-						// Not a match so case fold to actually check
-						for _, j := range AllSimpleFold(toMatch[i]) {
-							if j == needleRune[i] {
-								isMatch = true
-							}
-						}
-					}
-
-					// Bail out as there is no point to continue checking at this point
-					// as we found no match and there is no point burning more CPU checking
-					if !isMatch {
+				for i := 0; i < len(needleRune); i++ {
+					if pos >= len(haystack) {
+						isMatch = false
 						break
 					}
+
+					r, size := utf8.DecodeRuneInString(haystack[pos:])
+
+					if r != needleRune[i] {
+						foldMatch := false
+						for _, f := range AllSimpleFold(r) {
+							if f == needleRune[i] {
+								foldMatch = true
+								break
+							}
+						}
+						if !foldMatch {
+							isMatch = false
+							break
+						}
+					}
+					pos += size
 				}
 
 				if isMatch {
-					// When we have confirmed a match we add it to our total
-					// but adjust the positions to the match and the length of the
-					// needle to ensure the byte count lines up
-					locs = append(locs, []int{match[0], match[0] + len(string(toMatch))})
+					locs = append(locs, []int{match[0], pos})
 				}
-
 			}
 		}
 

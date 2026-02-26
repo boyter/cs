@@ -1586,9 +1586,9 @@ func TestEmptyDocumentList(t *testing.T) {
 
 func TestColonOperatorFilterAST(t *testing.T) {
 	tests := []struct {
-		name     string
-		query    string
-		wantOp   string
+		name      string
+		query     string
+		wantOp    string
 		wantField string
 	}{
 		{"complexity:<=25", "complexity:<=25", "<=", "complexity"},

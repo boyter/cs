@@ -4,6 +4,7 @@
 // All operations are constant-time.
 //
 // Github repo: https://github.com/wk8/go-ordered-map
+//
 package orderedmap
 
 import (

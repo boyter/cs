@@ -93,7 +93,7 @@ func TestCountAllTerms_ComplexTree(t *testing.T) {
 				Right: &FilterNode{Field: "ext", Operator: "=", Value: "ts"},
 			},
 			Right: &AndNode{
-				Left:  &PhraseNode{Value: "phrase"},
+				Left: &PhraseNode{Value: "phrase"},
 				Right: &AndNode{
 					Left:  &RegexNode{Pattern: "regex"},
 					Right: &FuzzyNode{Value: "fuzzy", Distance: 1},

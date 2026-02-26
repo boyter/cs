@@ -10,7 +10,7 @@ github.com/aymanbagabas/go-osc52/v2
 # github.com/bahlo/generic-list-go v0.2.0
 ## explicit; go 1.18
 github.com/bahlo/generic-list-go
-# github.com/boyter/go-string v1.0.5
+# github.com/boyter/go-string v1.0.6-0.20260226234421-6487d1977173
 ## explicit; go 1.20
 github.com/boyter/go-string
 # github.com/boyter/gocodewalker v1.5.1
