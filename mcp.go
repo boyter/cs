@@ -51,7 +51,8 @@ func StartMCPServer(cfg *Config) {
 			"- NOT: 'NOT path:vendor' excludes matches\n"+
 			"- Grouping: '(auth OR login) AND handler'\n"+
 			"- Phrases: '\"exact phrase\"' for exact match\n"+
-			"- Regex: '/pattern/' (e.g. '/func\\s+Test/')\n"+
+			"- Regex: wrapping in forward slashes `/pattern/` activates regex mode. Without slashes, terms are treated as keywords, NOT regex. Example: `/func\\s+Test/`, `/TODO|FIXME/`\n"+
+			"  Keywords: `magic number` → files with both words. Regex: `/magic.*number/` → pattern match. Phrase: `\"magic number\"` → exact sequence.\n"+
 			"- Fuzzy: 'term~1' or 'term~2' for typo-tolerant matching (Levenshtein distance 1 or 2)\n\n"+
 			"Filters (in-query):\n"+
 			"- file:pattern — match filename (substring or glob: file:*.go, file:*_test.go)\n"+
@@ -80,6 +81,7 @@ func StartMCPServer(cfg *Config) {
 			"- Exclude dependency dirs: add 'NOT path:vendor NOT path:node_modules' to avoid vendored/dependency results.\n"+
 			"- File exclusion with many AND terms: 'process calculate transform aggregate NOT file:*_test.go' fails because no file contains all four keywords. Reduce terms: 'process aggregate NOT file:*_test.go lang:go'\n"+
 			"- For structural patterns use regex: '/type\\s+\\w+Error\\s+struct/' not 'type Error struct'. Keywords match anywhere in the file, not adjacently.\n"+
+			"- Common regex mistake: `magic.*number` without slashes is treated as the keyword 'magic.*number', not as regex. Always wrap in slashes: `/magic.*number/`.\n"+
 			"- NOT binds to the next term only, not the whole query. 'a OR b NOT path:vendor' means 'a OR (b AND NOT path:vendor)'. To exclude globally, use grouping: '(a OR b) NOT path:vendor'. Precedence: NOT (tightest) > AND > OR (loosest).\n"+
 			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code.\n\n"+
 			"Workflow tips:\n"+
@@ -137,7 +139,7 @@ func StartMCPServer(cfg *Config) {
 				"Returns every match that is NOT on a declaration line. "+
 				"For unsupported languages, all matches are returned (conservative: if we can't identify declarations, everything is a usage).\n"+
 				"Default: no filter (searches all content types).\n"+
-				"IMPORTANT: When using code_filter, always also set the 'language' parameter to scope results to the relevant language(s). Without it, results from all languages in the project (including dependency directories like node_modules, vendor, site-packages) will dominate.\n"+
+				"IMPORTANT: When using code_filter, always also set the 'language' parameter. Example: code_filter='only-comments' language='Go'. Without language, results from all languages (including node_modules, vendor, site-packages) will dominate.\n"+
 				"NOTE: only-declarations/only-usages are mutually exclusive with only-code/only-comments/only-strings. Only one code_filter value can be active at a time."),
 		),
 		mcp.WithString("snippet_mode",
