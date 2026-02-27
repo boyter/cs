@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -164,12 +165,8 @@ startWorkers:
 
 				// Minified check
 				if !cfg.IncludeMinified {
-					lines := bytes.Split(content, []byte("\n"))
-					sumLineLength := 0
-					for _, s := range lines {
-						sumLineLength += len(s)
-					}
-					avgLineLength := sumLineLength / len(lines)
+					lineCount := bytes.Count(content, []byte("\n")) + 1
+					avgLineLength := len(content) / lineCount
 					if avgLineLength > cfg.MinifiedLineByteLength {
 						continue
 					}
@@ -320,24 +317,28 @@ func filterMatchLocations(matchLocations map[string][][]int, contentByteType []b
 
 // readFileContent reads a file, limiting to maxBytes if the file is larger.
 func readFileContent(location string, maxBytes int64) ([]byte, error) {
-	fi, err := os.Lstat(location)
+	f, err := os.Open(location)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
 
-	if fi.Size() < maxBytes {
-		return os.ReadFile(location)
+	size := fi.Size()
+	if size == 0 {
+		return nil, nil
+	}
+	if size > maxBytes {
+		size = maxBytes
 	}
 
-	fil, err := os.Open(location)
-	if err != nil {
-		return nil, err
-	}
-	defer fil.Close()
-
-	buf := make([]byte, maxBytes)
-	n, err := fil.Read(buf)
-	if err != nil {
+	buf := make([]byte, size)
+	n, err := io.ReadFull(f, buf)
+	if err != nil && err != io.ErrUnexpectedEOF {
 		return nil, err
 	}
 	return buf[:n], nil
