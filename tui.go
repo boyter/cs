@@ -385,7 +385,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewScroll = min(maxViewScroll, m.viewScroll+(m.windowHeight-4))
 				return m, nil
 			case tea.KeyEnter:
-				m.chosen = m.viewLocation
+				if m.cfg.Format == "vimgrep" {
+					m.chosen = tuiVimGrep(m.cfg, m.viewLocation, m.viewMatchLocs)
+				} else {
+					m.chosen = m.viewLocation
+				}
 				return m, tea.Quit
 			}
 			return m, nil
@@ -402,7 +406,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.searchCancel != nil {
 					m.searchCancel()
 				}
-				m.chosen = m.results[m.selectedIndex].Location
+				r := m.results[m.selectedIndex]
+				if m.cfg.Format == "vimgrep" {
+					m.chosen = tuiVimGrep(m.cfg, r.Location, r.MatchLocations)
+				} else {
+					m.chosen = r.Location
+				}
 				return m, tea.Quit
 			}
 			return m, nil
@@ -888,6 +897,66 @@ func (m *model) cycleSnippetMode() {
 func (m *model) retriggerSearch() tea.Cmd {
 	m.searchSeq++
 	return makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+}
+
+// tuiVimGrep re-reads a file and formats all matches as vimgrep lines.
+// Mirrors the branch structure of formatVimGrep in console.go.
+func tuiVimGrep(cfg *Config, location string, matchLocations map[string][][]int) string {
+	content, err := readFileContent(location, cfg.MaxReadSizeBytes)
+	if err != nil {
+		return location
+	}
+	fj := &common.FileJob{
+		Filename:       location,
+		Location:       location,
+		Content:        content,
+		MatchLocations: matchLocations,
+	}
+	fileMode := resolveSnippetMode(cfg.SnippetMode, location)
+
+	var vimGrepOutput []string
+	if fileMode == "grep" {
+		lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit, 0, 0)
+		for _, lr := range lineResults {
+			col := 1
+			if len(lr.Locs) > 0 {
+				col = lr.Locs[0][0] + 1
+			}
+			hint := strings.ReplaceAll(lr.Content, "\n", "\\n")
+			line := fmt.Sprintf("%v:%v:%v:%v", location, lr.LineNumber, col, hint)
+			vimGrepOutput = append(vimGrepOutput, line)
+		}
+	} else if fileMode == "lines" {
+		lineResults := snippet.FindMatchingLines(fj, 0)
+		for _, lr := range lineResults {
+			col := 1
+			if len(lr.Locs) > 0 {
+				col = lr.Locs[0][0] + 1
+			}
+			hint := strings.ReplaceAll(lr.Content, "\n", "\\n")
+			line := fmt.Sprintf("%v:%v:%v:%v", location, lr.LineNumber, col, hint)
+			vimGrepOutput = append(vimGrepOutput, line)
+		}
+	} else {
+		docFreq := make(map[string]int, len(matchLocations))
+		for k, v := range matchLocations {
+			docFreq[k] = len(v)
+		}
+		snippets := snippet.ExtractRelevant(fj, docFreq, 50)
+		if len(snippets) > cfg.SnippetCount {
+			snippets = snippets[:cfg.SnippetCount]
+		}
+		for _, snip := range snippets {
+			hint := strings.ReplaceAll(snip.Content, "\n", "\\n")
+			line := fmt.Sprintf("%v:%v:%v:%v", location, snip.LineStart, snip.StartPos, hint)
+			vimGrepOutput = append(vimGrepOutput, line)
+		}
+	}
+
+	if len(vimGrepOutput) == 0 {
+		return location
+	}
+	return strings.Join(vimGrepOutput, "\n")
 }
 
 // codeFilterLabel returns a display label for the current code filter state.
