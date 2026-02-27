@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime/pprof"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -14,9 +13,9 @@ import (
 const Version = "3.1.0"
 
 func main() {
-	f, _ := os.Create("profile.pprof")
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
+	//f, _ := os.Create("profile.pprof")
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
 
 	cfg := DefaultConfig()
 

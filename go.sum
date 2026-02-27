@@ -18,6 +18,8 @@ github.com/boyter/go-string v1.0.6-0.20260227084319-9c8d42f3ece7 h1:74c08+Euus+Q
 github.com/boyter/go-string v1.0.6-0.20260227084319-9c8d42f3ece7/go.mod h1:Mww9cDld2S2cdJ0tQffBhsZFMQRA2OJdcjWYZXvZ4Ss=
 github.com/boyter/gocodewalker v1.5.1 h1:0YeK2QAkd+ymW5MsagMZapIXD3v9/vrZl0HkFSLpKsw=
 github.com/boyter/gocodewalker v1.5.1/go.mod h1:9k+yM6+fIx61F0xI9ChXEGE5DYoLhggw8AxSOtW+kKo=
+github.com/boyter/gocodewalker v1.5.2-0.20260227212453-19676720409f h1:B+n/SMEvi0E2ulKmXMBZoOcGhTXmhKHxhIRPs1yrxkQ=
+github.com/boyter/gocodewalker v1.5.2-0.20260227212453-19676720409f/go.mod h1:9k+yM6+fIx61F0xI9ChXEGE5DYoLhggw8AxSOtW+kKo=
 github.com/boyter/scc/v3 v3.6.0 h1:sOosD02dOBKBK62vadcD4/v/CLeXEo6TvrRqWY3Pmac=
 github.com/boyter/scc/v3 v3.6.0/go.mod h1:7UU9lcjB0DmjwL9TSb4ibMiI8T2TXfhhJXSZJhgSJZ8=
 github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964 h1:8/6NkAdSg6PanmIi3BpJVVgPgG9eJgeCxyKiAhsT5Xg=
