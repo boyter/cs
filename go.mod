@@ -3,7 +3,7 @@ module github.com/boyter/cs/v3
 go 1.25.2
 
 require (
-	github.com/boyter/go-string v1.0.6-0.20260226234421-6487d1977173
+	github.com/boyter/go-string v1.0.6-0.20260227074925-0c1c42ce2a93
 	github.com/boyter/gocodewalker v1.5.1
 	github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964
 	github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
