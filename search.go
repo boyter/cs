@@ -100,7 +100,7 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 
 	// Set up file walker (cache miss or no cache)
 	{
-		walker := gocodewalker.NewFileWalker(dir, fileQueue)
+		walker := gocodewalker.NewParallelFileWalker([]string{dir}, fileQueue)
 		walker.AllowListExtensions = cfg.AllowListExtensions
 		walker.IgnoreIgnoreFile = cfg.IgnoreIgnoreFile
 		walker.IgnoreGitIgnore = cfg.IgnoreGitIgnore
