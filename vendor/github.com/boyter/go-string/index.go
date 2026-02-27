@@ -141,7 +141,7 @@ func bestCharOffset(needleRune []rune, width int) int {
 // it is limited to a size of 10 so it never gets that large but really
 // allows things to run faster
 var _permuteCache = map[string][]string{}
-var _permuteCacheLock = sync.Mutex{}
+var _permuteCacheLock = sync.RWMutex{}
 
 // CacheSize this is public so it can be modified depending on project needs
 // you can increase this value to cache more of the case permutations which
@@ -214,21 +214,34 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// We are below the limit we set, so get all the search
 		// terms and search for that
 
-		// Generally, I am against caches inside libraries, but in this case...
+		// Generally, I am against caches inside libraries. However, in this case...
 		// when the IndexAllIgnoreCase method is called repeatedly, it quite often
 		// ends up performing case folding on the same thing over and over again, which
 		// can become the most expensive operation. So we keep a VERY small cache
 		// to avoid that being an issue.
-		_permuteCacheLock.Lock()
+		// Try a read lock first.
+		// This allows multiple goroutines to hit the cache simultaneously
+		// without blocking each other.
+		_permuteCacheLock.RLock()
 		searchTerms, ok := _permuteCache[needle]
+		_permuteCacheLock.RUnlock()
+
 		if !ok {
-			if len(_permuteCache) > CacheSize {
-				_permuteCache = map[string][]string{}
+			// we now have to do something about it
+			_permuteCacheLock.Lock()
+
+			// Another goroutine might have
+			// inserted the key while we were waiting for the lock.
+			searchTerms, ok = _permuteCache[needle]
+			if !ok {
+				if len(_permuteCache) > CacheSize {
+					_permuteCache = map[string][]string{}
+				}
+				searchTerms = PermuteCaseFolding(needle)
+				_permuteCache[needle] = searchTerms
 			}
-			searchTerms = PermuteCaseFolding(needle)
-			_permuteCache[needle] = searchTerms
+			_permuteCacheLock.Unlock()
 		}
-		_permuteCacheLock.Unlock()
 
 		for _, term := range searchTerms {
 			locs = append(locs, IndexAll(haystack, term, limit)...)
@@ -257,16 +270,23 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		searchStart := bestCharOffset(needleRune, 1)
 		searchChar := string(needleRune[searchStart : searchStart+1])
 
-		_permuteCacheLock.Lock()
+		_permuteCacheLock.RLock()
 		searchTerms, ok := _permuteCache[searchChar]
+		_permuteCacheLock.RUnlock()
+
 		if !ok {
-			if len(_permuteCache) > CacheSize {
-				_permuteCache = map[string][]string{}
+			// nothing found so we have to do something
+			_permuteCacheLock.Lock()
+			searchTerms, ok = _permuteCache[searchChar]
+			if !ok {
+				if len(_permuteCache) > CacheSize {
+					_permuteCache = map[string][]string{}
+				}
+				searchTerms = PermuteCaseFolding(searchChar)
+				_permuteCache[searchChar] = searchTerms
 			}
-			searchTerms = PermuteCaseFolding(searchChar)
-			_permuteCache[searchChar] = searchTerms
+			_permuteCacheLock.Unlock()
 		}
-		_permuteCacheLock.Unlock()
 
 		// This is using IndexAll in a loop which was faster than
 		// any implementation of Aho-Corasick or Boyer-Moore I tried
