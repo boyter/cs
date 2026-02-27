@@ -18,6 +18,16 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// mcpSearchResponse wraps search results with metadata so callers always know
+// whether results were truncated and what the full match count was.
+type mcpSearchResponse struct {
+	TotalMatches    int          `json:"total_matches"`
+	ResultsReturned int          `json:"results_returned"`
+	Truncated       bool         `json:"truncated"`
+	Message         string       `json:"message,omitempty"`
+	Results         []jsonResult `json:"results"`
+}
+
 // mcpFileResult is the JSON response for the get_file tool.
 type mcpFileResult struct {
 	Language   string `json:"language,omitempty"`
@@ -427,14 +437,34 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 			}
 		}
 
+		// Track total before truncation so we can report honestly
+		totalMatches := len(results)
+		truncated := false
+
 		// Apply max_results limit
 		if maxResults > 0 && len(results) > maxResults {
 			results = results[:maxResults]
+			truncated = true
 		}
 
 		// Build JSON using the shared helper
 		jsonResults := buildJSONResults(&searchCfg, results)
-		jsonBytes, err := json.Marshal(jsonResults)
+
+		// Build response envelope with truncation metadata
+		response := mcpSearchResponse{
+			TotalMatches:    totalMatches,
+			ResultsReturned: len(jsonResults),
+			Truncated:       truncated,
+			Results:         jsonResults,
+		}
+		if truncated {
+			response.Message = fmt.Sprintf(
+				"Query matched %d files. Showing top %d by relevance. Narrow your query or use filters (file:, path:, lang:) to reduce results.",
+				totalMatches, len(jsonResults),
+			)
+		}
+
+		jsonBytes, err := json.Marshal(response)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("failed to marshal results: %v", err)), nil
 		}

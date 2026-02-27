@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,9 +153,124 @@ func TestMCPSearchHandlerReturnsJSON(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected TextContent, got %T", result.Content[0])
 	}
-	var parsed []jsonResult
+	var parsed mcpSearchResponse
 	if err := json.Unmarshal([]byte(text.Text), &parsed); err != nil {
 		t.Fatalf("result is not valid JSON: %v", err)
+	}
+	if parsed.TotalMatches != 0 {
+		t.Errorf("expected 0 total_matches for no results, got %d", parsed.TotalMatches)
+	}
+	if parsed.Truncated {
+		t.Error("expected truncated=false for no results")
+	}
+}
+
+func TestMCPSearchHandlerTruncation(t *testing.T) {
+	dir := t.TempDir()
+	// Create 30 files that all match the search term
+	for i := 0; i < 30; i++ {
+		content := fmt.Sprintf("package main\n\nfunc handler%d() {\n\t// unicorntoken\n}\n", i)
+		fname := fmt.Sprintf("file%d.go", i)
+		if err := os.WriteFile(filepath.Join(dir, fname), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cfg := DefaultConfig()
+	cfg.Directory = dir
+	cache := NewSearchCache()
+	handler := mcpSearchHandler(&cfg, cache)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]any{
+		"query":       "unicorntoken",
+		"max_results": float64(5),
+	}
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", result)
+	}
+
+	text, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected TextContent, got %T", result.Content[0])
+	}
+	var parsed mcpSearchResponse
+	if err := json.Unmarshal([]byte(text.Text), &parsed); err != nil {
+		t.Fatalf("result is not valid JSON: %v", err)
+	}
+
+	if !parsed.Truncated {
+		t.Error("expected truncated=true when results exceed max_results")
+	}
+	if parsed.TotalMatches != 30 {
+		t.Errorf("expected total_matches=30, got %d", parsed.TotalMatches)
+	}
+	if parsed.ResultsReturned != 5 {
+		t.Errorf("expected results_returned=5, got %d", parsed.ResultsReturned)
+	}
+	if len(parsed.Results) != 5 {
+		t.Errorf("expected 5 results, got %d", len(parsed.Results))
+	}
+	if parsed.Message == "" {
+		t.Error("expected non-empty message when truncated")
+	}
+	if !strings.Contains(parsed.Message, "30") {
+		t.Errorf("expected message to contain total count '30', got: %s", parsed.Message)
+	}
+}
+
+func TestMCPSearchHandlerNoTruncation(t *testing.T) {
+	dir := t.TempDir()
+	// Create 3 files — fewer than default max_results of 20
+	for i := 0; i < 3; i++ {
+		content := fmt.Sprintf("package main\n\nfunc handler%d() {\n\t// zebratoken\n}\n", i)
+		fname := fmt.Sprintf("file%d.go", i)
+		if err := os.WriteFile(filepath.Join(dir, fname), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cfg := DefaultConfig()
+	cfg.Directory = dir
+	cache := NewSearchCache()
+	handler := mcpSearchHandler(&cfg, cache)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]any{
+		"query": "zebratoken",
+	}
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", result)
+	}
+
+	text, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected TextContent, got %T", result.Content[0])
+	}
+	var parsed mcpSearchResponse
+	if err := json.Unmarshal([]byte(text.Text), &parsed); err != nil {
+		t.Fatalf("result is not valid JSON: %v", err)
+	}
+
+	if parsed.Truncated {
+		t.Error("expected truncated=false when all results fit")
+	}
+	if parsed.TotalMatches != 3 {
+		t.Errorf("expected total_matches=3, got %d", parsed.TotalMatches)
+	}
+	if parsed.ResultsReturned != 3 {
+		t.Errorf("expected results_returned=3, got %d", parsed.ResultsReturned)
+	}
+	if parsed.Message != "" {
+		t.Errorf("expected empty message when not truncated, got: %s", parsed.Message)
 	}
 }
 
