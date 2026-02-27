@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 )
 
-// IndexAll extracts all of the locations of a string inside another string
-// up-to the defined limit and does so without regular expressions
+// IndexAll extracts all the locations of a string inside another string
+// up-to the defined limit and does so without regular expressions,
 // which makes it faster than FindAllIndex in most situations while
 // not being any slower. It performs worst when working against random
 // data.
@@ -22,12 +22,12 @@ import (
 // BenchmarkIndexAll-8                            14819680	        79.6 ns/op
 //
 // For pure literal searches IE no regular expression logic this method
-// is a drop in replacement for re.FindAllIndex but generally much faster.
+// is a drop-in replacement for re.FindAllIndex but generally much faster.
 //
-// Similar to how FindAllIndex the limit option can be passed -1
+// Similarly to how FindAllIndex the limit option can be passed -1
 // to get all matches.
 //
-// Note that this method is explicitly case sensitive in its matching.
+// Note that this method is explicitly case-sensitive in its matching.
 // A return value of nil indicates no match.
 func IndexAll(haystack string, needle string, limit int) [][]int {
 	// The below needed to avoid timeout crash found using go-fuzz
@@ -76,12 +76,64 @@ func IndexAll(haystack string, needle string, limit int) [][]int {
 		loc = strings.Index(searchText, needle)
 	}
 
-	// Retain compatibility with FindAllIndex method
+	// Retain compatibility with the FindAllIndex method
 	if len(locs) == 0 {
 		return nil
 	}
 
 	return locs
+}
+
+// Rarity rank for ASCII letters (0 = rarest, 25 = most common).
+// Based on English + programming keyword frequencies.
+// Non-letter bytes default to 100 (treated as common, so we prefer ASCII letter trigrams).
+var _charRarity [256]int
+
+// I am against init generally, but this should not have much impact.
+// We build a lookup table for character rarity to speed up trigram scoring.
+// Allowing us to pick an uncommon trigram as the starting point for searching.
+// Which can greatly improve search performance for common needles.
+func init() {
+	for i := range _charRarity {
+		_charRarity[i] = 100
+	}
+	order := "zjqxkvbpygfwmucldrhsnioate"
+	for i, ch := range order {
+		_charRarity[ch] = i
+		if ch >= 'a' && ch <= 'z' {
+			_charRarity[ch-32] = i // uppercase
+		}
+	}
+}
+
+// bestCharOffset returns the rune offset of the rarest character window
+// in needleRune. Scores each window by summing character rarity (lower = rarer).
+// Falls back to offset 0 if needle is shorter than width.
+func bestCharOffset(needleRune []rune, width int) int {
+	if len(needleRune) <= width {
+		return 0
+	}
+
+	bestOffset := 0
+	bestScore := math.MaxInt32
+
+	for i := 0; i <= len(needleRune)-width; i++ {
+		score := 0
+		for j := 0; j < width; j++ {
+			r := needleRune[i+j]
+			if r < 256 {
+				score += _charRarity[r]
+			} else {
+				score += 100
+			}
+		}
+		if score < bestScore {
+			bestScore = score
+			bestOffset = i
+		}
+	}
+
+	return bestOffset
 }
 
 // if the IndexAllIgnoreCase method is called frequently with the same patterns
@@ -96,22 +148,32 @@ var _permuteCacheLock = sync.Mutex{}
 // can improve performance if doing the same searches over and over
 var CacheSize = 10
 
-// IndexAllIgnoreCase extracts all of the locations of a string inside another string
+// IndexAllIgnoreCase extracts all the locations of a string inside another string
 // up-to the defined limit. It is designed to be faster than uses of FindAllIndex with
-// case insensitive matching enabled, by looking for string literals first and then
+// case-insensitive matching enabled, by looking for string literals first and then
 // checking for exact matches. It also does so in a unicode aware way such that a search
 // for S will search for S s and ſ which a simple strings.ToLower over the haystack
 // and the needle will not.
 //
 // The result is the ability to search for literals without hitting the regex engine
-// which can at times be horribly slow. This by contrast is much faster. See
-// index_ignorecase_benchmark_test.go for some head to head results. Generally
-// so long as we aren't dealing with random data this method should be considerably
-// faster (in some cases thousands of times) or just as fast. Of course it cannot
-// do regular expressions, but that's fine.
+// which can at times be horribly slow. This, by contrast, is much faster. See
+// index_ignorecase_benchmark_test.go for some head-to-head results. Generally,
+// so long as we aren't dealing with random data, this method should be considerably
+// faster (in some cases thousands of times) or just as fast. Of course, it cannot
+// do regular expressions, but that's by design.
+//
+// Performance notes: IndexAllIgnoreCase is effectively memory-bandwidth-limited
+// for large haystacks. The permutation approach (2^min(len,3) passes of
+// strings.Index) is near-optimal because strings.Index compiles to SIMD
+// assembly. Attempts to reduce passes (2-char prefix with byte-level |0x20
+// verification) yielded only ~13% improvement on 1.87GB at the cost of
+// significant complexity. Single-pass approaches using strings.IndexByte
+// are slower due to poor selectivity (too many candidates per byte match).
+// Further gains would require assembly-level SIMD or parallelism, which
+// is out of scope for this library
 //
 // For pure literal searches IE no regular expression logic this method
-// is a drop in replacement for re.FindAllIndex but generally much faster.
+// is a drop-in replacement for re.FindAllIndex but generally much faster.
 func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 	// The below needed to avoid timeout crash found using go-fuzz
 	if len(haystack) == 0 || len(needle) == 0 {
@@ -124,7 +186,7 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 	// if you apply strings.ToLower to your haystack then use strings.Index.
 	//
 	// This can be overcome using regular expressions but suffers the penalty
-	// of hitting the regex engine and paying the price of case
+	// of hitting the regex engine and paying the price of case-
 	// insensitive match there.
 	//
 	// This method tries something else which is used by some regex engines
@@ -152,9 +214,9 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// We are below the limit we set, so get all the search
 		// terms and search for that
 
-		// Generally speaking I am against caches inside libraries but in this case...
-		// when the IndexAllIgnoreCase method is called repeatedly it quite often
-		// ends up performing case folding on the same thing over and over again which
+		// Generally, I am against caches inside libraries, but in this case...
+		// when the IndexAllIgnoreCase method is called repeatedly, it quite often
+		// ends up performing case folding on the same thing over and over again, which
 		// can become the most expensive operation. So we keep a VERY small cache
 		// to avoid that being an issue.
 		_permuteCacheLock.Lock()
@@ -168,15 +230,6 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		}
 		_permuteCacheLock.Unlock()
 
-		// This is using IndexAll in a loop which was faster than
-		// any implementation of Aho-Corasick or Boyer-Moore I tried
-		// but in theory Aho-Corasick / Rabin-Karp or even a modified
-		// version of Boyer-Moore should be faster than this.
-		// Especially since they should be able to do multiple comparisons
-		// at the same time.
-		// However after some investigation it turns out that this turns
-		// into a fancy  vector instruction on AMD64 (which is all we care about)
-		// and as such its pretty hard to beat.
 		for _, term := range searchTerms {
 			locs = append(locs, IndexAll(haystack, term, limit)...)
 		}
@@ -201,21 +254,17 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// cast things around to ensure it works
 		needleRune := []rune(needle)
 
-		// Generally speaking I am against caches inside libraries but in this case...
-		// when the IndexAllIgnoreCase method is called repeatedly it quite often
-		// ends up performing case folding on the same thing over and over again which
-		// can become the most expensive operation. So we keep a VERY small cache
-		// to avoid that being an issue.
-		needlePrefix := string(needleRune[:charLimit])
+		searchStart := bestCharOffset(needleRune, 1)
+		searchChar := string(needleRune[searchStart : searchStart+1])
 
 		_permuteCacheLock.Lock()
-		searchTerms, ok := _permuteCache[needlePrefix]
+		searchTerms, ok := _permuteCache[searchChar]
 		if !ok {
 			if len(_permuteCache) > CacheSize {
 				_permuteCache = map[string][]string{}
 			}
-			searchTerms = PermuteCaseFolding(needlePrefix)
-			_permuteCache[needlePrefix] = searchTerms
+			searchTerms = PermuteCaseFolding(searchChar)
+			_permuteCache[searchChar] = searchTerms
 		}
 		_permuteCacheLock.Unlock()
 
@@ -225,14 +274,31 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// version of Boyer-Moore should be faster than this.
 		// Especially since they should be able to do multiple comparisons
 		// at the same time.
-		// However after some investigation it turns out that this turns
-		// into a fancy  vector instruction on AMD64 (which is all we care about)
-		// and as such its pretty hard to beat.
+		// However, after some investigation, it turns out that this turns
+		// into a fancy vector instruction on AMD64 (which is all we care about)
+		// and as such It's pretty hard to beat.
 		for _, term := range searchTerms {
 			potentialMatches := IndexAll(haystack, term, -1)
 
 			for _, match := range potentialMatches {
-				pos := match[0]
+				// Walk backward searchStart runes in the haystack to find
+				// where the full needle would start. We must walk by runes
+				// because case-folded characters can have different byte widths
+				// (e.g. 'ſ' is 2 bytes but 's' is 1 byte).
+				needleStart := match[0]
+				skip := false
+				for k := 0; k < searchStart; k++ {
+					if needleStart <= 0 {
+						skip = true
+						break
+					}
+					_, size := utf8.DecodeLastRuneInString(haystack[:needleStart])
+					needleStart -= size
+				}
+				if skip {
+					continue
+				}
+				pos := needleStart
 				isMatch := true
 
 				for i := 0; i < len(needleRune); i++ {
@@ -260,7 +326,7 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 				}
 
 				if isMatch {
-					locs = append(locs, []int{match[0], pos})
+					locs = append(locs, []int{needleStart, pos})
 				}
 			}
 		}
@@ -280,7 +346,7 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		}
 	}
 
-	// Retain compatibility with FindAllIndex method
+	// Retain compatibility with the FindAllIndex method
 	if len(locs) == 0 {
 		return nil
 	}
