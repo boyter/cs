@@ -23,6 +23,8 @@ import (
 type mcpSearchResponse struct {
 	TotalMatches    int          `json:"total_matches"`
 	ResultsReturned int          `json:"results_returned"`
+	Offset          int          `json:"offset"`
+	NextOffset      int          `json:"next_offset"`
 	Truncated       bool         `json:"truncated"`
 	Message         string       `json:"message,omitempty"`
 	Results         []jsonResult `json:"results"`
@@ -109,6 +111,9 @@ func StartMCPServer(cfg *Config) {
 		),
 		mcp.WithNumber("max_results",
 			mcp.Description("Maximum number of results to return. Defaults to 20. No upper limit enforced. Use higher values (50-100) for broad discovery queries or when exploring unfamiliar codebases."),
+		),
+		mcp.WithNumber("offset",
+			mcp.Description("Number of results to skip before returning. Use for pagination: pass 'next_offset' from a previous response as 'offset' to get the next page. Defaults to 0."),
 		),
 		mcp.WithNumber("snippet_length",
 			mcp.Description("Size of the code snippet to display in characters."),
@@ -338,6 +343,12 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 				maxResults = int(n)
 			}
 		}
+		offset := 0
+		if v, ok := request.GetArguments()["offset"]; ok {
+			if n, ok := v.(float64); ok && n >= 0 {
+				offset = int(n)
+			}
+		}
 		if v, ok := request.GetArguments()["snippet_length"]; ok {
 			if n, ok := v.(float64); ok && n > 0 {
 				searchCfg.SnippetLength = int(n)
@@ -439,9 +450,18 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Track total before truncation so we can report honestly
 		totalMatches := len(results)
-		truncated := false
 
-		// Apply max_results limit
+		// Apply offset (skip first N results)
+		if offset > 0 {
+			if offset >= len(results) {
+				results = nil
+			} else {
+				results = results[offset:]
+			}
+		}
+
+		// Apply max_results limit to the offset slice
+		truncated := false
 		if maxResults > 0 && len(results) > maxResults {
 			results = results[:maxResults]
 			truncated = true
@@ -450,17 +470,27 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		// Build JSON using the shared helper
 		jsonResults := buildJSONResults(&searchCfg, results)
 
-		// Build response envelope with truncation metadata
+		// Calculate next_offset for pagination
+		nextOffset := offset + len(jsonResults)
+		if nextOffset > totalMatches {
+			nextOffset = totalMatches
+		}
+
+		// Build response envelope with pagination metadata
 		response := mcpSearchResponse{
 			TotalMatches:    totalMatches,
 			ResultsReturned: len(jsonResults),
+			Offset:          offset,
+			NextOffset:      nextOffset,
 			Truncated:       truncated,
 			Results:         jsonResults,
 		}
 		if truncated {
+			startResult := offset + 1
+			endResult := offset + len(jsonResults)
 			response.Message = fmt.Sprintf(
-				"Query matched %d files. Showing top %d by relevance. Narrow your query or use filters (file:, path:, lang:) to reduce results.",
-				totalMatches, len(jsonResults),
+				"Showing results %d\u2013%d of %d. Pass offset=%d for the next page.",
+				startResult, endResult, totalMatches, nextOffset,
 			)
 		}
 
