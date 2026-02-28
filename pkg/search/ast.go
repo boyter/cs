@@ -1,6 +1,10 @@
 package search
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+	"sync"
+)
 
 // Node is the interface that all nodes in the AST must implement.
 type Node interface {
@@ -47,7 +51,18 @@ func (n *PhraseNode) String() string { return fmt.Sprintf("PHRASE(\"%s\")", n.Va
 
 // RegexNode represents a regular expression search term.
 type RegexNode struct {
-	Pattern string
+	Pattern  string
+	compiled *regexp.Regexp
+	once     sync.Once
+}
+
+// Regexp returns the compiled regexp, compiling once on first call.
+// Returns nil if the pattern is invalid.
+func (n *RegexNode) Regexp() *regexp.Regexp {
+	n.once.Do(func() {
+		n.compiled, _ = regexp.Compile(n.Pattern)
+	})
+	return n.compiled
 }
 
 func (n *RegexNode) String() string { return fmt.Sprintf("REGEX(/%s/)", n.Pattern) }

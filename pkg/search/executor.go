@@ -4,7 +4,6 @@ import (
 	"errors"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	str "github.com/boyter/go-string"
@@ -122,11 +121,11 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 		}
 		return results
 	case *RegexNode:
-		var results []*Document
-		re, err := regexp.Compile(n.Pattern)
-		if err != nil {
+		re := n.Regexp()
+		if re == nil {
 			return []*Document{}
 		}
+		var results []*Document
 		for _, doc := range docs {
 			if re.Match(doc.Content) {
 				results = append(results, doc)
@@ -174,7 +173,8 @@ func EvaluateFile(node Node, content []byte, filename string, location string, c
 		return true, nil
 	}
 	locations := make(map[string][][]int)
-	matched := evalFile(node, content, filename, location, caseSensitive, locations)
+	contentStr := string(content) // convert once, reused by all AST nodes
+	matched := evalFile(node, content, contentStr, filename, location, caseSensitive, locations)
 	return matched, locations
 }
 
@@ -276,20 +276,20 @@ func isMetadataOnlySubtree(node Node) bool {
 	}
 }
 
-func evalFile(node Node, content []byte, filename string, location string, caseSensitive bool, locations map[string][][]int) bool {
+func evalFile(node Node, content []byte, contentStr string, filename string, location string, caseSensitive bool, locations map[string][][]int) bool {
 	if node == nil {
 		return true
 	}
 
 	switch n := node.(type) {
 	case *AndNode:
-		if !evalFile(n.Left, content, filename, location, caseSensitive, locations) {
+		if !evalFile(n.Left, content, contentStr, filename, location, caseSensitive, locations) {
 			return false
 		}
-		return evalFile(n.Right, content, filename, location, caseSensitive, locations)
+		return evalFile(n.Right, content, contentStr, filename, location, caseSensitive, locations)
 	case *OrNode:
-		left := evalFile(n.Left, content, filename, location, caseSensitive, locations)
-		right := evalFile(n.Right, content, filename, location, caseSensitive, locations)
+		left := evalFile(n.Left, content, contentStr, filename, location, caseSensitive, locations)
+		right := evalFile(n.Right, content, contentStr, filename, location, caseSensitive, locations)
 		return left || right
 	case *NotNode:
 		// If the negated subtree contains only metadata filters (lang, complexity)
@@ -298,12 +298,11 @@ func evalFile(node Node, content []byte, filename string, location string, caseS
 		if isMetadataOnlySubtree(n.Expr) {
 			return true
 		}
-		return !evalFile(n.Expr, content, filename, location, caseSensitive, locations)
+		return !evalFile(n.Expr, content, contentStr, filename, location, caseSensitive, locations)
 	case *KeywordNode:
-		s := string(content)
 		if caseSensitive {
-			if strings.Contains(s, n.Value) {
-				locs := str.IndexAll(s, n.Value, -1)
+			if strings.Contains(contentStr, n.Value) {
+				locs := str.IndexAll(contentStr, n.Value, -1)
 				if len(locs) > 0 {
 					locations[n.Value] = locs
 				}
@@ -311,17 +310,16 @@ func evalFile(node Node, content []byte, filename string, location string, caseS
 			}
 			return false
 		}
-		locs := str.IndexAllIgnoreCase(s, n.Value, -1)
+		locs := str.IndexAllIgnoreCase(contentStr, n.Value, -1)
 		if len(locs) > 0 {
 			locations[n.Value] = locs
 			return true
 		}
 		return false
 	case *PhraseNode:
-		s := string(content)
 		if caseSensitive {
-			if strings.Contains(s, n.Value) {
-				locs := str.IndexAll(s, n.Value, -1)
+			if strings.Contains(contentStr, n.Value) {
+				locs := str.IndexAll(contentStr, n.Value, -1)
 				if len(locs) > 0 {
 					locations[n.Value] = locs
 				}
@@ -329,15 +327,15 @@ func evalFile(node Node, content []byte, filename string, location string, caseS
 			}
 			return false
 		}
-		locs := str.IndexAllIgnoreCase(s, n.Value, -1)
+		locs := str.IndexAllIgnoreCase(contentStr, n.Value, -1)
 		if len(locs) > 0 {
 			locations[n.Value] = locs
 			return true
 		}
 		return false
 	case *RegexNode:
-		re, err := regexp.Compile(n.Pattern)
-		if err != nil {
+		re := n.Regexp()
+		if re == nil {
 			return false
 		}
 		locs := re.FindAllIndex(content, -1)
@@ -347,11 +345,10 @@ func evalFile(node Node, content []byte, filename string, location string, caseS
 		}
 		return false
 	case *FuzzyNode:
-		s := string(content)
-		searchContent := s
+		searchContent := contentStr
 		searchTerm := n.Value
 		if !caseSensitive {
-			searchContent = strings.ToLower(s)
+			searchContent = strings.ToLower(contentStr)
 			searchTerm = strings.ToLower(n.Value)
 		}
 		locs := fuzzyFind(searchContent, searchTerm, n.Distance, len(n.Value))

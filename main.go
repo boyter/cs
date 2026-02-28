@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/pprof"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -13,11 +14,8 @@ import (
 const Version = "3.1.0"
 
 func main() {
-	//f, _ := os.Create("profile.pprof")
-	//pprof.StartCPUProfile(f)
-	//defer pprof.StopCPUProfile()
-
 	cfg := DefaultConfig()
+	var cpuProfile string
 
 	initLanguageDatabase()
 
@@ -63,6 +61,19 @@ func main() {
 			"- F4 cycle noise (silence/quiet/default/loud/raw)\n",
 		Version: Version,
 		Run: func(cmd *cobra.Command, args []string) {
+			if cpuProfile != "" {
+				f, err := os.Create(cpuProfile)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error: could not create CPU profile: %v\n", err)
+					os.Exit(1)
+				}
+				pprof.StartCPUProfile(f)
+				defer func() {
+					pprof.StopCPUProfile()
+					f.Close()
+				}()
+			}
+
 			cfg.SearchString = args
 
 			// Mutual exclusivity check
@@ -355,6 +366,12 @@ func main() {
 		"reverse",
 		false,
 		"reverse the result order",
+	)
+	flags.StringVar(
+		&cpuProfile,
+		"cpu-profile",
+		"",
+		"write CPU profile to file (for use with go tool pprof or PGO)",
 	)
 	flags.Float64Var(
 		&cfg.WeightCode,
