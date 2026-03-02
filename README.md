@@ -154,6 +154,7 @@ As far as I know what `cs` does is unique for a command line tool.
 This is expensive compared to the raw byte-scanning of `ripgrep`, but probably not as slow as you may think.
 
 On a modern machine (such as Apple Silicon M1), it can search and rank the entire Linux kernel source in ~3 seconds.
+Using a 9950x3D it can search the kernel in ~400 milliseconds.
 
 #### Does it work on normal documents?
 
