@@ -210,6 +210,90 @@ func TestRenderLipgloss_EmptyLine(t *testing.T) {
 	}
 }
 
+func TestRenderHTML_PlainText(t *testing.T) {
+	line := "hello"
+	kinds := make([]TokenKind, len(line)) // all TkPlain
+	result := RenderHTML(line, kinds)
+	if result != "hello" {
+		t.Errorf("expected plain 'hello', got %q", result)
+	}
+}
+
+func TestRenderHTML_WithKeyword(t *testing.T) {
+	line := `func main`
+	tokens := Tokenize(line)
+	kinds := BuildKindArray(line, tokens, nil)
+	result := RenderHTML(line, kinds)
+
+	if !strings.Contains(result, `<span class="syn-kw">`) {
+		t.Error("expected keyword span in output")
+	}
+	if !strings.Contains(result, "func") {
+		t.Error("expected 'func' in output")
+	}
+}
+
+func TestRenderHTML_WithMatch(t *testing.T) {
+	line := `func main`
+	tokens := Tokenize(line)
+	matchLocs := [][]int{{5, 9}} // "main"
+	kinds := BuildKindArray(line, tokens, matchLocs)
+	result := RenderHTML(line, kinds)
+
+	if !strings.Contains(result, "<strong>main</strong>") {
+		t.Errorf("expected <strong>main</strong> in output, got %q", result)
+	}
+}
+
+func TestRenderHTML_HTMLEscaping(t *testing.T) {
+	line := `x < y && z > 0`
+	tokens := Tokenize(line)
+	kinds := BuildKindArray(line, tokens, nil)
+	result := RenderHTML(line, kinds)
+
+	if strings.Contains(result, "<") && !strings.Contains(result, "&lt;") {
+		// check that raw < from source is escaped
+		t.Error("expected HTML escaping of '<'")
+	}
+	if strings.Contains(result, "&amp;") {
+		// '&&' should be escaped
+	}
+	// Ensure no raw '<' that isn't part of a tag
+	// The result should contain &lt; and &amp; for the source chars
+	if !strings.Contains(result, "&amp;") {
+		t.Error("expected '&' to be escaped as '&amp;'")
+	}
+	if !strings.Contains(result, "&lt;") {
+		t.Error("expected '<' to be escaped as '&lt;'")
+	}
+	if !strings.Contains(result, "&gt;") {
+		t.Error("expected '>' to be escaped as '&gt;'")
+	}
+}
+
+func TestRenderHTMLLine_Convenience(t *testing.T) {
+	line := `if x == 42 { return "yes" }`
+	result := RenderHTMLLine(line, [][]int{{3, 5}})
+	if !strings.Contains(result, `<span class="syn-kw">`) {
+		t.Error("expected keyword span for 'if'")
+	}
+	if !strings.Contains(result, "<strong>") {
+		t.Error("expected strong tag for match")
+	}
+	if !strings.Contains(result, `<span class="syn-str">`) {
+		t.Error("expected string span for '\"yes\"'")
+	}
+}
+
+func BenchmarkRenderHTMLLine(b *testing.B) {
+	line := `func extractRelevantV3(res *FileJob, documentTermFrequency map[string]int, snippetLength int) []Snippet {`
+	matchLocs := [][]int{{5, 22}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		RenderHTMLLine(line, matchLocs)
+	}
+}
+
 func BenchmarkTokenize(b *testing.B) {
 	line := `func extractRelevantV3(res *FileJob, documentTermFrequency map[string]int, snippetLength int) []Snippet {`
 	b.ResetTimer()
