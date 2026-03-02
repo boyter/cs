@@ -3,6 +3,7 @@
 package main
 
 import (
+	"html"
 	"strings"
 	"text/scanner"
 	"unicode"
@@ -377,4 +378,64 @@ func RenderLipglossLine(line string, matchLocs [][]int, isSelected bool) string 
 	tokens := Tokenize(line)
 	kinds := BuildKindArray(line, tokens, matchLocs)
 	return RenderLipgloss(line, kinds, isSelected)
+}
+
+// htmlClasses maps token kinds to CSS class names for HTML rendering.
+var htmlClasses = map[TokenKind]string{
+	TkKeyword:     "syn-kw",
+	TkString:      "syn-str",
+	TkComment:     "syn-cmt",
+	TkNumber:      "syn-num",
+	TkType:        "syn-typ",
+	TkPunctuation: "syn-pun",
+}
+
+// RenderHTML renders a line with HTML span tags based on the per-byte kind array.
+// TkMatch segments are wrapped in <strong> tags. Other syntax kinds get <span class="syn-*">.
+// All text content is HTML-escaped.
+func RenderHTML(line string, kinds []TokenKind) string {
+	if len(line) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.Grow(len(line) * 2)
+
+	segStart := 0
+	prevKind := kinds[0]
+
+	for i := 1; i <= len(line); i++ {
+		var curKind TokenKind
+		if i < len(line) {
+			curKind = kinds[i]
+		}
+
+		if i == len(line) || curKind != prevKind {
+			seg := html.EscapeString(line[segStart:i])
+			if prevKind == TkMatch {
+				b.WriteString("<strong>")
+				b.WriteString(seg)
+				b.WriteString("</strong>")
+			} else if class, ok := htmlClasses[prevKind]; ok {
+				b.WriteString(`<span class="`)
+				b.WriteString(class)
+				b.WriteString(`">`)
+				b.WriteString(seg)
+				b.WriteString("</span>")
+			} else {
+				b.WriteString(seg)
+			}
+			segStart = i
+			prevKind = curKind
+		}
+	}
+
+	return b.String()
+}
+
+// RenderHTMLLine is a convenience that tokenizes, builds the kind array, and renders HTML.
+func RenderHTMLLine(line string, matchLocs [][]int) string {
+	tokens := Tokenize(line)
+	kinds := BuildKindArray(line, tokens, matchLocs)
+	return RenderHTML(line, kinds)
 }

@@ -4,11 +4,8 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html"
 	"html/template"
 	"log"
 	"net/http"
@@ -19,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	str "github.com/boyter/go-string"
 	"github.com/boyter/gocodewalker"
 
 	"github.com/boyter/cs/v3/pkg/common"
@@ -141,17 +137,8 @@ func StartHttpServer(cfg *Config) {
 			return
 		}
 
-		// Create a random str to define where the start and end of
-		// our highlight should be which we swap out later after we have
-		// HTML escaped everything
-		md5Digest := md5.New()
-		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
-		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
-
-		coloredContent := str.HighlightString(string(content), [][]int{{startPos, endPos}}, fmtBegin, fmtEnd)
-		coloredContent = html.EscapeString(coloredContent)
-		coloredContent = strings.Replace(coloredContent, fmtBegin, fmt.Sprintf(`<strong id="%d">`, startPos), -1)
-		coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
+		coloredContent := RenderHTMLLine(string(content), [][]int{{startPos, endPos}})
+		coloredContent = strings.Replace(coloredContent, "<strong>", fmt.Sprintf(`<strong id="%d">`, startPos), 1)
 
 		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, _ := fileCodeStats(filepath.Base(path), content)
 
@@ -280,13 +267,6 @@ func StartHttpServer(cfg *Config) {
 			results = ranker.DeduplicateResults(results)
 		}
 
-		// Create a random str to define where the start and end of
-		// our highlight should be which we swap out later after we have
-		// HTML escaped everything
-		md5Digest := md5.New()
-		fmtBegin := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("begin_%d", makeTimestampNano()))))
-		fmtEnd := hex.EncodeToString(md5Digest.Sum([]byte(fmt.Sprintf("end_%d", makeTimestampNano()))))
-
 		documentTermFrequency := ranker.CalculateDocumentTermFrequency(results)
 
 		var searchResults []httpSearchResult
@@ -323,10 +303,7 @@ func StartHttpServer(cfg *Config) {
 				var httpLines []httpLineResult
 				prevLine := 0
 				for _, lr := range lineResults {
-					coloredLine := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
-					coloredLine = html.EscapeString(coloredLine)
-					coloredLine = strings.Replace(coloredLine, fmtBegin, "<strong>", -1)
-					coloredLine = strings.Replace(coloredLine, fmtEnd, "</strong>", -1)
+					coloredLine := RenderHTMLLine(lr.Content, lr.Locs)
 					gap := prevLine > 0 && lr.LineNumber > prevLine+1
 					prevLine = lr.LineNumber
 					httpLines = append(httpLines, httpLineResult{
@@ -382,10 +359,7 @@ func StartHttpServer(cfg *Config) {
 				var httpLines []httpLineResult
 				prevLine := 0
 				for _, lr := range lineResults {
-					coloredLine := str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
-					coloredLine = html.EscapeString(coloredLine)
-					coloredLine = strings.Replace(coloredLine, fmtBegin, "<strong>", -1)
-					coloredLine = strings.Replace(coloredLine, fmtEnd, "</strong>", -1)
+					coloredLine := RenderHTMLLine(lr.Content, lr.Locs)
 					gap := prevLine > 0 && lr.LineNumber > prevLine+1
 					prevLine = lr.LineNumber
 					httpLines = append(httpLines, httpLineResult{
@@ -460,15 +434,9 @@ func StartHttpServer(cfg *Config) {
 					}
 				}
 
-				// We want to escape the output, so we highlight, then escape then replace
-				// our special start and end strings with actual HTML
 				coloredContent := v3.Content
-				// If endpos = 0 don't highlight anything because it means its a filename match
 				if v3.EndPos != 0 {
-					coloredContent = str.HighlightString(v3.Content, l, fmtBegin, fmtEnd)
-					coloredContent = html.EscapeString(coloredContent)
-					coloredContent = strings.Replace(coloredContent, fmtBegin, "<strong>", -1)
-					coloredContent = strings.Replace(coloredContent, fmtEnd, "</strong>", -1)
+					coloredContent = RenderHTMLLine(v3.Content, l)
 				}
 
 				searchResults = append(searchResults, httpSearchResult{
@@ -604,8 +572,4 @@ func tryParseInt(x string, def int) int {
 
 func makeTimestampMilli() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
-}
-
-func makeTimestampNano() int64 {
-	return time.Now().UnixNano()
 }
