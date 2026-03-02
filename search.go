@@ -75,6 +75,11 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 		dir = gocodewalker.FindRepositoryRoot(dir)
 	}
 
+	// Resolve to absolute path once so downstream filepath.Abs() calls
+	// (inside gitignore matching, etc.) become no-op filepath.Clean()
+	// instead of issuing an os.Getwd() syscall per file.
+	dir, _ = filepath.Abs(dir)
+
 	fileQueue := make(chan *gocodewalker.File, 1000)
 
 	// Try cache hit path: feed cached file locations instead of walking
@@ -132,11 +137,23 @@ startWorkers:
 	var matchedLocations []string
 
 	// Fan out workers to read and search files in parallel
+	maxRead := cfg.MaxReadSizeBytes
 	var wg sync.WaitGroup
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
+			// Per-worker pooled buffer, reused across files
+			var poolBuf []byte
+			if v := bufPool.Get(); v != nil {
+				poolBuf = v.([]byte)
+			}
+			if int64(len(poolBuf)) < maxRead {
+				poolBuf = make([]byte, maxRead)
+			}
+			defer bufPool.Put(poolBuf)
+
 			for f := range fileQueue {
 				select {
 				case <-ctx.Done():
@@ -146,8 +163,8 @@ startWorkers:
 
 				stats.FileCount.Add(1)
 
-				// Read file content with max size limit
-				content, err := readFileContent(f.Location, cfg.MaxReadSizeBytes)
+				// Read file content into pooled buffer (avoids fstat + per-file alloc)
+				content, err := readFileContentBuf(f.Location, poolBuf[:maxRead])
 				if err != nil || len(content) == 0 {
 					continue
 				}
@@ -179,6 +196,12 @@ startWorkers:
 				if !matched {
 					continue
 				}
+
+				// File matched — copy content out of the pooled buffer so it can
+				// be safely stored in FileJob while the pool buffer is reused.
+				ownedContent := make([]byte, len(content))
+				copy(ownedContent, content)
+				content = ownedContent
 
 				lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, contentByteType := fileCodeStats(f.Filename, content)
 
@@ -313,6 +336,32 @@ func filterMatchLocations(matchLocations map[string][][]int, contentByteType []b
 		}
 	}
 	return filtered, anySurvived
+}
+
+// bufPool holds reusable read buffers for the search worker hot path.
+var bufPool sync.Pool
+
+// readFileContentBuf reads a file into buf, limiting to len(buf) bytes.
+// Returns the sub-slice of buf containing the file content.
+// Eliminates the fstat syscall by reading directly into the pre-sized buffer.
+func readFileContentBuf(location string, buf []byte) ([]byte, error) {
+	f, err := os.Open(location)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	n, err := io.ReadFull(f, buf)
+	if err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			if n == 0 {
+				return nil, nil
+			}
+			return buf[:n], nil
+		}
+		return nil, err
+	}
+	return buf[:n], nil
 }
 
 // readFileContent reads a file, limiting to maxBytes if the file is larger.
