@@ -137,6 +137,22 @@ func StartHttpServer(cfg *Config) {
 			return
 		}
 
+		// Clamp startPos and endPos to valid range
+		contentLen := len(content)
+		if startPos < 0 {
+			startPos = 0
+		} else if startPos > contentLen {
+			startPos = contentLen
+		}
+		if endPos < 0 {
+			endPos = 0
+		} else if endPos > contentLen {
+			endPos = contentLen
+		}
+		if endPos < startPos {
+			endPos = startPos
+		}
+
 		coloredContent := RenderHTMLLine(string(content), [][]int{{startPos, endPos}})
 		coloredContent = strings.Replace(coloredContent, "<strong>", fmt.Sprintf(`<strong id="%d">`, startPos), 1)
 

@@ -255,9 +255,6 @@ func TestRenderHTML_HTMLEscaping(t *testing.T) {
 		// check that raw < from source is escaped
 		t.Error("expected HTML escaping of '<'")
 	}
-	if strings.Contains(result, "&amp;") {
-		// '&&' should be escaped
-	}
 	// Ensure no raw '<' that isn't part of a tag
 	// The result should contain &lt; and &amp; for the source chars
 	if !strings.Contains(result, "&amp;") {

@@ -397,6 +397,9 @@ func RenderHTML(line string, kinds []TokenKind) string {
 	if len(line) == 0 {
 		return ""
 	}
+	if len(kinds) < len(line) {
+		return html.EscapeString(line)
+	}
 
 	var b strings.Builder
 	b.Grow(len(line) * 2)
