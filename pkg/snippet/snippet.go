@@ -330,8 +330,8 @@ func findSpaceRight(res *common.FileJob, pos int, distance int) (int, bool) {
 }
 
 // Looks for nearby whitespace character near this position
-// up to distance away. Returns index of space if a space was found and tru
-// otherwise the original index is return and false
+// up to distance away. Returns index of space if a space was found and true
+// otherwise the original index is returned and false
 func findSpaceLeft(res *common.FileJob, pos int, distance int) (int, bool) {
 	if len(res.Content) == 0 {
 		return pos, false

@@ -358,11 +358,18 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 
 func formatJSON(cfg *Config, results []*common.FileJob) {
 	jsonResults := buildJSONResults(cfg, results)
-	jsonString, _ := json.Marshal(jsonResults)
+	jsonString, err := json.Marshal(jsonResults)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to marshal JSON: %v\n", err)
+		os.Exit(1)
+	}
 	if cfg.FileOutput == "" {
 		fmt.Println(string(jsonString))
 	} else {
-		_ = os.WriteFile(cfg.FileOutput, jsonString, 0600)
+		if err := os.WriteFile(cfg.FileOutput, jsonString, 0600); err != nil {
+			fmt.Fprintf(os.Stderr, "error: failed to write to %s: %v\n", cfg.FileOutput, err)
+			os.Exit(1)
+		}
 		fmt.Println("results written to " + cfg.FileOutput)
 	}
 }

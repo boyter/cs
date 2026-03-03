@@ -122,6 +122,18 @@ func (l *Lexer) scanIdentifier() Token {
 				sb.WriteRune(ch)
 				continue
 			}
+			// Allow '!' in identifiers unless it could form a '!=' filter operator.
+			// Stop if we're inside a filter value (e.g. "complexity:!=3") or
+			// the identifier so far is a filter field (e.g. "complexity!=5").
+			// Otherwise include '!' in the token (e.g. "live!" stays as one token).
+			if ch == '!' {
+				if !inFilterValue && !isFilterField(sb.String()) {
+					sb.WriteRune('!')
+					continue
+				}
+				l.unread()
+				break
+			}
 			l.unread()
 			break
 		}
