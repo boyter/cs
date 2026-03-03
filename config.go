@@ -96,7 +96,7 @@ func DefaultConfig() Config {
 		SnippetLength:          300,
 		SnippetCount:           1,
 		SnippetMode:            "auto",
-		Ranker:                 "bm25",
+		Ranker:                 "structural",
 		GravityIntent:          "default",
 		NoiseIntent:            "default",
 		TestPenalty:            0.4,

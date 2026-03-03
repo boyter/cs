@@ -134,7 +134,7 @@ func (p *Parser) parsePrefix() Node {
 				}
 			}
 		}
-		if p.peekTok.Type == OPERATOR {
+		if p.peekTok.Type == OPERATOR && isFilterField(p.tok.Literal) {
 			node = p.parseFilterExpression()
 			return node // Filter expression consumes its own tokens
 		}

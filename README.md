@@ -4,7 +4,7 @@
 
 Ever searched for `authenticate` and gotten 200 results from config files, comments, and test stubs before finding the actual implementation? `cs` fixes that.
 
-It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines 
+It combines the speed of CLI tools with the relevance ranking usually reserved for heavy indexed search engines
 like Sourcegraph or Zoekt, but without needing to maintain an index.
 
 ```shell
@@ -26,13 +26,13 @@ Licensed under MIT.
 
 cs TUI demo
 
-https://github.com/user-attachments/assets/3b7f4bb2-d542-406d-9c53-29c0430dd60a
+<https://github.com/user-attachments/assets/3b7f4bb2-d542-406d-9c53-29c0430dd60a>
 
 ### Pitch: Why use cs?
 
 Most search tools treat code as plain text. `cs` doesn't.
 
-It parses every file on the fly to understand what is a comment, what is a string, and what is code 
+It parses every file on the fly to understand what is a comment, what is a string, and what is code
 then uses that structure to rank by relevance, not just list them by occurrence.
 
 ```shell
@@ -56,7 +56,7 @@ cs -d   # enter HTTP mode on port 8080 by default
 
 `ripgrep` is a fast text matcher. It finds lines and prints them. It's the *best* at what it does.
 
-`cs` is a search engine. It finds files, ranks by relevance, extracts the best snippet, 
+`cs` is a search engine. It finds files, ranks by relevance, extracts the best snippet,
 and shows the most relevant results. Think Sourcegraph-quality ranked search as a CLI tool, no index required.
 
 They solve different problems. You'll probably want both.
@@ -73,6 +73,7 @@ They solve different problems. You'll probably want both.
 #### Structural Filtering
 
 Stop grepping through false positives.
+
 ```shell
 cs "database" --only-code        # Ignore matches in comments/docs
 cs "FIXME" --only-comments       # Ignore matches in code/strings
@@ -83,20 +84,21 @@ cs "handleRequest" --only-usages        # Every call site, skipping the definiti
 
 These are mutually exclusive with `--only-code`, `--only-comments`, and `--only-strings`.
 
-The structural ranker also uses declaration detection to boost matches that appear on declaration lines 
+The structural ranker also uses declaration detection to boost matches that appear on declaration lines
 (e.g. `func`, `class`, `def`) over plain usages. This currently works for the following languages:
 
 Go, Python, JavaScript, TypeScript, TSX, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift,
 Shell, Lua, Scala, Elixir, Haskell, Perl, Zig, Dart, Julia, Clojure, Erlang, Groovy, OCaml,
 MATLAB, Powershell, Nim, Crystal, V
 
-For unsupported languages, all matches are treated as usages and ranked by text relevance only. 
-Structural filtering (`--only-code`, `--only-comments`, `--only-strings`) still works for any language recognised 
+For unsupported languages, all matches are treated as usages and ranked by text relevance only.
+Structural filtering (`--only-code`, `--only-comments`, `--only-strings`) still works for any language recognised
 by [scc](https://github.com/boyter/scc).
 
 #### Complexity Gravity
 
 Find where the work happens.
+
 ```shell
 cs "login" --gravity=brain       # Boosts complex files (the implementation)
 cs "login" --gravity=low         # Boosts simple files (configs/interfaces)
@@ -105,13 +107,14 @@ cs "login" --gravity=low         # Boosts simple files (configs/interfaces)
 #### Deduplication
 
 Collapse byte-identical matches into a single result.
+
 ```shell
 cs "Copyright" --dedup                  # One result per unique copyright notice
 cs "error" --dedup                      # Skip vendored/copied duplicates
 ```
 
 **Smart Ranking**
-Results are sorted by BM25 (relevance), dampened by file length, and boosted by code structure. Some effort to dampen 
+Results are sorted by BM25 (relevance), dampened by file length, and boosted by code structure. Some effort to dampen
 test files (when you are not looking for them) is taken into account as well.
 
 **Non-Smart Ranking**
@@ -131,7 +134,7 @@ If you have Go >= 1.25.2 installed
 
 `nix-shell -p codespelunker`
 
-https://github.com/NixOS/nixpkgs/pull/236073
+<https://github.com/NixOS/nixpkgs/pull/236073>
 
 #### Manual
 
@@ -139,18 +142,18 @@ Binaries for Windows, GNU/Linux, and macOS are available from the [releases](htt
 
 ### FAQ
 
-#### Is this as fast as...
+#### Is this as fast as
 
 No.
 
-#### You didn't let me finish, I was going to ask if it's as fast as...
+#### You didn't let me finish, I was going to ask if it's as fast as
 
 The answer is probably no. It's not directly comparable. No other tool I know of works like this outside of full
 indexing tools such as hound, searchcode, sourcegraph etc... None work on the fly like this does.
 
 As far as I know what `cs` does is unique for a command line tool.
 
-`cs` runs a full lexical analysis and complexity calculation from [scc](https://github.com/boyter/scc) on every matching file. 
+`cs` runs a full lexical analysis and complexity calculation from [scc](https://github.com/boyter/scc) on every matching file.
 This is expensive compared to the raw byte-scanning of `ripgrep`, but probably not as slow as you may think.
 
 On a modern machine (such as Apple Silicon M1), it can search and rank the entire Linux kernel source in ~3 seconds.
@@ -163,21 +166,22 @@ extraction, for example, was tested on Pride and Prejudice, a text I know more a
 
 #### Where is the index?
 
-There is none. Everything is brute force calculated on the fly. There is some caching to speed things up, but should in 
+There is none. Everything is brute force calculated on the fly. There is some caching to speed things up, but should in
 practice never affect the results.
 
 #### How does the ranking work?
 
 `cs` uses a weighted BM25 algorithm.
 
-Standard BM25 weights matches based on "fields" (so title, body, category). `cs` generates fields dynamically 
+Standard BM25 weights matches based on "fields" (so title, body, category). `cs` generates fields dynamically
 by parsing the code syntax.
+
 - A match in code gets full weight (1.0).
 - A match in a string gets partial weight (0.5).
 - A match in a comment gets lower weight (0.2).
 
-This means a file where your search term appears in the logic will rank higher than a file where the term only appears 
-in the documentation, even if the word count is the same. 
+This means a file where your search term appears in the logic will rank higher than a file where the term only appears
+in the documentation, even if the word count is the same.
 
 You can tweak the values as needed via the CLI, or on the fly change what fields `cs` searches.
 
@@ -185,9 +189,9 @@ You can tweak the values as needed via the CLI, or on the fly change what fields
 
 Complexity gravity is a ranking boost that uses each file's cyclomatic complexity to influence result ordering.
 
-In code search, the best result is usually where the logic is implemented. These files usually have higher 
-algorithmic density (branches, loops, conditions). `cs` uses this so implementation files generally outrank 
-data/config/interface files all things being equal. 
+In code search, the best result is usually where the logic is implemented. These files usually have higher
+algorithmic density (branches, loops, conditions). `cs` uses this so implementation files generally outrank
+data/config/interface files all things being equal.
 
 The `--gravity` flag accepts named intent:
 
@@ -206,30 +210,29 @@ cs --gravity=off "search term"     # pure text relevance
 
 #### How do you get the snippets?
 
-It's not fun... see https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go and https://github.com/boyter/cs/blob/master/pkg/snippet/snippet_lines.go
+It's not fun... see <https://github.com/boyter/cs/blob/master/pkg/snippet/snippet.go> and <https://github.com/boyter/cs/blob/master/pkg/snippet/snippet_lines.go>
 
 It works by passing the document content to extract the snippet from and all the match locations for each term.
 It then looks through each location for each word, and checks on either side looking for terms close to it.
 It then ranks on the term frequency for the term we are checking around and rewards rarer terms.
 It also rewards more matches, closer matches, exact case matches, and matches that are whole words.
 
-For more info read the "Snippet Extraction AKA I am PHP developer" section of this blog post https://boyter.org/posts/abusing-aws-to-make-a-search-engine/
+For more info read the "Snippet Extraction AKA I am PHP developer" section of this blog post <https://boyter.org/posts/abusing-aws-to-make-a-search-engine/>
 
 #### What does HTTP mode look like?
 
 It's a little brutalist.
 
-<img alt="cs http" src=https://github.com/boyter/cs/raw/master/cs_http.png>
+<img alt="cs http" src="https://github.com/boyter/cs/raw/master/cs_http.png">
 
 You can change its look and feel using `--template-style` for built-in themes (`dark`, `light`, `bare`), or provide
-custom templates with `--template-display` and `--template-search`. See https://github.com/boyter/cs/tree/master/asset/templates
+custom templates with `--template-display` and `--template-search`. See <https://github.com/boyter/cs/tree/master/asset/templates>
 for example templates you can use to modify the look and feel.
 
 ```shell
 cs -d --template-style light
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 ```
-
 
 ### Usage
 
@@ -289,6 +292,7 @@ Flags:
   -c, --case-sensitive            make the search case sensitive
       --color string              color output mode [auto, always, never] (default "auto")
   -C, --context int               lines of context before and after each match (grep mode)
+      --cpu-profile string        write CPU profile to file (for use with go tool pprof or PGO)
       --dedup                     collapse byte-identical search matches, keeping the highest-scored representative
       --dir string                directory to search, if not set defaults to current working directory
       --exclude-dir strings       directories to exclude (default [.git,.hg,.svn])
@@ -364,7 +368,7 @@ vi `cs`   # edit the selected file
 
 ### MCP Server Mode
 
-`cs` can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server over stdio, allowing LLM 
+`cs` can run as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server over stdio, allowing LLM
 tools like Claude Desktop, Claude Code, Cursor, and others to use it as a code search tool.
 
 ```shell
@@ -429,10 +433,8 @@ Results are returned as JSON with the same fields as `--format json`: filename, 
 
 Returns JSON with line-numbered file content and, for recognised source files, language, lines, code, comment, blank, and complexity fields.
 
-
-
 ### Support
 
-Using `cs` commercially? If you want priority support for `cs` you can purchase a years worth https://boyter.gumroad.com/l/vvmyi which entitles you to priority direct email support from the developer.
+Using `cs` commercially? If you want priority support for `cs` you can purchase a years worth <https://boyter.gumroad.com/l/vvmyi> which entitles you to priority direct email support from the developer.
 
 If not, raise a bug report... or don't. I'm not the boss of you.

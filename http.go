@@ -114,10 +114,36 @@ func StartHttpServer(cfg *Config) {
 		log.Fatalf("failed to load display template: %v", err)
 	}
 
+	// Resolve the base directory for path traversal validation
+	baseDir := cfg.Directory
+	if strings.TrimSpace(baseDir) == "" {
+		baseDir = "."
+	}
+	httpBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		log.Fatalf("failed to resolve base directory: %v", err)
+	}
+
 	http.HandleFunc("/file/raw/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.Replace(r.URL.Path, "/file/raw/", "", 1)
+
+		if strings.TrimSpace(cfg.Directory) != "" {
+			path = "/" + path
+		}
+
+		// Security: clean and resolve the path relative to httpBaseDir
+		// (avoid filepath.Abs which depends on os.Getwd at request time)
+		absPath := filepath.Clean(path)
+		if !filepath.IsAbs(absPath) {
+			absPath = filepath.Join(httpBaseDir, absPath)
+		}
+		if !strings.HasPrefix(absPath, httpBaseDir+string(filepath.Separator)) && absPath != httpBaseDir {
+			http.Error(w, "path is outside the project directory", http.StatusForbidden)
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/plain")
-		http.ServeFile(w, r, path)
+		http.ServeFile(w, r, absPath)
 	})
 
 	http.HandleFunc("/file/", func(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +156,18 @@ func StartHttpServer(cfg *Config) {
 		if strings.TrimSpace(cfg.Directory) != "" {
 			path = "/" + path
 		}
+
+		// Security: clean and resolve the path relative to httpBaseDir
+		// (avoid filepath.Abs which depends on os.Getwd at request time)
+		absPath := filepath.Clean(path)
+		if !filepath.IsAbs(absPath) {
+			absPath = filepath.Join(httpBaseDir, absPath)
+		}
+		if !strings.HasPrefix(absPath, httpBaseDir+string(filepath.Separator)) && absPath != httpBaseDir {
+			http.Error(w, "path is outside the project directory", http.StatusForbidden)
+			return
+		}
+		path = absPath
 
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -493,7 +531,9 @@ func StartHttpServer(cfg *Config) {
 
 		if r.URL.Query().Get("format") == "json" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(searchData)
+			if err := json.NewEncoder(w).Encode(searchData); err != nil {
+				log.Printf("JSON encode error: %v", err)
+			}
 			return
 		}
 

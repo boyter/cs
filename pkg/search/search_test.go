@@ -1,47 +1,4 @@
-// TODO: This file is part of an ongoing test-driven development session.
-//
-// Progress Summary:
-// 1. Multi-Value Filters: Added tests for comma-separated filter values (e.g., `lang=go,python`).
-//    - Decision: Normalizing language aliases (e.g., 'py' to 'Python') is the responsibility
-//      of an upstream process, not the search engine itself. A comment was added to the
-//      executor to clarify this.
-//
-// 2. Malformed Queries: Added tests for invalid queries that should be handled gracefully.
-//    - Implementation: Created a specific `ErrInvalidQuery` for queries that are syntactically
-//      incorrect and cannot be healed by the parser (e.g., a query containing only "AND").
-//      This makes the API more robust for callers.
-//
-// 3. Case-Sensitivity: Implemented a global case-sensitivity flag for the entire search operation.
-//    - Implementation: The `Search` method now accepts a `caseSensitive` boolean flag.
-//    - Default: The default search is now case-insensitive, using a Unicode-aware
-//      comparison (`github.com/boyter/go-string`).
-//    - Tests: All tests were updated to use the new flag, and specific tests for both
-//      case-sensitive and case-insensitive matching have been added.
-//
-// 4. Edge Cases for Multi-Value Filters: Added comprehensive tests for edge cases
-//    that could break production functionality.
-// Next Test Cases to Add:
-// 1. NOT Operator Precedence: Test the behavior of queries like `lazy AND NOT dog` to ensure
-//    that the `NOT` operator has the expected precedence and correctly filters results.
-//
-// 2. NOT with Filters: Test the `NOT` operator's interaction with filters, such as `NOT lang=go`,
-//    to verify it correctly excludes documents based on metadata.
-//
-// 3. Filter Case-Sensitivity: Add tests to ensure all filters (`lang`, `ext`, `file`) behave
-//    consistently with respect to case-insensitivity. For example, `ext=PY` should match `.py`.
-//
-// 4. Empty/Whitespace Query: Add a test for an empty or whitespace-only query (`""`) to ensure
-//    it returns zero results and no error, which is the expected behavior for a "search for nothing".
-//
-// 5. Multi-Value Filter Edge Cases:
-//    - Mixed data types in filter values
-//    - Empty values in lists
-//    - Special characters and escaping
-//    - Performance with large value lists
-//    - Operator variations with multi-values
-//    - Integration with other complex filters
-//    - Type safety and error handling
-//    - Unicode and international character handling
+// SPDX-License-Identifier: MIT
 
 package search
 
@@ -1756,4 +1713,131 @@ func TestFullPipelinePerFile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExclamationInQuery(t *testing.T) {
+	scanTokens := func(query string) []Token {
+		lexer := NewLexer(strings.NewReader(query))
+		var tokens []Token
+		for {
+			tok := lexer.scan()
+			if tok.Type == WS {
+				continue
+			}
+			tokens = append(tokens, tok)
+			if tok.Type == EOF {
+				break
+			}
+		}
+		return tokens
+	}
+
+	parseQuery := func(query string) Node {
+		lexer := NewLexer(strings.NewReader(query))
+		parser := NewParser(lexer)
+		ast, _ := parser.ParseQuery()
+		transformer := &Transformer{}
+		ast, _ = transformer.TransformAST(ast)
+		ast = PlanAST(ast)
+		return ast
+	}
+
+	t.Run("Lexer treats live! as single identifier", func(t *testing.T) {
+		tokens := scanTokens("live! 7.1")
+		want := []Token{
+			{Type: IDENTIFIER, Literal: "live!"},
+			{Type: IDENTIFIER, Literal: "7.1"},
+			{Type: EOF, Literal: ""},
+		}
+		if len(tokens) != len(want) {
+			t.Fatalf("got %d tokens, want %d: %v", len(tokens), len(want), tokens)
+		}
+		for i, w := range want {
+			if tokens[i].Type != w.Type || tokens[i].Literal != w.Literal {
+				t.Errorf("token[%d] = {%d, %q}, want {%d, %q}", i, tokens[i].Type, tokens[i].Literal, w.Type, w.Literal)
+			}
+		}
+	})
+
+	t.Run("Lexer preserves != operator for filters", func(t *testing.T) {
+		tokens := scanTokens("complexity!=5")
+		want := []Token{
+			{Type: IDENTIFIER, Literal: "complexity"},
+			{Type: OPERATOR, Literal: "!="},
+			{Type: NUMBER, Literal: "5"},
+			{Type: EOF, Literal: ""},
+		}
+		if len(tokens) != len(want) {
+			t.Fatalf("got %d tokens, want %d: %v", len(tokens), len(want), tokens)
+		}
+		for i, w := range want {
+			if tokens[i].Type != w.Type || tokens[i].Literal != w.Literal {
+				t.Errorf("token[%d] = {%d, %q}, want {%d, %q}", i, tokens[i].Type, tokens[i].Literal, w.Type, w.Literal)
+			}
+		}
+	})
+
+	t.Run("Parser builds KeywordNodes for live! 7.1", func(t *testing.T) {
+		ast := parseQuery("live! 7.1")
+		andNode, ok := ast.(*AndNode)
+		if !ok {
+			t.Fatalf("expected AndNode, got %T", ast)
+		}
+		left, ok := andNode.Left.(*KeywordNode)
+		if !ok {
+			t.Fatalf("expected left KeywordNode, got %T", andNode.Left)
+		}
+		if left.Value != "live!" {
+			t.Errorf("left keyword = %q, want %q", left.Value, "live!")
+		}
+		right, ok := andNode.Right.(*KeywordNode)
+		if !ok {
+			t.Fatalf("expected right KeywordNode, got %T", andNode.Right)
+		}
+		if right.Value != "7.1" {
+			t.Errorf("right keyword = %q, want %q", right.Value, "7.1")
+		}
+	})
+
+	t.Run("EvaluateFile generates match locations for terms with !", func(t *testing.T) {
+		ast := parseQuery("live! 7.1")
+		content := []byte("Sound Blaster Live! 7.1 Channel")
+		matched, locs := EvaluateFile(ast, content, "test.txt", "test.txt", false)
+		if !matched {
+			t.Fatal("expected match")
+		}
+		foundLive := false
+		foundVersion := false
+		for term := range locs {
+			if strings.Contains(strings.ToLower(term), "live!") {
+				foundLive = true
+			}
+			if strings.Contains(term, "7.1") {
+				foundVersion = true
+			}
+		}
+		if !foundLive {
+			t.Errorf("match locations missing 'live!' term, got: %v", locs)
+		}
+		if !foundVersion {
+			t.Errorf("match locations missing '7.1' term, got: %v", locs)
+		}
+	})
+
+	t.Run("complexity!=5 still works as filter", func(t *testing.T) {
+		se := NewSearchEngine(testDocs)
+		res, err := se.Search("complexity!=5", false)
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+		// file2.go has complexity 5, so it should be excluded
+		for _, doc := range res.Documents {
+			if doc.Path == "src/main/file2.go" {
+				t.Error("complexity!=5 should exclude file2.go (complexity=5)")
+			}
+		}
+		if len(res.Documents) != 5 {
+			t.Errorf("got %d results, want 5", len(res.Documents))
+		}
+	})
 }

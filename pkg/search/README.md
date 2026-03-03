@@ -30,7 +30,7 @@ This project is a robust, extensible, in-memory search engine written in Go. It 
 This is a library package. Import it and use the `SearchEngine` API:
 
 ```go
-import "github.com/boyter/cs/pkg/search"
+import "github.com/boyter/cs/v3/pkg/search"
 
 // Create documents to search over.
 docs := []*search.Document{
@@ -108,7 +108,7 @@ The engine ships with the following metadata filters, registered in `executor.go
 |----------------------|----------------------|---------|------------------|-------------|-------------------------------------|
 | `complexity`         | —                    | Numeric | `=` `!=` `>=` `<=` | No       | Matches `Document.Complexity`       |
 | `lang` / `language`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Language` (case-insensitive) |
-| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Filename` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
+| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Filename` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
 | `path` / `filepath`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Path` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
 | `ext` / `extension`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Extension` (case-insensitive) |
 
@@ -235,59 +235,9 @@ func (t *Transformer) transformFilterNode(node *FilterNode) Node {
 }
 ```
 
-### Scenario 3: Implementing Fuzzy Matching
+### Scenario 3: Fuzzy Matching
 
-The `FuzzyNode` AST type is already defined but the executor currently has a placeholder that returns no results. Let's implement fuzzy matching using Levenshtein distance.
-
-**Step 1: Add a Distance Function**
-
-In `executor.go`, add a Levenshtein distance helper:
-
-```go
-// in executor.go
-
-func levenshtein(a, b string) int {
-	la, lb := len(a), len(b)
-	d := make([][]int, la+1)
-	for i := range d {
-		d[i] = make([]int, lb+1)
-		d[i][0] = i
-	}
-	for j := 1; j <= lb; j++ {
-		d[0][j] = j
-	}
-	for i := 1; i <= la; i++ {
-		for j := 1; j <= lb; j++ {
-			cost := 1
-			if a[i-1] == b[j-1] {
-				cost = 0
-			}
-			d[i][j] = min(d[i-1][j]+1, min(d[i][j-1]+1, d[i-1][j-1]+cost))
-		}
-	}
-	return d[la][lb]
-}
-```
-
-**Step 2: Replace the Placeholder in `evaluate`**
-
-In `executor.go`, find the `FuzzyNode` case (which currently returns `[]*Document{}`) and replace it:
-
-```go
-	case *FuzzyNode:
-		var results []*Document
-		content := strings.ToLower(string(doc.Content))
-		term := strings.ToLower(n.Value)
-		termLen := len(term)
-		// Slide a window over the content to find near-matches
-		for i := 0; i <= len(content)-termLen; i++ {
-			window := content[i : i+termLen]
-			if levenshtein(term, window) <= n.Distance {
-				results = append(results, doc)
-				break
-			}
-		}
-```
+Fuzzy matching is fully implemented using Levenshtein distance. The `FuzzyNode` AST type supports distance-based matching with `~1` (edit distance 1) and `~2` (edit distance 2) syntax. The executor slides a window over file content and finds near-matches within the specified edit distance.
 
 ## API Reference
 
@@ -327,7 +277,7 @@ func (se *SearchEngine) Search(query string, caseSensitive bool) (*SearchResult,
 
 // EvaluateFile evaluates a parsed AST against a single file's content.
 // Returns whether the file matches and a map of term → match locations.
-func EvaluateFile(node Node, content []byte, filename string, caseSensitive bool) (bool, map[string][][]int)
+func EvaluateFile(node Node, content []byte, filename string, location string, caseSensitive bool) (bool, map[string][][]int)
 
 // ExtractTerms traverses the AST and returns terms for highlighting,
 // excluding terms inside NOT subtrees.
@@ -341,7 +291,9 @@ func ExtractTerms(node Node) []string
 ├── ast.go              # Defines the Abstract Syntax Tree node types (And, Or, Not, Keyword, Phrase, Regex, Filter, Fuzzy)
 ├── document.go         # Defines Document and SearchResult structs
 ├── executor.go         # The main engine; executes the AST against data, contains filter handlers
+├── executor_test.go    # Unit tests for executor
 ├── extractor.go        # Walks AST to extract positive search terms for highlighting
+├── extractor_test.go   # Unit tests for extractor
 ├── lexer.go            # The tokenizer; turns strings into tokens
 ├── parser.go           # The parser; turns tokens into an AST, handles self-healing
 ├── planner.go          # The query optimizer; reorders AND clauses by cost
