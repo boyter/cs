@@ -131,11 +131,11 @@ func StartHttpServer(cfg *Config) {
 			path = "/" + path
 		}
 
-		// Security: validate that path is within the project directory
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			http.Error(w, "invalid path", http.StatusBadRequest)
-			return
+		// Security: clean and resolve the path relative to httpBaseDir
+		// (avoid filepath.Abs which depends on os.Getwd at request time)
+		absPath := filepath.Clean(path)
+		if !filepath.IsAbs(absPath) {
+			absPath = filepath.Join(httpBaseDir, absPath)
 		}
 		if !strings.HasPrefix(absPath, httpBaseDir+string(filepath.Separator)) && absPath != httpBaseDir {
 			http.Error(w, "path is outside the project directory", http.StatusForbidden)
@@ -157,11 +157,11 @@ func StartHttpServer(cfg *Config) {
 			path = "/" + path
 		}
 
-		// Security: validate that path is within the project directory
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			http.Error(w, "invalid path", http.StatusBadRequest)
-			return
+		// Security: clean and resolve the path relative to httpBaseDir
+		// (avoid filepath.Abs which depends on os.Getwd at request time)
+		absPath := filepath.Clean(path)
+		if !filepath.IsAbs(absPath) {
+			absPath = filepath.Join(httpBaseDir, absPath)
 		}
 		if !strings.HasPrefix(absPath, httpBaseDir+string(filepath.Separator)) && absPath != httpBaseDir {
 			http.Error(w, "path is outside the project directory", http.StatusForbidden)

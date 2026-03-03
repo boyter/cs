@@ -223,7 +223,7 @@ For more info read the "Snippet Extraction AKA I am PHP developer" section of th
 
 It's a little brutalist.
 
-<img alt="cs http" src=<https://github.com/boyter/cs/raw/master/cs_http.png>>
+<img alt="cs http" src="https://github.com/boyter/cs/raw/master/cs_http.png">
 
 You can change its look and feel using `--template-style` for built-in themes (`dark`, `light`, `bare`), or provide
 custom templates with `--template-display` and `--template-search`. See <https://github.com/boyter/cs/tree/master/asset/templates>
