@@ -4,7 +4,7 @@ go 1.25.2
 
 require (
 	github.com/boyter/go-string v1.0.6-0.20260227084319-9c8d42f3ece7
-	github.com/boyter/gocodewalker v1.5.2-0.20260227212453-19676720409f
+	github.com/boyter/gocodewalker v1.5.2-0.20260303001053-b0f7f6afdc70
 	github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964
 	github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
 	github.com/charmbracelet/bubbles v0.16.1
@@ -13,6 +13,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/mark3labs/mcp-go v0.44.0
 	github.com/mattn/go-isatty v0.0.19
+	github.com/muesli/termenv v0.15.2
 	github.com/spf13/cobra v1.10.1
 )
 
@@ -39,7 +40,6 @@ require (
 	github.com/muesli/ansi v0.0.0-20211018074035-2e021307bc4b // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
-	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
@@ -50,6 +50,5 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
