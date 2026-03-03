@@ -78,6 +78,8 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 	// Resolve to absolute path once so downstream filepath.Abs() calls
 	// (inside gitignore matching, etc.) become no-op filepath.Clean()
 	// instead of issuing an os.Getwd() syscall per file.
+	// Error only possible if Getwd fails, in which case dir is unchanged
+	// and the walker still functions with the original relative path.
 	dir, _ = filepath.Abs(dir)
 
 	fileQueue := make(chan *gocodewalker.File, 1000)
@@ -199,6 +201,10 @@ startWorkers:
 
 				// File matched — copy content out of the pooled buffer so it can
 				// be safely stored in FileJob while the pool buffer is reused.
+				// This must happen before post-eval filters (lang, content-type,
+				// declarations) since they read content and the pool may reclaim
+				// the buffer. The heavy filter (EvaluateFile) already passed, so
+				// few files reach here only to be rejected by later filters.
 				ownedContent := make([]byte, len(content))
 				copy(ownedContent, content)
 				content = ownedContent
