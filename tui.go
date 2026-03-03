@@ -269,7 +269,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							MatchLocations: fj.MatchLocations,
 						})
 					} else if fileMode == "lines" {
-						lineResults := snippet.FindMatchingLines(fj, 2)
+						surroundLines := snippetLen / 100
+					if surroundLines < 1 {
+						surroundLines = 1
+					}
+					lineResults := snippet.FindMatchingLines(fj, surroundLines)
 						lineRange := ""
 						if len(lineResults) > 0 {
 							lineRange = fmt.Sprintf("%d-%d",

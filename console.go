@@ -109,12 +109,7 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 			if res.DuplicateCount > 0 {
 				color.Cyan(fmt.Sprintf("  +%d duplicate(s) in: %s", res.DuplicateCount, strings.Join(res.DuplicateLocations, ", ")))
 			}
-			prevLine := 0
 			for _, lr := range lineResults {
-				if prevLine > 0 && lr.LineNumber > prevLine+1 {
-					fmt.Println("")
-				}
-				prevLine = lr.LineNumber
 				var displayContent string
 				if !noColor && !cfg.NoSyntax {
 					displayContent = RenderANSILine(lr.Content, lr.Locs)
