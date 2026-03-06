@@ -102,6 +102,35 @@ The other most useful method is HighlightString. HighlightString takes in some c
 strings which can be used for highlighting around matching terms. For example you could pass in `"test"` and have it return `"<strong>te</strong>st"`.
 The argument locations accepts output from regexp.FindAllIndex or the included `IndexAllIgnoreCase` or `IndexAll`.
 
-All code is dual-licenced as either MIT or Unlicence. Your choice when you use it.
+All code is licenced under the MIT licence.
 
-Note that as an Australian I cannot put this into the public domain, hence the choice most liberal licences I can find. 
+### Third-Party Code
+
+This project includes SIMD assembly code (`indexbyte2_amd64.s`, `indexbyte2_arm64.s` and
+associated Go files) adapted from [fzf](https://github.com/junegunn/fzf) by Junegunn Choi,
+used under the MIT License:
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2013-2026 Junegunn Choi
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Unlicense
+// SPDX-License-Identifier: MIT
 
 package str
 
@@ -7,7 +7,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 // IndexAll extracts all the locations of a string inside another string
@@ -288,24 +290,30 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 			_permuteCacheLock.Unlock()
 		}
 
-		// This is using IndexAll in a loop which was faster than
-		// any implementation of Aho-Corasick or Boyer-Moore I tried
-		// but in theory Aho-Corasick / Rabin-Karp or even a modified
-		// version of Boyer-Moore should be faster than this.
-		// Especially since they should be able to do multiple comparisons
-		// at the same time.
-		// However, after some investigation, it turns out that this turns
-		// into a fancy vector instruction on AMD64 (which is all we care about)
-		// and as such It's pretty hard to beat.
-		for _, term := range searchTerms {
-			potentialMatches := IndexAll(haystack, term, -1)
+		// Fast path: when the search character is an ASCII letter with exactly
+		// two fold variants (upper + lower), use indexByteTwo to find both in
+		// a single SIMD pass instead of two separate IndexAll scans.
+		// This covers all ASCII letters except s/S (which also fold to ſ)
+		// and k/K (which also fold to K). Since bestCharOffset picks the
+		// rarest character, those are unlikely to be selected anyway.
+		searchRune := needleRune[searchStart]
+		useSIMD := len(searchTerms) == 2 && len(searchTerms[0]) == 1 && len(searchTerms[1]) == 1 &&
+			searchRune < utf8.RuneSelf &&
+			unicode.ToLower(searchRune) != unicode.ToUpper(searchRune)
 
-			for _, match := range potentialMatches {
-				// Walk backward searchStart runes in the haystack to find
-				// where the full needle would start. We must walk by runes
-				// because case-folded characters can have different byte widths
-				// (e.g. 'ſ' is 2 bytes but 's' is 1 byte).
-				needleStart := match[0]
+		if useSIMD {
+			b1 := searchTerms[0][0]
+			b2 := searchTerms[1][0]
+			haystackBytes := unsafe.Slice(unsafe.StringData(haystack), len(haystack))
+			offset := 0
+			for offset < len(haystackBytes) {
+				idx := indexByteTwo(haystackBytes[offset:], b1, b2)
+				if idx < 0 {
+					break
+				}
+				bytePos := offset + idx
+
+				needleStart := bytePos
 				skip := false
 				for k := 0; k < searchStart; k++ {
 					if needleStart <= 0 {
@@ -315,38 +323,90 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 					_, size := utf8.DecodeLastRuneInString(haystack[:needleStart])
 					needleStart -= size
 				}
-				if skip {
-					continue
-				}
-				pos := needleStart
-				isMatch := true
+				if !skip {
+					pos := needleStart
+					isMatch := true
 
-				for i := 0; i < len(needleRune); i++ {
-					if pos >= len(haystack) {
-						isMatch = false
-						break
-					}
-
-					r, size := utf8.DecodeRuneInString(haystack[pos:])
-
-					if r != needleRune[i] {
-						foldMatch := false
-						for _, f := range AllSimpleFold(r) {
-							if f == needleRune[i] {
-								foldMatch = true
-								break
-							}
-						}
-						if !foldMatch {
+					for i := 0; i < len(needleRune); i++ {
+						if pos >= len(haystack) {
 							isMatch = false
 							break
 						}
-					}
-					pos += size
-				}
 
-				if isMatch {
-					locs = append(locs, []int{needleStart, pos})
+						r, size := utf8.DecodeRuneInString(haystack[pos:])
+
+						if r != needleRune[i] {
+							foldMatch := false
+							for _, f := range AllSimpleFold(r) {
+								if f == needleRune[i] {
+									foldMatch = true
+									break
+								}
+							}
+							if !foldMatch {
+								isMatch = false
+								break
+							}
+						}
+						pos += size
+					}
+
+					if isMatch {
+						locs = append(locs, []int{needleStart, pos})
+					}
+				}
+				offset = bytePos + 1
+			}
+		} else {
+			// Slow path for characters with >2 fold variants (e.g. s/S/ſ, k/K/K)
+			// or non-ASCII characters. Uses multiple IndexAll passes.
+			for _, term := range searchTerms {
+				potentialMatches := IndexAll(haystack, term, -1)
+
+				for _, match := range potentialMatches {
+					needleStart := match[0]
+					skip := false
+					for k := 0; k < searchStart; k++ {
+						if needleStart <= 0 {
+							skip = true
+							break
+						}
+						_, size := utf8.DecodeLastRuneInString(haystack[:needleStart])
+						needleStart -= size
+					}
+					if skip {
+						continue
+					}
+					pos := needleStart
+					isMatch := true
+
+					for i := 0; i < len(needleRune); i++ {
+						if pos >= len(haystack) {
+							isMatch = false
+							break
+						}
+
+						r, size := utf8.DecodeRuneInString(haystack[pos:])
+
+						if r != needleRune[i] {
+							foldMatch := false
+							for _, f := range AllSimpleFold(r) {
+								if f == needleRune[i] {
+									foldMatch = true
+									break
+								}
+							}
+							if !foldMatch {
+								isMatch = false
+								break
+							}
+						}
+						pos += size
+					}
+
+					if isMatch {
+						locs = append(locs, []int{needleStart, pos})
+					}
 				}
 			}
 		}
