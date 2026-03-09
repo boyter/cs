@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	str "github.com/boyter/go-string"
@@ -148,6 +149,23 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 			}
 		}
 		return results
+	case *NearNode:
+		// Both children must match, then verify proximity within each doc
+		leftResults := se.evaluate(n.Left, docs, caseSensitive)
+		rightResults := se.evaluate(n.Right, leftResults, caseSensitive)
+		var results []*Document
+		for _, doc := range rightResults {
+			contentStr := string(doc.Content)
+			leftLocs := make(map[string][][]int)
+			rightLocs := make(map[string][][]int)
+			evalFile(n.Left, doc.Content, contentStr, doc.Filename, doc.Path, caseSensitive, leftLocs)
+			evalFile(n.Right, doc.Content, contentStr, doc.Filename, doc.Path, caseSensitive, rightLocs)
+			lineStarts := buildLineIndex(doc.Content)
+			if checkProximityByLines(leftLocs, rightLocs, lineStarts, n.Distance) {
+				results = append(results, doc)
+			}
+		}
+		return results
 	case *FilterNode:
 		if handler, ok := se.filterHandlers[n.Field]; ok {
 			var results []*Document
@@ -209,6 +227,8 @@ func postEvalMeta(node Node, lang string, complexity int64) bool {
 			return true
 		}
 		return !postEvalMeta(n.Expr, lang, complexity)
+	case *NearNode:
+		return postEvalMeta(n.Left, lang, complexity) && postEvalMeta(n.Right, lang, complexity)
 	case *KeywordNode, *PhraseNode, *RegexNode, *FuzzyNode:
 		// Already evaluated during per-file search
 		return true
@@ -245,6 +265,8 @@ func hasMetadataFilter(node Node) bool {
 		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
 	case *OrNode:
 		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
+	case *NearNode:
+		return hasMetadataFilter(n.Left) || hasMetadataFilter(n.Right)
 	case *NotNode:
 		return hasMetadataFilter(n.Expr)
 	default:
@@ -268,6 +290,8 @@ func isMetadataOnlySubtree(node Node) bool {
 	case *AndNode:
 		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
 	case *OrNode:
+		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
+	case *NearNode:
 		return isMetadataOnlySubtree(n.Left) && isMetadataOnlySubtree(n.Right)
 	case *NotNode:
 		return isMetadataOnlySubtree(n.Expr)
@@ -357,6 +381,29 @@ func evalFile(node Node, content []byte, contentStr string, filename string, loc
 			return true
 		}
 		return false
+	case *NearNode:
+		leftLocs := make(map[string][][]int)
+		leftMatch := evalFile(n.Left, content, contentStr, filename, location, caseSensitive, leftLocs)
+		if !leftMatch {
+			return false
+		}
+		rightLocs := make(map[string][][]int)
+		rightMatch := evalFile(n.Right, content, contentStr, filename, location, caseSensitive, rightLocs)
+		if !rightMatch {
+			return false
+		}
+		lineStarts := buildLineIndex(content)
+		if !checkProximityByLines(leftLocs, rightLocs, lineStarts, n.Distance) {
+			return false
+		}
+		// Merge locations into parent map for highlighting
+		for k, v := range leftLocs {
+			locations[k] = append(locations[k], v...)
+		}
+		for k, v := range rightLocs {
+			locations[k] = append(locations[k], v...)
+		}
+		return true
 	case *FilterNode:
 		return evalFileFilter(n, filename, location)
 	}
@@ -572,6 +619,85 @@ func handleExtensionFilter(op string, val interface{}, doc *Document) bool {
 		return exists == isEquality
 	}
 	return false
+}
+
+// --- Proximity (NEAR) helpers ---
+
+// buildLineIndex returns a sorted slice of byte offsets marking the start
+// of each line in content. Line 0 starts at offset 0.
+func buildLineIndex(content []byte) []int {
+	starts := []int{0}
+	for i, b := range content {
+		if b == '\n' && i+1 < len(content) {
+			starts = append(starts, i+1)
+		}
+	}
+	return starts
+}
+
+// offsetToLine returns the 0-based line number for the given byte offset
+// using the precomputed lineStarts index (via binary search).
+func offsetToLine(lineStarts []int, offset int) int {
+	lo, hi := 0, len(lineStarts)-1
+	for lo <= hi {
+		mid := (lo + hi) / 2
+		if lineStarts[mid] <= offset {
+			lo = mid + 1
+		} else {
+			hi = mid - 1
+		}
+	}
+	return hi
+}
+
+// checkProximityByLines checks whether any match from leftLocs is within
+// maxLines lines of any match from rightLocs. Uses a sorted merge approach.
+func checkProximityByLines(leftLocs, rightLocs map[string][][]int, lineStarts []int, maxLines int) bool {
+	leftLines := collectMatchLines(leftLocs, lineStarts)
+	rightLines := collectMatchLines(rightLocs, lineStarts)
+
+	if len(leftLines) == 0 || len(rightLines) == 0 {
+		return false
+	}
+
+	sort.Ints(leftLines)
+	sort.Ints(rightLines)
+
+	i, j := 0, 0
+	for i < len(leftLines) && j < len(rightLines) {
+		diff := leftLines[i] - rightLines[j]
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff <= maxLines {
+			return true
+		}
+		if leftLines[i] < rightLines[j] {
+			i++
+		} else {
+			j++
+		}
+	}
+	return false
+}
+
+// collectMatchLines converts byte-offset match locations to deduplicated line numbers.
+func collectMatchLines(locs map[string][][]int, lineStarts []int) []int {
+	seen := make(map[int]struct{})
+	var lines []int
+	for _, offsets := range locs {
+		for _, loc := range offsets {
+			if len(loc) < 2 {
+				continue
+			}
+			line := offsetToLine(lineStarts, loc[0])
+			if _, ok := seen[line]; !ok {
+				seen[line] = struct{}{}
+				lines = append(lines, line)
+			}
+		}
+	}
+	return lines
 }
 
 // --- Fuzzy matching helpers ---

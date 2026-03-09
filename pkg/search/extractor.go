@@ -27,6 +27,9 @@ func (v *termExtractor) walk(node Node) {
 	case *OrNode:
 		v.walk(n.Left)
 		v.walk(n.Right)
+	case *NearNode:
+		v.walk(n.Left)
+		v.walk(n.Right)
 	case *NotNode:
 		// Set the context to true for the subtree of this NOT node
 		originalContext := v.inNotContext
@@ -74,6 +77,9 @@ func countWalk(node Node, seen map[string]struct{}) {
 		countWalk(n.Left, seen)
 		countWalk(n.Right, seen)
 	case *OrNode:
+		countWalk(n.Left, seen)
+		countWalk(n.Right, seen)
+	case *NearNode:
 		countWalk(n.Left, seen)
 		countWalk(n.Right, seen)
 	case *NotNode:

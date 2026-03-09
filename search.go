@@ -87,7 +87,8 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 	// Try cache hit path: feed cached file locations instead of walking
 	var walkerToTerminate *gocodewalker.FileWalker
 	cacheQuery := cfg.ContentFilterCachePrefix() + query
-	if cache != nil {
+	nearQuery := strings.Contains(strings.ToUpper(query), "NEAR/")
+	if cache != nil && !nearQuery {
 		if cachedFiles, ok := cache.FindPrefixFiles(cfg.AllowListExtensions, cacheQuery); ok {
 			go func() {
 				defer close(fileQueue)
@@ -286,8 +287,8 @@ startWorkers:
 		close(out)
 		close(searchDone)
 
-		// Populate cache with matched file locations
-		if cache != nil && len(matchedLocations) > 0 {
+		// Populate cache with matched file locations (skip NEAR queries)
+		if cache != nil && !nearQuery && len(matchedLocations) > 0 {
 			cache.Store(cfg.AllowListExtensions, cacheQuery, matchedLocations)
 		}
 	}()

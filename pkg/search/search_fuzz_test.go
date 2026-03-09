@@ -50,6 +50,13 @@ func FuzzSearch(f *testing.F) {
 	f.Add("(cat", false)
 	f.Add("lazy AND NOT dog", false)
 	f.Add("NOT lang=go", false)
+	f.Add("cat NEAR/3 dog", false)
+	f.Add("cat NEAR/0 dog", false)
+	f.Add("NEAR", false)
+	f.Add("NEAR/", false)
+	f.Add("cat NEAR/ dog", false)
+	f.Add("cat NEAR/999 dog", false)
+	f.Add(`"hello" NEAR/5 "world"`, false)
 
 	// The test documents for the fuzzer to run against.
 	testDocs := []*Document{

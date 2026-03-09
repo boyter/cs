@@ -42,7 +42,7 @@ func (p *Parser) ParseQuery() (Node, []string) {
 	node := p.parseExpression(0)
 
 	// Final checks after parsing is complete
-	if p.tok.Type == AND || p.tok.Type == OR {
+	if p.tok.Type == AND || p.tok.Type == OR || p.tok.Type == NEAR {
 		p.notices = append(p.notices, fmt.Sprintf("Warning: Trailing '%s' was ignored.", p.tok.Literal))
 	}
 	if p.tok.Type == RPAREN {
@@ -66,6 +66,8 @@ func (p *Parser) getPrecedence() int {
 	// These tokens can imply an AND if they appear after another expression.
 	case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT:
 		return 3
+	case NEAR:
+		return 4
 	default:
 		return 0 // No precedence for other tokens like EOF, RPAREN
 	}
@@ -93,6 +95,11 @@ func (p *Parser) parseExpression(precedence int) Node {
 				return left
 			}
 			left = p.parseInfixExpression(left)
+		case NEAR:
+			if p.peekTok.Type == EOF || p.peekTok.Type == RPAREN {
+				return left
+			}
+			left = p.parseNearExpression(left)
 		case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT: // An expression-starting token here means an implicit AND.
 			left = p.parseImplicitAndExpression(left)
 		default:
@@ -260,6 +267,31 @@ func (p *Parser) parseInfixExpression(left Node) Node {
 		return &AndNode{Left: left, Right: right}
 	}
 	return &OrNode{Left: left, Right: right}
+}
+
+func (p *Parser) parseNearExpression(left Node) Node {
+	// Parse distance from NEAR token literal (e.g., "NEAR/5")
+	distance := 1
+	if idx := strings.Index(p.tok.Literal, "/"); idx >= 0 {
+		if d, err := strconv.Atoi(p.tok.Literal[idx+1:]); err == nil {
+			distance = d
+		}
+	}
+	if distance > 100 {
+		p.notices = append(p.notices, fmt.Sprintf("Notice: NEAR distance %d capped to 100.", distance))
+		distance = 100
+	}
+	if distance < 0 {
+		distance = 0
+	}
+
+	precedence := p.getPrecedence()
+	p.nextToken() // Consume the NEAR token
+	right := p.parseExpression(precedence)
+	if right == nil {
+		return left
+	}
+	return &NearNode{Left: left, Right: right, Distance: distance}
 }
 
 func (p *Parser) parseImplicitAndExpression(left Node) Node {

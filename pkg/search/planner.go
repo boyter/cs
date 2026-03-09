@@ -39,6 +39,10 @@ func PlanAST(node Node) Node {
 		n.Left = PlanAST(n.Left)
 		n.Right = PlanAST(n.Right)
 		return n
+	case *NearNode:
+		n.Left = PlanAST(n.Left)
+		n.Right = PlanAST(n.Right)
+		return n
 	case *NotNode:
 		n.Expr = PlanAST(n.Expr)
 		return n
@@ -60,6 +64,8 @@ func getCost(n Node) int {
 		return regexCost
 	case *FuzzyNode:
 		return regexCost
+	case *NearNode:
+		return regexCost // similar cost to regex — requires location checking
 	case *OrNode:
 		return orCost
 	case *NotNode:

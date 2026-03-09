@@ -1841,3 +1841,257 @@ func TestExclamationInQuery(t *testing.T) {
 		}
 	})
 }
+
+// --- NEAR operator tests ---
+
+var nearTestDocs = []*Document{
+	{Path: "near1.go", Filename: "near1.go", Language: "Go", Extension: "go",
+		Content: []byte("cat\ndog\nbird"), Complexity: 1},
+	{Path: "near2.go", Filename: "near2.go", Language: "Go", Extension: "go",
+		Content: []byte("cat\n\n\n\n\ndog"), Complexity: 1},
+	{Path: "near3.go", Filename: "near3.go", Language: "Go", Extension: "go",
+		Content: []byte("cat on one line\ndog on the same line"), Complexity: 1},
+	{Path: "near4.go", Filename: "near4.go", Language: "Go", Extension: "go",
+		Content: []byte("only cat here"), Complexity: 1},
+	{Path: "near5.go", Filename: "near5.go", Language: "Go", Extension: "go",
+		Content: []byte("dog cat"), Complexity: 1}, // same line, reversed order
+}
+
+func TestNearExecutor(t *testing.T) {
+	se := NewSearchEngine(nearTestDocs)
+	testCases := []struct {
+		name      string
+		query     string
+		wantPaths []string
+	}{
+		{"NEAR/0 same line", `cat NEAR/0 dog`, []string{"near5.go"}},
+		{"NEAR/1 adjacent lines", `cat NEAR/1 dog`, []string{"near1.go", "near3.go", "near5.go"}},
+		{"NEAR/2 within 2 lines", `cat NEAR/2 dog`, []string{"near1.go", "near3.go", "near5.go"}},
+		{"NEAR/5 within 5 lines", `cat NEAR/5 dog`, []string{"near1.go", "near2.go", "near3.go", "near5.go"}},
+		{"NEAR/3 too far", `cat NEAR/3 dog`, []string{"near1.go", "near3.go", "near5.go"}}, // near2 has 4 lines gap
+		{"NEAR no match one term missing", `cat NEAR/5 elephant`, []string{}},
+		{"NEAR with AND", `cat NEAR/1 dog AND bird`, []string{"near1.go"}},
+		{"NEAR order independent", `dog NEAR/1 cat`, []string{"near1.go", "near3.go", "near5.go"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := se.Search(tc.query, false)
+			if err != nil {
+				t.Fatalf("Search failed: %v", err)
+			}
+			gotPaths := make(map[string]bool)
+			for _, doc := range res.Documents {
+				gotPaths[doc.Path] = true
+			}
+			wantPaths := make(map[string]bool)
+			for _, p := range tc.wantPaths {
+				wantPaths[p] = true
+			}
+			if len(gotPaths) != len(wantPaths) {
+				t.Errorf("got %d results %v, want %d %v", len(gotPaths), gotPaths, len(wantPaths), wantPaths)
+				return
+			}
+			for p := range wantPaths {
+				if !gotPaths[p] {
+					t.Errorf("missing expected path %s, got %v", p, gotPaths)
+				}
+			}
+		})
+	}
+}
+
+func TestNearEvaluateFile(t *testing.T) {
+	testCases := []struct {
+		name    string
+		query   string
+		content string
+		want    bool
+	}{
+		{"same line", `cat NEAR/0 dog`, "cat and dog", true},
+		{"same line no match", `cat NEAR/0 dog`, "cat\ndog", false},
+		{"adjacent lines", `cat NEAR/1 dog`, "cat\ndog", true},
+		{"gap of 2", `cat NEAR/1 dog`, "cat\n\ndog", false},
+		{"gap of 2 with NEAR/2", `cat NEAR/2 dog`, "cat\n\ndog", true},
+		{"phrase NEAR keyword", `"hello world" NEAR/1 dog`, "hello world\ndog", true},
+		{"regex NEAR keyword", `/c.t/ NEAR/0 dog`, "cat and dog", true},
+		{"fuzzy NEAR keyword", `cot~1 NEAR/0 dog`, "cat and dog", true},
+		{"both terms missing", `cat NEAR/5 dog`, "bird and fish", false},
+		{"one term missing", `cat NEAR/5 dog`, "just a cat", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lexer := NewLexer(strings.NewReader(tc.query))
+			parser := NewParser(lexer)
+			ast, _ := parser.ParseQuery()
+			ast = PlanAST(ast)
+
+			got, locs := EvaluateFile(ast, []byte(tc.content), "test.go", "test.go", false)
+			if got != tc.want {
+				t.Errorf("EvaluateFile() = %v, want %v (locs=%v)", got, tc.want, locs)
+			}
+		})
+	}
+}
+
+func TestNearLexer(t *testing.T) {
+	testCases := []struct {
+		name  string
+		query string
+		want  []Token
+	}{
+		{
+			name:  "NEAR/5 token",
+			query: "cat NEAR/5 dog",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "cat"},
+				{Type: WS, Literal: " "},
+				{Type: NEAR, Literal: "NEAR/5"},
+				{Type: WS, Literal: " "},
+				{Type: IDENTIFIER, Literal: "dog"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
+			name:  "near/3 lowercase",
+			query: "cat near/3 dog",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "cat"},
+				{Type: WS, Literal: " "},
+				{Type: NEAR, Literal: "near/3"},
+				{Type: WS, Literal: " "},
+				{Type: IDENTIFIER, Literal: "dog"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+		{
+			name:  "bare NEAR no slash is keyword",
+			query: "NEAR",
+			want: []Token{
+				{Type: IDENTIFIER, Literal: "NEAR"},
+				{Type: EOF, Literal: ""},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lexer := NewLexer(strings.NewReader(tc.query))
+			var got []Token
+			for {
+				tok := lexer.scan()
+				got = append(got, tok)
+				if tok.Type == EOF {
+					break
+				}
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("token count: got %d, want %d\ngot:  %v\nwant: %v", len(got), len(tc.want), got, tc.want)
+			}
+			for i, g := range got {
+				if g.Type != tc.want[i].Type || g.Literal != tc.want[i].Literal {
+					t.Errorf("token[%d]: got {%d %q}, want {%d %q}", i, g.Type, g.Literal, tc.want[i].Type, tc.want[i].Literal)
+				}
+			}
+		})
+	}
+}
+
+func TestNearParser(t *testing.T) {
+	testCases := []struct {
+		name    string
+		query   string
+		wantStr string
+	}{
+		{"basic NEAR", "a NEAR/3 b", "(KEYWORD(a) NEAR/3 KEYWORD(b))"},
+		{"NEAR/0", "a NEAR/0 b", "(KEYWORD(a) NEAR/0 KEYWORD(b))"},
+		{"NEAR binds tighter than AND", "a AND b NEAR/3 c", "(KEYWORD(a) AND (KEYWORD(b) NEAR/3 KEYWORD(c)))"},
+		{"NEAR binds tighter than OR", "a OR b NEAR/3 c", "(KEYWORD(a) OR (KEYWORD(b) NEAR/3 KEYWORD(c)))"},
+		{"NEAR with phrases", `"hello" NEAR/5 "world"`, `(PHRASE("hello") NEAR/5 PHRASE("world"))`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lexer := NewLexer(strings.NewReader(tc.query))
+			parser := NewParser(lexer)
+			ast, _ := parser.ParseQuery()
+			if ast == nil {
+				t.Fatal("parser returned nil AST")
+			}
+			got := ast.String()
+			if got != tc.wantStr {
+				t.Errorf("AST = %s, want %s", got, tc.wantStr)
+			}
+		})
+	}
+}
+
+func TestNearDistanceCap(t *testing.T) {
+	lexer := NewLexer(strings.NewReader("a NEAR/999 b"))
+	parser := NewParser(lexer)
+	ast, notices := parser.ParseQuery()
+	near, ok := ast.(*NearNode)
+	if !ok {
+		t.Fatalf("expected NearNode, got %T", ast)
+	}
+	if near.Distance != 100 {
+		t.Errorf("distance = %d, want 100 (capped)", near.Distance)
+	}
+	foundNotice := false
+	for _, n := range notices {
+		if strings.Contains(n, "capped") {
+			foundNotice = true
+		}
+	}
+	if !foundNotice {
+		t.Error("expected a notice about distance being capped")
+	}
+}
+
+func TestNearExtractTerms(t *testing.T) {
+	lexer := NewLexer(strings.NewReader(`cat NEAR/5 dog`))
+	parser := NewParser(lexer)
+	ast, _ := parser.ParseQuery()
+
+	terms := ExtractTerms(ast)
+	if len(terms) != 2 {
+		t.Fatalf("got %d terms, want 2: %v", len(terms), terms)
+	}
+	termSet := map[string]bool{}
+	for _, term := range terms {
+		termSet[term] = true
+	}
+	if !termSet["cat"] || !termSet["dog"] {
+		t.Errorf("expected cat and dog, got %v", terms)
+	}
+}
+
+func TestBuildLineIndex(t *testing.T) {
+	content := []byte("line0\nline1\nline2")
+	idx := buildLineIndex(content)
+	if len(idx) != 3 {
+		t.Fatalf("got %d line starts, want 3: %v", len(idx), idx)
+	}
+	if idx[0] != 0 || idx[1] != 6 || idx[2] != 12 {
+		t.Errorf("line starts = %v, want [0, 6, 12]", idx)
+	}
+}
+
+func TestOffsetToLine(t *testing.T) {
+	lineStarts := []int{0, 6, 12}
+	tests := []struct {
+		offset int
+		want   int
+	}{
+		{0, 0}, {3, 0}, {5, 0},
+		{6, 1}, {10, 1},
+		{12, 2}, {15, 2},
+	}
+	for _, tc := range tests {
+		got := offsetToLine(lineStarts, tc.offset)
+		if got != tc.want {
+			t.Errorf("offsetToLine(%d) = %d, want %d", tc.offset, got, tc.want)
+		}
+	}
+}

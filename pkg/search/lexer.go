@@ -28,6 +28,7 @@ const (
 	STRING_ALIAS // high, low
 	COMMA
 	FUZZY // term~1, term~2
+	NEAR  // NEAR/N
 )
 
 // Token represents a single token from the query string.
@@ -150,6 +151,30 @@ func (l *Lexer) scanIdentifier() Token {
 	literal := sb.String()
 
 	upper := strings.ToUpper(literal)
+
+	// Check for NEAR/N proximity operator
+	if upper == "NEAR" {
+		ch := l.read()
+		if ch == '/' {
+			var distBuf strings.Builder
+			for {
+				d := l.read()
+				if d == eof || !unicode.IsDigit(d) {
+					l.unread()
+					break
+				}
+				distBuf.WriteRune(d)
+			}
+			if distBuf.Len() > 0 {
+				return Token{Type: NEAR, Literal: literal + "/" + distBuf.String()}
+			}
+			// Bare "NEAR/" with no number — unread '/' and treat as keyword
+			l.unread()
+		} else {
+			l.unread()
+		}
+	}
+
 	switch upper {
 	case "AND":
 		return Token{Type: AND, Literal: literal}

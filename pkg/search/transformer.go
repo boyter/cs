@@ -30,6 +30,10 @@ func (t *Transformer) walk(node Node) Node {
 		n.Left = t.walk(n.Left)
 		n.Right = t.walk(n.Right)
 		return n
+	case *NearNode:
+		n.Left = t.walk(n.Left)
+		n.Right = t.walk(n.Right)
+		return n
 	case *NotNode:
 		n.Expr = t.walk(n.Expr)
 		return n

@@ -87,3 +87,15 @@ type FuzzyNode struct {
 func (n *FuzzyNode) String() string {
 	return fmt.Sprintf("FUZZY(%s~%d)", n.Value, n.Distance)
 }
+
+// NearNode represents a proximity search — both children must match
+// and at least one pair of match locations must be within Distance lines.
+type NearNode struct {
+	Left     Node
+	Right    Node
+	Distance int // max lines between matches, 0 = same line, capped at 100
+}
+
+func (n *NearNode) String() string {
+	return fmt.Sprintf("(%s NEAR/%d %s)", n.Left, n.Distance, n.Right)
+}
