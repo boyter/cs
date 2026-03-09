@@ -194,7 +194,7 @@ func TestRenderANSI_WithMatch(t *testing.T) {
 
 func TestRenderANSILine_Convenience(t *testing.T) {
 	line := `if x == 42 { return "yes" }`
-	result := RenderANSILine(line, [][]int{{3, 5}})
+	result := RenderANSILine(line, [][]int{{3, 5}}, false)
 	if !strings.Contains(result, "if") {
 		t.Error("expected 'if' in output")
 	}
@@ -270,7 +270,7 @@ func TestRenderHTML_HTMLEscaping(t *testing.T) {
 
 func TestRenderHTMLLine_Convenience(t *testing.T) {
 	line := `if x == 42 { return "yes" }`
-	result := RenderHTMLLine(line, [][]int{{3, 5}})
+	result := RenderHTMLLine(line, [][]int{{3, 5}}, false)
 	if !strings.Contains(result, `<span class="syn-kw">`) {
 		t.Error("expected keyword span for 'if'")
 	}
@@ -287,7 +287,7 @@ func BenchmarkRenderHTMLLine(b *testing.B) {
 	matchLocs := [][]int{{5, 22}}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		RenderHTMLLine(line, matchLocs)
+		RenderHTMLLine(line, matchLocs, false)
 	}
 }
 
@@ -304,6 +304,6 @@ func BenchmarkRenderANSILine(b *testing.B) {
 	matchLocs := [][]int{{5, 22}}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		RenderANSILine(line, matchLocs)
+		RenderANSILine(line, matchLocs, false)
 	}
 }

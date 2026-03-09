@@ -92,6 +92,7 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 
 	for _, res := range results {
 		fileMode := resolveSnippetMode(cfg.SnippetMode, res.Filename)
+		prose := snippet.IsProseFile(res.Extension)
 
 		if fileMode == "grep" {
 			ctxBefore, ctxAfter := cfg.ResolveContext()
@@ -112,7 +113,7 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 			for _, lr := range lineResults {
 				var displayContent string
 				if !noColor && !cfg.NoSyntax {
-					displayContent = RenderANSILine(lr.Content, lr.Locs)
+					displayContent = RenderANSILine(lr.Content, lr.Locs, prose)
 				} else {
 					displayContent = str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
 				}
@@ -142,7 +143,7 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				prevLine = lr.LineNumber
 				var displayContent string
 				if !noColor && !cfg.NoSyntax {
-					displayContent = RenderANSILine(lr.Content, lr.Locs)
+					displayContent = RenderANSILine(lr.Content, lr.Locs, prose)
 				} else {
 					displayContent = str.HighlightString(lr.Content, lr.Locs, fmtBegin, fmtEnd)
 				}
@@ -192,7 +193,7 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 				// Highlight if we have positions to highlight
 				if !(snippets[i].StartPos == 0 && snippets[i].EndPos == 0) {
 					if !noColor && !cfg.NoSyntax {
-						displayContent = RenderANSILine(snippets[i].Content, l)
+						displayContent = RenderANSILine(snippets[i].Content, l, prose)
 					} else {
 						displayContent = str.HighlightString(snippets[i].Content, l, fmtBegin, fmtEnd)
 					}

@@ -191,7 +191,7 @@ func StartHttpServer(cfg *Config) {
 			endPos = startPos
 		}
 
-		coloredContent := RenderHTMLLine(string(content), [][]int{{startPos, endPos}})
+		coloredContent := RenderHTMLLine(string(content), [][]int{{startPos, endPos}}, snippet.IsProseFile(gocodewalker.GetExtension(filepath.Base(path))))
 		coloredContent = strings.Replace(coloredContent, "<strong>", fmt.Sprintf(`<strong id="%d">`, startPos), 1)
 
 		lang, sccLines, sccCode, sccComment, sccBlank, sccComplexity, _ := fileCodeStats(filepath.Base(path), content)
@@ -348,6 +348,7 @@ func StartHttpServer(cfg *Config) {
 
 		for _, res := range displayResults {
 			fileMode := resolveSnippetMode(snippetModeParam, res.Filename)
+			prose := snippet.IsProseFile(res.Extension)
 
 			if fileMode == "grep" {
 				lineResults := snippet.FindAllMatchingLines(res, cfg.LineLimit, 0, 0)
@@ -357,7 +358,7 @@ func StartHttpServer(cfg *Config) {
 				var httpLines []httpLineResult
 				prevLine := 0
 				for _, lr := range lineResults {
-					coloredLine := RenderHTMLLine(lr.Content, lr.Locs)
+					coloredLine := RenderHTMLLine(lr.Content, lr.Locs, prose)
 					gap := prevLine > 0 && lr.LineNumber > prevLine+1
 					prevLine = lr.LineNumber
 					httpLines = append(httpLines, httpLineResult{
@@ -413,7 +414,7 @@ func StartHttpServer(cfg *Config) {
 				var httpLines []httpLineResult
 				prevLine := 0
 				for _, lr := range lineResults {
-					coloredLine := RenderHTMLLine(lr.Content, lr.Locs)
+					coloredLine := RenderHTMLLine(lr.Content, lr.Locs, prose)
 					gap := prevLine > 0 && lr.LineNumber > prevLine+1
 					prevLine = lr.LineNumber
 					httpLines = append(httpLines, httpLineResult{
@@ -490,7 +491,7 @@ func StartHttpServer(cfg *Config) {
 
 				coloredContent := v3.Content
 				if v3.EndPos != 0 {
-					coloredContent = RenderHTMLLine(v3.Content, l)
+					coloredContent = RenderHTMLLine(v3.Content, l, prose)
 				}
 
 				searchResults = append(searchResults, httpSearchResult{

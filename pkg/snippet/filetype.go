@@ -30,6 +30,12 @@ var proseExtensions = map[string]bool{
 	"roff":     true,
 }
 
+// IsProseFile returns true if the given extension (without dot) is a prose/text
+// file type that should not receive code syntax highlighting.
+func IsProseFile(ext string) bool {
+	return proseExtensions[ext]
+}
+
 // SnippetModeForExtension returns the snippet mode appropriate for a given
 // file extension (without the leading dot). Prose files get "snippet" (free-text),
 // code files get "lines" (line-based with line numbers).

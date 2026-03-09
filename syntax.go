@@ -367,15 +367,21 @@ func RenderLipgloss(line string, kinds []TokenKind, isSelected bool) string {
 }
 
 // RenderANSILine is a convenience that tokenizes, builds the kind array, and renders ANSI.
-func RenderANSILine(line string, matchLocs [][]int) string {
-	tokens := Tokenize(line)
+func RenderANSILine(line string, matchLocs [][]int, prose bool) string {
+	var tokens []Token
+	if !prose {
+		tokens = Tokenize(line)
+	}
 	kinds := BuildKindArray(line, tokens, matchLocs)
 	return RenderANSI(line, kinds)
 }
 
 // RenderLipglossLine is a convenience that tokenizes, builds the kind array, and renders lipgloss.
-func RenderLipglossLine(line string, matchLocs [][]int, isSelected bool) string {
-	tokens := Tokenize(line)
+func RenderLipglossLine(line string, matchLocs [][]int, isSelected bool, prose bool) string {
+	var tokens []Token
+	if !prose {
+		tokens = Tokenize(line)
+	}
 	kinds := BuildKindArray(line, tokens, matchLocs)
 	return RenderLipgloss(line, kinds, isSelected)
 }
@@ -437,8 +443,11 @@ func RenderHTML(line string, kinds []TokenKind) string {
 }
 
 // RenderHTMLLine is a convenience that tokenizes, builds the kind array, and renders HTML.
-func RenderHTMLLine(line string, matchLocs [][]int) string {
-	tokens := Tokenize(line)
+func RenderHTMLLine(line string, matchLocs [][]int, prose bool) string {
+	var tokens []Token
+	if !prose {
+		tokens = Tokenize(line)
+	}
 	kinds := BuildKindArray(line, tokens, matchLocs)
 	return RenderHTML(line, kinds)
 }

@@ -35,6 +35,7 @@ type searchResult struct {
 	Complexity     int64
 	DuplicateCount int
 	MatchLocations map[string][][]int // absolute byte positions in file
+	Prose          bool               // true for prose/text files (skip syntax highlighting)
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -125,6 +126,7 @@ type model struct {
 	viewMatchLocs   map[string][][]int // absolute byte match positions
 	viewLineOffsets []int              // byte offset where each line starts
 	viewStartLine   int                // line to initially center on
+	viewProse       bool               // true if viewed file is prose (skip syntax highlighting)
 }
 
 func initialModel(cfg *Config) model {
@@ -244,6 +246,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var newResults []searchResult
 				for _, fj := range ranked {
 					fileMode := resolveSnippetMode(m.snippetMode, fj.Filename)
+					isProse := snippet.IsProseFile(fj.Extension)
 					if fileMode == "grep" {
 						lineResults := snippet.FindAllMatchingLines(fj, m.cfg.LineLimit, ctxBefore, ctxAfter)
 						lineRange := ""
@@ -267,13 +270,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Complexity:     fj.Complexity,
 							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
+							Prose:          isProse,
 						})
 					} else if fileMode == "lines" {
 						surroundLines := snippetLen / 100
-					if surroundLines < 1 {
-						surroundLines = 1
-					}
-					lineResults := snippet.FindMatchingLines(fj, surroundLines)
+						if surroundLines < 1 {
+							surroundLines = 1
+						}
+						lineResults := snippet.FindMatchingLines(fj, surroundLines)
 						lineRange := ""
 						if len(lineResults) > 0 {
 							lineRange = fmt.Sprintf("%d-%d",
@@ -295,6 +299,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Complexity:     fj.Complexity,
 							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
+							Prose:          isProse,
 						})
 					} else {
 						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
@@ -322,6 +327,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Complexity:     fj.Complexity,
 							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
+							Prose:          isProse,
 						})
 					}
 				}
@@ -581,6 +587,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 	for fj := range searchCh {
 		// Build a preliminary searchResult for immediate display
 		fileMode := resolveSnippetMode(snippetMode, fj.Filename)
+		isProse := snippet.IsProseFile(fj.Extension)
 		var sr searchResult
 		if fileMode == "grep" {
 			lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit, ctxBefore, ctxAfter)
@@ -602,6 +609,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Blank:          fj.Blank,
 				Complexity:     fj.Complexity,
 				MatchLocations: fj.MatchLocations,
+				Prose:          isProse,
 			}
 		} else if fileMode == "lines" {
 			lineResults := snippet.FindMatchingLines(fj, 2)
@@ -623,6 +631,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Blank:          fj.Blank,
 				Complexity:     fj.Complexity,
 				MatchLocations: fj.MatchLocations,
+				Prose:          isProse,
 			}
 		} else {
 			docFreq := make(map[string]int, len(fj.MatchLocations))
@@ -651,6 +660,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Blank:          fj.Blank,
 				Complexity:     fj.Complexity,
 				MatchLocations: fj.MatchLocations,
+				Prose:          isProse,
 			}
 		}
 
@@ -1129,7 +1139,7 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 				prefix = selectedIndicator.String() + " "
 			}
 			lineNum := snippetLabelStyle.Render(fmt.Sprintf("%4d ", lr.LineNumber))
-			highlighted := m.highlightWithLocs(lr.Content, lr.Locs, isSelected)
+			highlighted := m.highlightWithLocs(lr.Content, lr.Locs, isSelected, r.Prose)
 			b.WriteString(prefix + lineNum + highlighted)
 			b.WriteString("\n")
 		}
@@ -1160,7 +1170,7 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 				lineLocs = append(lineLocs, []int{start, end})
 			}
 
-			highlighted := m.highlightWithLocs(line, lineLocs, isSelected)
+			highlighted := m.highlightWithLocs(line, lineLocs, isSelected, r.Prose)
 			b.WriteString(prefix + highlighted)
 			b.WriteString("\n")
 			offset = lineEnd + 1 // +1 for the \n
@@ -1170,9 +1180,9 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	return b.String()
 }
 
-func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool) string {
+func (m model) highlightWithLocs(line string, locs [][]int, isSelected bool, prose bool) string {
 	if !m.cfg.NoSyntax {
-		return RenderLipglossLine(line, locs, isSelected)
+		return RenderLipglossLine(line, locs, isSelected, prose)
 	}
 	return highlightMatchOnly(line, locs, isSelected)
 }
@@ -1255,6 +1265,7 @@ func (m *model) openViewer(r searchResult) error {
 	m.viewLineRange = r.LineRange
 	m.viewMatchLocs = r.MatchLocations
 	m.viewLineOffsets = offsets
+	m.viewProse = r.Prose
 	m.viewStartLine = startLine
 	return nil
 }
@@ -1357,7 +1368,7 @@ func (m model) renderViewer() string {
 
 		// Get match locations for this line and render
 		locs := m.viewerMatchLocsForLine(lineIdx)
-		content := m.highlightWithLocs(m.viewLines[lineIdx], locs, false)
+		content := m.highlightWithLocs(m.viewLines[lineIdx], locs, false, m.viewProse)
 
 		b.WriteString(indicator + lineNum + sep + content)
 		b.WriteString("\n")
