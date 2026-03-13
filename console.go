@@ -38,7 +38,7 @@ func ConsoleSearch(cfg *Config) {
 	// Rank results
 	textFileCount := int(stats.TextFileCount.Load())
 	testIntent := ranker.HasTestIntent(strings.Fields(query))
-	results = ranker.RankResults(cfg.Ranker, textFileCount, results, cfg.StructuralRankerConfig(), cfg.ResolveGravityStrength(), cfg.ResolveNoiseSensitivity(), cfg.TestPenalty, testIntent)
+	results = ranker.RankResults(cfg.Ranker, textFileCount, results, cfg.StructuralRankerConfig(), cfg.ResolveRankingProfile(), testIntent)
 
 	// Dedup (before limit, so freed slots get backfilled)
 	if cfg.Dedup {

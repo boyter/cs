@@ -265,6 +265,7 @@ func StartHttpServer(cfg *Config) {
 			searchCfg.Ranker = rankerParam
 			searchCfg.GravityIntent = gravityParam
 			searchCfg.NoiseIntent = noiseParam
+			searchCfg.TestPenalty = testPenalty
 			// Clear all content filters before setting the requested one
 			searchCfg.OnlyCode = false
 			searchCfg.OnlyComments = false
@@ -313,7 +314,7 @@ func StartHttpServer(cfg *Config) {
 
 			processedFileCount = stats.TextFileCount.Load()
 			testIntent := ranker.HasTestIntent(strings.Fields(query))
-			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), testPenalty, testIntent)
+			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveRankingProfile(), testIntent)
 		}
 
 		// Dedup (before pagination, so freed slots get backfilled)

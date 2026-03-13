@@ -186,7 +186,7 @@ func TestMatchWeight_NegativeOffset_FallbackToCode(t *testing.T) {
 
 func TestRankResultsStructural_EmptyResults(t *testing.T) {
 	cfg := DefaultStructuralConfig()
-	results := rankResultsStructural(100, nil, map[string]int{}, cfg)
+	results := rankResultsStructural(100, nil, map[string]int{}, cfg, DefaultRankingProfile())
 	if len(results) != 0 {
 		t.Errorf("expected empty results, got %d", len(results))
 	}
@@ -225,7 +225,7 @@ func TestRankResultsStructural_CodeMatchScoresHigherThanComment(t *testing.T) {
 
 	results := []*common.FileJob{codeFile, commentFile}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 
 	if codeFile.Score <= commentFile.Score {
 		t.Errorf("expected code match score (%f) > comment match score (%f)", codeFile.Score, commentFile.Score)
@@ -251,7 +251,7 @@ func TestRankResultsStructural_OnlyCode_ZerosCommentOnlyFile(t *testing.T) {
 
 	results := []*common.FileJob{commentFile}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 
 	if commentFile.Score != 0 {
 		t.Errorf("expected score 0 for comment-only file with OnlyCode, got %f", commentFile.Score)
@@ -272,7 +272,7 @@ func TestRankResultsStructural_NilByteType_StillScored(t *testing.T) {
 
 	results := []*common.FileJob{file}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 
 	if file.Score <= 0 {
 		t.Errorf("expected positive score for nil ContentByteType fallback, got %f", file.Score)
@@ -295,7 +295,7 @@ func TestRankResults_StructuralCase(t *testing.T) {
 		MatchLocations:  map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 0.0, NoiseSensitivity: 100.0, TestPenalty: 1.0}, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -313,7 +313,7 @@ func TestRankResults_BM25WithNilStructuralCfg(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 0.0, NoiseSensitivity: 100.0, TestPenalty: 1.0}, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -403,7 +403,7 @@ func TestComplexityGravity_IntegrationWithBM25(t *testing.T) {
 		MatchLocations: map[string][][]int{"test": {{0, 4}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, 1.5, 100.0, 1.0, false)
+	results := RankResults("bm25", 10, []*common.FileJob{lowComplexity, highComplexity}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 1.5, NoiseSensitivity: 100.0, TestPenalty: 1.0}, false)
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -522,7 +522,7 @@ func TestTFIDF_ZeroDocumentFrequency_NoInf(t *testing.T) {
 
 	// documentFrequencies has no entry for "missingterm" → defaults to 0
 	df := map[string]int{}
-	results := RankResults("tfidf", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	results := RankResults("tfidf", 10, []*common.FileJob{file}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 0.0, NoiseSensitivity: 100.0, TestPenalty: 1.0}, false)
 	_ = df
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -541,7 +541,7 @@ func TestBM25_ZeroDocumentFrequency_NoInf(t *testing.T) {
 		MatchLocations: map[string][][]int{"missingterm": {{0, 11}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	results := RankResults("bm25", 10, []*common.FileJob{file}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 0.0, NoiseSensitivity: 100.0, TestPenalty: 1.0}, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -564,7 +564,7 @@ func TestStructural_ZeroDocumentFrequency_NoInf(t *testing.T) {
 		MatchLocations:  map[string][][]int{"missingterm": {{0, 11}}},
 	}
 
-	results := RankResults("structural", 10, []*common.FileJob{file}, nil, 0.0, 100.0, 1.0, false)
+	results := RankResults("structural", 10, []*common.FileJob{file}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 0.0, NoiseSensitivity: 100.0, TestPenalty: 1.0}, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -755,7 +755,7 @@ func TestTestDampening_IntegrationWithBM25(t *testing.T) {
 		MatchLocations: map[string][][]int{"auth": {{0, 4}, {10, 14}, {20, 24}}},
 	}
 
-	results := RankResults("bm25", 10, []*common.FileJob{implFile, testFile}, nil, 0.0, 100.0, 0.4, false)
+	results := RankResults("bm25", 10, []*common.FileJob{implFile, testFile}, nil, &RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 0.0, NoiseSensitivity: 100.0, TestPenalty: 0.4}, false)
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}

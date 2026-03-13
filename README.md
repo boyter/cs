@@ -104,6 +104,24 @@ cs "login" --gravity=brain       # Boosts complex files (the implementation)
 cs "login" --gravity=low         # Boosts simple files (configs/interfaces)
 ```
 
+#### Ranking Profiles
+
+Preset ranking strategies that tune multiple parameters at once.
+
+```shell
+cs "authenticate" --profile=precise   # Short, focused source files
+cs "authenticate" --profile=broad     # Cast a wide net, include tests
+cs "authenticate"                     # Balanced (default, same as always)
+```
+
+| Profile | Best for | What it does |
+|---------|----------|--------------|
+| `balanced` | General use (default) | Standard BM25 tuning, moderate complexity boost, test files dampened |
+| `precise` | "Find the one file that matters" | Saturates quickly on term frequency, penalises long files, aggressively filters noise and test files |
+| `broad` | "Show me everything relevant" | Rewards repeated matches, boosts long files slightly, includes test files at full weight |
+
+When `--profile` is set it overrides `--gravity`, `--noise`, and `--test-penalty`.
+
 #### Deduplication
 
 Collapse byte-identical matches into a single result.
@@ -319,6 +337,7 @@ Flags:
       --only-strings              only rank matches in string literals (auto-selects structural ranker)
       --only-usages               only show matches on usage lines (excludes declarations)
   -o, --output string             output filename (default stdout)
+      --profile string            ranking profile [balanced, precise, broad] — overrides --gravity, --noise, and --test-penalty
       --ranker string             set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
       --reverse                   reverse the result order
@@ -420,6 +439,7 @@ The MCP server exposes two tools:
 | `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`) |
 | `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
 | `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off` |
+| `profile` | string | no | Ranking profile: `balanced` (default), `precise`, `broad` — overrides gravity/noise/test-penalty |
 
 Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
 

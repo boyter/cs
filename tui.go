@@ -228,7 +228,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Rank all results with BM25 and re-extract snippets with global frequencies
 			if len(m.fileJobs) > 0 {
 				testIntent := ranker.HasTestIntent(strings.Fields(m.searchInput.Value()))
-				ranked := ranker.RankResults(m.cfg.Ranker, m.textFileCount, m.fileJobs, m.cfg.StructuralRankerConfig(), m.cfg.ResolveGravityStrength(), m.cfg.ResolveNoiseSensitivity(), m.cfg.TestPenalty, testIntent)
+				ranked := ranker.RankResults(m.cfg.Ranker, m.textFileCount, m.fileJobs, m.cfg.StructuralRankerConfig(), m.cfg.ResolveRankingProfile(), testIntent)
 
 				if m.cfg.Dedup {
 					ranked = ranker.DeduplicateResults(ranked)

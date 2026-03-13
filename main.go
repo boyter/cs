@@ -76,6 +76,15 @@ func main() {
 
 			cfg.SearchString = args
 
+			// Validate --profile
+			switch cfg.Profile {
+			case "", "balanced", "precise", "broad":
+				// ok
+			default:
+				fmt.Fprintf(os.Stderr, "error: unknown --profile %q (valid: balanced, precise, broad)\n", cfg.Profile)
+				os.Exit(1)
+			}
+
 			// Mutual exclusivity check
 			count := 0
 			if cfg.OnlyCode {
@@ -235,6 +244,12 @@ func main() {
 		"ranker",
 		"structural",
 		"set ranking algorithm [simple, tfidf, bm25, structural]",
+	)
+	flags.StringVar(
+		&cfg.Profile,
+		"profile",
+		"",
+		"ranking profile [balanced, precise, broad] — overrides --gravity, --noise, and --test-penalty when set",
 	)
 	flags.StringVar(
 		&cfg.GravityIntent,

@@ -128,7 +128,7 @@ func TestStructuralStopword_DampenedLessThanNonStopword(t *testing.T) {
 
 	results := []*common.FileJob{fileA, fileB}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 
 	if fileA.Score >= fileB.Score {
 		t.Errorf("expected stopword-heavy file score (%f) < non-stopword-heavy file score (%f)",
@@ -158,7 +158,7 @@ func TestStructuralStopword_AllStopwordsSafeguard(t *testing.T) {
 
 	results := []*common.FileJob{file}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 	allStopScore := file.Score
 
 	// Now test with a mixed query — the stopword should be dampened
@@ -174,7 +174,7 @@ func TestStructuralStopword_AllStopwordsSafeguard(t *testing.T) {
 
 	results2 := []*common.FileJob{file2}
 	df2 := CalculateDocumentFrequency(results2)
-	rankResultsStructural(10, results2, df2, cfg)
+	rankResultsStructural(10, results2, df2, cfg, DefaultRankingProfile())
 
 	// In the mixed case, "func" is dampened. The full score should be less than
 	// allStopScore (undampened func) + a full handler score. But more importantly,
@@ -215,7 +215,7 @@ func TestStructuralStopword_UnknownLanguage_NoPenalty(t *testing.T) {
 
 	results := []*common.FileJob{unknownFile, goFile}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 
 	// Unknown language file should score higher because "func" isn't dampened
 	if unknownFile.Score <= goFile.Score {
@@ -254,7 +254,7 @@ func TestStructuralStopword_CrossLanguage(t *testing.T) {
 
 	results := []*common.FileJob{pythonFile, goFile}
 	df := CalculateDocumentFrequency(results)
-	rankResultsStructural(10, results, df, cfg)
+	rankResultsStructural(10, results, df, cfg, DefaultRankingProfile())
 
 	// "def" dampened in Python, not in Go → Go file should score higher
 	if goFile.Score <= pythonFile.Score {

@@ -29,6 +29,7 @@ type Config struct {
 	SnippetCount  int
 	SnippetMode   string
 	Ranker        string
+	Profile       string
 	GravityIntent string
 	NoiseIntent   string
 	TestPenalty   float64
@@ -163,6 +164,22 @@ func (c *Config) ResolveContext() (before, after int) {
 		after = c.ContextAfter
 	}
 	return
+}
+
+// ResolveRankingProfile returns a RankingProfile for ranking. When a named
+// profile is set (--profile), it is used directly. Otherwise one is built from
+// the individual Config fields so existing CLI flags continue to work.
+func (c *Config) ResolveRankingProfile() *ranker.RankingProfile {
+	if c.Profile != "" {
+		return ranker.ResolveProfileByName(c.Profile)
+	}
+	return &ranker.RankingProfile{
+		K1:               1.2,
+		B:                0.75,
+		GravityStrength:  c.ResolveGravityStrength(),
+		NoiseSensitivity: c.ResolveNoiseSensitivity(),
+		TestPenalty:      c.TestPenalty,
+	}
 }
 
 // ResolveNoiseSensitivity maps the NoiseIntent string to a numeric sensitivity value

@@ -14,6 +14,46 @@ import (
 	"github.com/boyter/scc/v3/processor"
 )
 
+// RankingProfile bundles BM25 parameters and post-ranking knobs into a single
+// named configuration. Consumers can use DefaultRankingProfile(), PreciseProfile,
+// or BroadProfile, or construct custom values.
+type RankingProfile struct {
+	K1               float64
+	B                float64
+	GravityStrength  float64
+	NoiseSensitivity float64
+	TestPenalty      float64
+	LengthBias       float64
+}
+
+// DefaultRankingProfile returns the balanced profile matching the previously
+// hardcoded values.
+func DefaultRankingProfile() RankingProfile {
+	return RankingProfile{K1: 1.2, B: 0.75, GravityStrength: 1.0, NoiseSensitivity: 1.0, TestPenalty: 0.4, LengthBias: 0.0}
+}
+
+// PreciseProfile favours short, focused files with exact matches.
+var PreciseProfile = RankingProfile{K1: 0.3, B: 0.95, GravityStrength: 2.5, NoiseSensitivity: 2.5, TestPenalty: 0.1, LengthBias: 0.3}
+
+// BroadProfile is exploratory: tolerates noise and long files, rewards repeated matches.
+var BroadProfile = RankingProfile{K1: 2.5, B: 0.15, GravityStrength: 0.3, NoiseSensitivity: 0.3, TestPenalty: 1.0, LengthBias: -0.1}
+
+// ResolveProfileByName maps a profile name to a RankingProfile.
+// Unrecognised names (including "") return the default balanced profile.
+func ResolveProfileByName(name string) *RankingProfile {
+	switch strings.ToLower(name) {
+	case "precise":
+		p := PreciseProfile
+		return &p
+	case "broad":
+		p := BroadProfile
+		return &p
+	default:
+		p := DefaultRankingProfile()
+		return &p
+	}
+}
+
 // Base value used to determine how much location matches
 // should be boosted by
 const (
@@ -47,7 +87,12 @@ func DefaultStructuralConfig() StructuralConfig {
 // The rankerName parameter selects the algorithm: "simple", "bm25", "tfidf",
 // "structural", or anything else for classic TF-IDF.
 // structuralCfg is only used when rankerName is "structural" and may be nil otherwise.
-func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, gravityStrength float64, noiseSensitivity float64, testPenalty float64, testIntent bool) []*common.FileJob {
+func RankResults(rankerName string, corpusCount int, results []*common.FileJob, structuralCfg *StructuralConfig, profile *RankingProfile, testIntent bool) []*common.FileJob {
+	if profile == nil {
+		d := DefaultRankingProfile()
+		profile = &d
+	}
+
 	// needs to come first because it resets the scores
 	switch rankerName {
 	case "simple":
@@ -57,10 +102,10 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 		if structuralCfg != nil {
 			cfg = *structuralCfg
 		}
-		results = rankResultsStructural(corpusCount, results, CalculateDocumentFrequency(results), cfg)
+		results = rankResultsStructural(corpusCount, results, CalculateDocumentFrequency(results), cfg, *profile)
 		results = rankResultsLocation(results)
 	case "bm25":
-		results = rankResultsBM25(corpusCount, results, CalculateDocumentFrequency(results))
+		results = rankResultsBM25(corpusCount, results, CalculateDocumentFrequency(results), *profile)
 		results = rankResultsLocation(results)
 	case "tfidf":
 		results = rankResultsTFIDF(corpusCount, results, CalculateDocumentFrequency(results), false)
@@ -70,14 +115,15 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 		results = rankResultsLocation(results)
 	}
 
-	results = rankResultsComplexityGravity(results, gravityStrength)
+	results = rankResultsComplexityGravity(results, profile.GravityStrength)
 
 	// Noise penalty applies to all rankers (not just structural) because it is
 	// a file-level property (size vs complexity), not a term-frequency calculation.
 	// The structural ranker will become the default in future, but until then this
 	// ensures the penalty is active regardless of ranker choice.
-	results = rankResultsNoisePenalty(results, noiseSensitivity)
-	results = rankResultsTestDampening(results, testPenalty, testIntent)
+	results = rankResultsNoisePenalty(results, profile.NoiseSensitivity)
+	results = rankResultsLengthBias(results, profile.LengthBias)
+	results = rankResultsTestDampening(results, profile.TestPenalty, testIntent)
 
 	sortResults(results)
 	return results
@@ -152,7 +198,7 @@ func rankResultsTFIDF(corpusCount int, results []*common.FileJob, documentFreque
 // BM25 = sum ----------------------------
 //
 //	TF + k1 * (1 - b + b * D / L)
-func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequencies map[string]int) []*common.FileJob {
+func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequencies map[string]int, profile RankingProfile) []*common.FileJob {
 	if len(results) == 0 {
 		return results
 	}
@@ -165,8 +211,8 @@ func rankResultsBM25(corpusCount int, results []*common.FileJob, documentFrequen
 	}
 	averageDocumentWords = averageDocumentWords / float64(len(results))
 
-	k1 := 1.2
-	b := 0.75
+	k1 := profile.K1
+	b := profile.B
 
 	for i := 0; i < len(results); i++ {
 		weight = 0
@@ -313,6 +359,23 @@ func rankResultsNoisePenalty(results []*common.FileJob, sensitivity float64) []*
 	return results
 }
 
+// rankResultsLengthBias adjusts scores based on file size (in bytes).
+// Positive bias penalises longer files; negative bias gives them a slight boost.
+// Formula: Score *= 1.0 / (1.0 + LengthBias * log10(max(10, Bytes)))
+func rankResultsLengthBias(results []*common.FileJob, lengthBias float64) []*common.FileJob {
+	if lengthBias == 0 {
+		return results
+	}
+	for i := 0; i < len(results); i++ {
+		if results[i].Score == 0 {
+			continue
+		}
+		safeBytes := math.Max(10, float64(results[i].Bytes))
+		results[i].Score *= 1.0 / (1.0 + lengthBias*math.Log10(safeBytes))
+	}
+	return results
+}
+
 // IsTestFile returns true if the file path looks like a test file based on
 // common naming conventions across languages.
 func IsTestFile(path string) bool {
@@ -379,7 +442,7 @@ func rankResultsTestDampening(results []*common.FileJob, testPenalty float64, te
 
 // rankResultsStructural is a BM25 variant that weights term frequency by the
 // structural type (code/comment/string) of each match location.
-func rankResultsStructural(corpusCount int, results []*common.FileJob, documentFrequencies map[string]int, cfg StructuralConfig) []*common.FileJob {
+func rankResultsStructural(corpusCount int, results []*common.FileJob, documentFrequencies map[string]int, cfg StructuralConfig, profile RankingProfile) []*common.FileJob {
 	if len(results) == 0 {
 		return results
 	}
@@ -390,8 +453,8 @@ func rankResultsStructural(corpusCount int, results []*common.FileJob, documentF
 	}
 	averageDocumentWords = averageDocumentWords / float64(len(results))
 
-	k1 := 1.2
-	b := 0.75
+	k1 := profile.K1
+	b := profile.B
 
 	for i := 0; i < len(results); i++ {
 		var weight float64

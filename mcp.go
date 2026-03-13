@@ -132,6 +132,15 @@ func StartMCPServer(cfg *Config) {
 				"Values: brain (2.5) — find complex algorithmic code, logic (1.5) — prefer branching/control flow, "+
 				"default (1.0) — balanced, low (0.2) — mostly ignore complexity, off (0.0) — pure text relevance only."),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Ranking profile — a preset that tunes multiple ranking parameters at once. "+
+				"Values: balanced (default) — general-purpose ranking. "+
+				"precise — favours short focused source files, penalises long files and test files, "+
+				"best for 'find the one file that matters'. "+
+				"broad — rewards repeated matches, includes test files at full weight, "+
+				"best for 'show me everything relevant'. "+
+				"Overrides gravity, noise, and test-penalty settings when set."),
+		),
 		mcp.WithBoolean("dedup",
 			mcp.Description("Collapse byte-identical search matches, keeping the highest-scored representative. Useful in monorepos with duplicated code."),
 		),
@@ -369,6 +378,11 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 				searchCfg.LanguageTypes = strings.Split(s, ",")
 			}
 		}
+		if v, ok := request.GetArguments()["profile"]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				searchCfg.Profile = s
+			}
+		}
 		if v, ok := request.GetArguments()["gravity"]; ok {
 			if s, ok := v.(string); ok && s != "" {
 				searchCfg.GravityIntent = s
@@ -439,7 +453,7 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 		// Rank results
 		textFileCount := int(stats.TextFileCount.Load())
 		testIntent := ranker.HasTestIntent(strings.Fields(query))
-		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveGravityStrength(), searchCfg.ResolveNoiseSensitivity(), searchCfg.TestPenalty, testIntent)
+		results = ranker.RankResults(searchCfg.Ranker, textFileCount, results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveRankingProfile(), testIntent)
 
 		// Dedup (before limit, so freed slots get backfilled)
 		if v, ok := request.GetArguments()["dedup"]; ok {
