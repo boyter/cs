@@ -124,6 +124,7 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 	results = rankResultsNoisePenalty(results, profile.NoiseSensitivity)
 	results = rankResultsLengthBias(results, profile.LengthBias)
 	results = rankResultsTestDampening(results, profile.TestPenalty, testIntent)
+	results = rankResultsFilenameBoost(results)
 
 	sortResults(results)
 	return results
@@ -437,6 +438,55 @@ func rankResultsTestDampening(results []*common.FileJob, testPenalty float64, te
 			results[i].Score *= testPenalty
 		}
 	}
+	return results
+}
+
+// rankResultsFilenameBoost boosts scores when query terms match the filename
+// (base name without extension). An exact match gets a large boost, a substring
+// match gets a smaller one. For multi-term queries the boost is scaled by the
+// proportion of terms that matched.
+func rankResultsFilenameBoost(results []*common.FileJob) []*common.FileJob {
+	const (
+		exactBoost   = 1.0  // +100% for exact filename match
+		partialBoost = 0.25 // +25% for substring match
+	)
+
+	for i := 0; i < len(results); i++ {
+		if results[i].Score == 0 {
+			continue
+		}
+
+		base := strings.ToLower(filepath.Base(results[i].Location))
+		ext := filepath.Ext(base)
+		name := strings.TrimSuffix(base, ext)
+
+		totalTerms := len(results[i].MatchLocations)
+		if totalTerms == 0 {
+			continue
+		}
+
+		var boost float64
+		matched := 0
+		for term := range results[i].MatchLocations {
+			lower := strings.ToLower(term)
+			if name == lower {
+				boost += exactBoost
+				matched++
+			} else if strings.Contains(name, lower) {
+				boost += partialBoost
+				matched++
+			}
+		}
+
+		if matched == 0 {
+			continue
+		}
+
+		// Scale boost by proportion of query terms that matched the filename
+		proportion := float64(matched) / float64(totalTerms)
+		results[i].Score *= 1.0 + (boost * proportion)
+	}
+
 	return results
 }
 

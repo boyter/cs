@@ -765,3 +765,94 @@ func TestTestDampening_IntegrationWithBM25(t *testing.T) {
 			results[0].Location, implFile.Score, testFile.Score)
 	}
 }
+
+// --- filename boost tests ---
+
+func TestFilenameBoost_ExactMatch(t *testing.T) {
+	// Searching "rank" should heavily boost "rank.go"
+	results := []*common.FileJob{
+		{Location: "pkg/rank.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+		{Location: "pkg/other.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+	}
+	results = rankResultsFilenameBoost(results)
+	if results[0].Score <= results[1].Score {
+		t.Errorf("expected rank.go to score higher, got rank.go=%f other.go=%f", results[0].Score, results[1].Score)
+	}
+	// Exact match should give +100% boost (score doubles)
+	if results[0].Score != 2.0 {
+		t.Errorf("expected rank.go score=2.0 (exact boost), got %f", results[0].Score)
+	}
+}
+
+func TestFilenameBoost_SubstringMatch(t *testing.T) {
+	// Searching "rank" should give a small boost to "ranker.go"
+	results := []*common.FileJob{
+		{Location: "pkg/ranker.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+		{Location: "pkg/other.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+	}
+	results = rankResultsFilenameBoost(results)
+	if results[0].Score <= results[1].Score {
+		t.Errorf("expected ranker.go to score higher, got ranker.go=%f other.go=%f", results[0].Score, results[1].Score)
+	}
+	// Substring match should give +25% boost
+	if results[0].Score != 1.25 {
+		t.Errorf("expected ranker.go score=1.25 (partial boost), got %f", results[0].Score)
+	}
+}
+
+func TestFilenameBoost_MultiTerm_PartialMatch(t *testing.T) {
+	// Searching "rank index" — "rank.go" matches one of two terms
+	results := []*common.FileJob{
+		{Location: "pkg/rank.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}, "index": {{10, 15}}}},
+		{Location: "pkg/other.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}, "index": {{10, 15}}}},
+	}
+	results = rankResultsFilenameBoost(results)
+	// Only 1 of 2 terms matches filename, so boost is scaled by 0.5
+	// exact boost = 1.0 * 0.5 = 0.5, score = 1.0 * 1.5 = 1.5
+	if results[0].Score != 1.5 {
+		t.Errorf("expected rank.go score=1.5 (scaled exact boost), got %f", results[0].Score)
+	}
+	if results[1].Score != 1.0 {
+		t.Errorf("expected other.go score=1.0 (no boost), got %f", results[1].Score)
+	}
+}
+
+func TestFilenameBoost_ExactStrongerThanSubstring(t *testing.T) {
+	// "rank.go" should beat "ranker.go" for query "rank"
+	exact := &common.FileJob{Location: "pkg/rank.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}}
+	partial := &common.FileJob{Location: "pkg/ranker.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}}
+	results := rankResultsFilenameBoost([]*common.FileJob{exact, partial})
+	if results[0].Score <= results[1].Score {
+		t.Errorf("expected exact match to score higher: rank.go=%f ranker.go=%f", results[0].Score, results[1].Score)
+	}
+}
+
+func TestFilenameBoost_NoMatchNoChange(t *testing.T) {
+	results := []*common.FileJob{
+		{Location: "pkg/other.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+	}
+	results = rankResultsFilenameBoost(results)
+	if results[0].Score != 1.0 {
+		t.Errorf("expected no boost, got %f", results[0].Score)
+	}
+}
+
+func TestFilenameBoost_ZeroScoreSkipped(t *testing.T) {
+	results := []*common.FileJob{
+		{Location: "pkg/rank.go", Score: 0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+	}
+	results = rankResultsFilenameBoost(results)
+	if results[0].Score != 0 {
+		t.Errorf("expected zero score to remain zero, got %f", results[0].Score)
+	}
+}
+
+func TestFilenameBoost_CaseInsensitive(t *testing.T) {
+	results := []*common.FileJob{
+		{Location: "pkg/Rank.go", Score: 1.0, MatchLocations: map[string][][]int{"rank": {{0, 4}}}},
+	}
+	results = rankResultsFilenameBoost(results)
+	if results[0].Score != 2.0 {
+		t.Errorf("expected case-insensitive exact match boost, got %f", results[0].Score)
+	}
+}
