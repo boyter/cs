@@ -57,7 +57,7 @@ func ResolveProfileByName(name string) *RankingProfile {
 // Base value used to determine how much location matches
 // should be boosted by
 const (
-	LocationBoostValue = 0.05
+	LocationBoostValue = 0.15
 	DefaultScoreValue  = 0.01
 	BytesWordDivisor   = 2
 )
