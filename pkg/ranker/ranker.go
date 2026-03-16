@@ -449,6 +449,7 @@ func rankResultsFilenameBoost(results []*common.FileJob) []*common.FileJob {
 	const (
 		exactBoost   = 1.0  // +100% for exact filename match
 		partialBoost = 0.60 // +60% for substring match
+		dirBoost     = 0.60 // +60% for parent directory name match
 	)
 
 	for i := 0; i < len(results); i++ {
@@ -459,6 +460,7 @@ func rankResultsFilenameBoost(results []*common.FileJob) []*common.FileJob {
 		base := strings.ToLower(filepath.Base(results[i].Location))
 		ext := filepath.Ext(base)
 		name := strings.TrimSuffix(base, ext)
+		dir := strings.ToLower(filepath.Base(filepath.Dir(results[i].Location)))
 
 		totalTerms := len(results[i].MatchLocations)
 		if totalTerms == 0 {
@@ -476,13 +478,17 @@ func rankResultsFilenameBoost(results []*common.FileJob) []*common.FileJob {
 				boost += partialBoost
 				matched++
 			}
+			if dir == lower {
+				boost += dirBoost
+				matched++
+			}
 		}
 
 		if matched == 0 {
 			continue
 		}
 
-		// Scale boost by proportion of query terms that matched the filename
+		// Scale boost by proportion of query terms that matched the filename/directory
 		proportion := float64(matched) / float64(totalTerms)
 		results[i].Score *= 1.0 + (boost * proportion)
 	}

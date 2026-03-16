@@ -794,9 +794,9 @@ func TestFilenameBoost_SubstringMatch(t *testing.T) {
 	if results[0].Score <= results[1].Score {
 		t.Errorf("expected ranker.go to score higher, got ranker.go=%f other.go=%f", results[0].Score, results[1].Score)
 	}
-	// Substring match should give +25% boost
-	if results[0].Score != 1.25 {
-		t.Errorf("expected ranker.go score=1.25 (partial boost), got %f", results[0].Score)
+	// Substring match should give +60% boost
+	if results[0].Score != 1.60 {
+		t.Errorf("expected ranker.go score=1.60 (partial boost), got %f", results[0].Score)
 	}
 }
 
@@ -854,5 +854,31 @@ func TestFilenameBoost_CaseInsensitive(t *testing.T) {
 	results = rankResultsFilenameBoost(results)
 	if results[0].Score != 2.0 {
 		t.Errorf("expected case-insensitive exact match boost, got %f", results[0].Score)
+	}
+}
+
+func TestFilenameBoost_DirectoryMatch(t *testing.T) {
+	// sort/sort.go should get both filename exact boost and directory boost
+	both := &common.FileJob{Location: "sort/sort.go", Score: 1.0, MatchLocations: map[string][][]int{"sort": {{0, 4}}}}
+	fileOnly := &common.FileJob{Location: "pkg/sort.go", Score: 1.0, MatchLocations: map[string][][]int{"sort": {{0, 4}}}}
+	neither := &common.FileJob{Location: "pkg/other.go", Score: 1.0, MatchLocations: map[string][][]int{"sort": {{0, 4}}}}
+	results := rankResultsFilenameBoost([]*common.FileJob{both, fileOnly, neither})
+
+	// sort/sort.go: exact(1.0) + dir(0.6), matched=2, totalTerms=1, proportion=2.0
+	// score = 1.0 * (1 + 1.6 * 2.0) = 4.2
+	if results[0].Score != 4.2 {
+		t.Errorf("expected sort/sort.go score=4.2 (filename+dir boost), got %f", results[0].Score)
+	}
+	// pkg/sort.go: exact(1.0), matched=1, totalTerms=1, proportion=1.0
+	// score = 1.0 * (1 + 1.0 * 1.0) = 2.0
+	if results[1].Score != 2.0 {
+		t.Errorf("expected pkg/sort.go score=2.0 (filename-only boost), got %f", results[1].Score)
+	}
+	if results[2].Score != 1.0 {
+		t.Errorf("expected pkg/other.go score=1.0 (no boost), got %f", results[2].Score)
+	}
+	// sort/sort.go should rank highest
+	if results[0].Score <= results[1].Score {
+		t.Errorf("expected sort/sort.go > pkg/sort.go: %f vs %f", results[0].Score, results[1].Score)
 	}
 }
