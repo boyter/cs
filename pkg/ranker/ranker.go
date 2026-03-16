@@ -448,7 +448,7 @@ func rankResultsTestDampening(results []*common.FileJob, testPenalty float64, te
 func rankResultsFilenameBoost(results []*common.FileJob) []*common.FileJob {
 	const (
 		exactBoost   = 1.0  // +100% for exact filename match
-		partialBoost = 0.25 // +25% for substring match
+		partialBoost = 0.60 // +60% for substring match
 	)
 
 	for i := 0; i < len(results); i++ {
