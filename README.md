@@ -122,6 +122,59 @@ cs "authenticate"                     # Balanced (default, same as always)
 
 When `--profile` is set it overrides `--gravity`, `--noise`, and `--test-penalty`.
 
+#### Git Sync
+
+Keep your search targets up to date automatically. When running in a long-lived mode (TUI, HTTP, or MCP),
+`--git-sync` periodically runs `git pull` on repositories found in the search directory.
+
+```shell
+# Single repo — pulls the repo at /path/to/repo on a schedule
+cs -d --git-sync --dir /path/to/repo
+
+# Directory of repos — pulls every repo under /path/to/projects
+cs -d --git-sync --dir /path/to/projects
+
+# Custom interval and concurrency
+cs -d --git-sync --git-sync-interval 2m --git-sync-workers 4 --dir /path/to/projects
+
+# TUI mode
+cs --git-sync --dir /path/to/projects
+
+# MCP mode
+cs --mcp --git-sync --dir /path/to/codebase
+```
+
+Discovery rules:
+- If the directory itself contains `.git`, that single repo is synced.
+- Otherwise, immediate child directories containing `.git` are synced (one level deep only).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--git-sync` | off | Enable periodic git pull |
+| `--git-sync-interval` | `5m` | Time between pulls (e.g. `30s`, `2m`, `1h`) |
+| `--git-sync-workers` | `1` | Number of concurrent git pull workers |
+
+Sync runs immediately on startup, then repeats at the configured interval. Errors are logged to
+stderr but do not stop the process. Each pull has a 2-minute timeout and runs non-interactively
+(will not prompt for credentials). Ignored in console mode since it exits immediately.
+
+**Similar to Sourcegraph:** Clone your team's repos into a single directory, point `cs` at it with
+`--git-sync`, and you have a self-updating, relevance-ranked code search across all of them — no
+indexing server, no infrastructure, no configuration beyond a single command:
+
+```shell
+mkdir -p ~/code-search && cd ~/code-search
+git clone https://github.com/your-org/repo-a.git
+git clone https://github.com/your-org/repo-b.git
+git clone https://github.com/your-org/repo-c.git
+
+# Start HTTP search across all repos, auto-updating every 5 minutes
+cs -d --git-sync --dir ~/code-search
+```
+
+This gives you ranked, structural code search across your entire codebase — similar to what
+Sourcegraph or Hound provide — with zero setup beyond cloning the repos.
+
 #### Deduplication
 
 Collapse byte-identical matches into a single result.
@@ -317,6 +370,9 @@ Flags:
   -x, --exclude-pattern strings   file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]
   -r, --find-root                 attempts to find the root of this repository by traversing in reverse looking for .git or .hg
   -f, --format string             set output format [text, json, vimgrep] (default "text")
+      --git-sync                  periodically git pull repositories found in the search directory (TUI/HTTP/MCP only)
+      --git-sync-interval duration   interval between git sync pulls (e.g. 5m, 30s, 1h) (default 5m0s)
+      --git-sync-workers int    number of concurrent git pull workers (default 1)
       --gravity string            complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0) (default "default")
   -h, --help                      help for cs
       --hidden                    include hidden files

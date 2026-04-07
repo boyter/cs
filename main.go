@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -113,13 +114,40 @@ func main() {
 				cfg.Ranker = "structural"
 			}
 
+			// Validate git-sync flags before entering any mode
+			if cfg.GitSync {
+				if cfg.GitSyncInterval <= 0 {
+					fmt.Fprintf(os.Stderr, "error: --git-sync-interval must be a positive duration\n")
+					os.Exit(1)
+				}
+				if cfg.GitSyncWorkers < 1 {
+					fmt.Fprintf(os.Stderr, "error: --git-sync-workers must be at least 1\n")
+					os.Exit(1)
+				}
+			}
+
 			if cfg.MCPServer {
+				if cfg.GitSync {
+					stopSync := startGitSync(&cfg)
+					defer stopSync()
+				}
 				StartMCPServer(&cfg)
 			} else if cfg.HttpServer {
+				if cfg.GitSync {
+					stopSync := startGitSync(&cfg)
+					defer stopSync()
+				}
 				StartHttpServer(&cfg)
 			} else if len(cfg.SearchString) != 0 {
+				if cfg.GitSync {
+					fmt.Fprintf(os.Stderr, "warning: --git-sync is ignored in console mode (not a long-running process)\n")
+				}
 				ConsoleSearch(&cfg)
 			} else {
+				if cfg.GitSync {
+					stopSync := startGitSync(&cfg)
+					defer stopSync()
+				}
 				p := tea.NewProgram(initialModel(&cfg), tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(os.Stderr))
 				m, err := p.Run()
 				if err != nil {
@@ -435,6 +463,24 @@ func main() {
 		"only-usages",
 		false,
 		"only show matches on usage lines (excludes declarations)",
+	)
+	flags.BoolVar(
+		&cfg.GitSync,
+		"git-sync",
+		false,
+		"periodically git pull repositories found in the search directory (TUI/HTTP/MCP only)",
+	)
+	flags.DurationVar(
+		&cfg.GitSyncInterval,
+		"git-sync-interval",
+		5*time.Minute,
+		"interval between git sync pulls (e.g. 5m, 30s, 1h)",
+	)
+	flags.IntVar(
+		&cfg.GitSyncWorkers,
+		"git-sync-workers",
+		1,
+		"number of concurrent git pull workers",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

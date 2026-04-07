@@ -4,6 +4,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/boyter/cs/v3/pkg/ranker"
@@ -88,6 +89,11 @@ type Config struct {
 	SearchTemplate  string
 	DisplayTemplate string
 	TemplateStyle   string
+
+	// Git sync
+	GitSync         bool
+	GitSyncInterval time.Duration
+	GitSyncWorkers  int
 }
 
 // DefaultConfig returns a Config with sensible defaults matching the root-level globals.
