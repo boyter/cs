@@ -114,6 +114,18 @@ func main() {
 				cfg.Ranker = "structural"
 			}
 
+			// Validate git-sync flags before entering any mode
+			if cfg.GitSync {
+				if cfg.GitSyncInterval <= 0 {
+					fmt.Fprintf(os.Stderr, "error: --git-sync-interval must be a positive duration\n")
+					os.Exit(1)
+				}
+				if cfg.GitSyncWorkers < 1 {
+					fmt.Fprintf(os.Stderr, "error: --git-sync-workers must be at least 1\n")
+					os.Exit(1)
+				}
+			}
+
 			if cfg.MCPServer {
 				if cfg.GitSync {
 					stopSync := startGitSync(&cfg)

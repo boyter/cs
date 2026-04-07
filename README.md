@@ -155,7 +155,8 @@ Discovery rules:
 | `--git-sync-workers` | `1` | Number of concurrent git pull workers |
 
 Sync runs immediately on startup, then repeats at the configured interval. Errors are logged to
-stderr but do not stop the process. Ignored in console mode since it exits immediately.
+stderr but do not stop the process. Each pull has a 2-minute timeout and runs non-interactively
+(will not prompt for credentials). Ignored in console mode since it exits immediately.
 
 **Similar to Sourcegraph:** Clone your team's repos into a single directory, point `cs` at it with
 `--git-sync`, and you have a self-updating, relevance-ranked code search across all of them — no

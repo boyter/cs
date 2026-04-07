@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,17 +12,21 @@ import (
 	"time"
 )
 
+// gitPullTimeout is the maximum time a single git pull is allowed to run.
+const gitPullTimeout = 2 * time.Minute
+
 // discoverGitRepos finds git repositories to sync. If dir itself contains
-// a .git directory it is returned as the sole repo. Otherwise immediate
-// child directories that contain .git are returned. No deeper recursion.
-func discoverGitRepos(dir string) []string {
-	if info, err := os.Stat(filepath.Join(dir, ".git")); err == nil && info.IsDir() {
-		return []string{dir}
+// a .git entry (directory or file, to support worktrees) it is returned as
+// the sole repo. Otherwise immediate child directories containing .git are
+// returned. No deeper recursion.
+func discoverGitRepos(dir string) ([]string, error) {
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		return []string{dir}, nil
 	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("cannot read directory %s: %w", dir, err)
 	}
 
 	var repos []string
@@ -30,17 +35,26 @@ func discoverGitRepos(dir string) []string {
 			continue
 		}
 		child := filepath.Join(dir, e.Name())
-		if info, err := os.Stat(filepath.Join(child, ".git")); err == nil && info.IsDir() {
+		if _, err := os.Stat(filepath.Join(child, ".git")); err == nil {
 			repos = append(repos, child)
 		}
 	}
-	return repos
+	return repos, nil
 }
 
-// gitPull runs "git pull" in the given directory and returns combined output and any error.
+// gitPull runs "git pull" in the given directory with a timeout and
+// non-interactive environment. Returns combined output and any error.
 func gitPull(repoDir string) (string, error) {
-	cmd := exec.Command("git", "-C", repoDir, "pull")
+	ctx, cancel := context.WithTimeout(context.Background(), gitPullTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "pull")
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd.Stdin = nil
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return string(out), fmt.Errorf("timed out after %s", gitPullTimeout)
+	}
 	return string(out), err
 }
 
@@ -82,16 +96,17 @@ func startGitSync(cfg *Config) func() {
 		}
 	}
 
-	repos := discoverGitRepos(dir)
+	repos, err := discoverGitRepos(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[git-sync] error: %v\n", err)
+		return func() {}
+	}
 	if len(repos) == 0 {
 		fmt.Fprintf(os.Stderr, "[git-sync] no git repositories found in %s\n", dir)
 		return func() {}
 	}
 
 	workers := cfg.GitSyncWorkers
-	if workers < 1 {
-		workers = 1
-	}
 
 	logf := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
