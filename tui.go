@@ -835,7 +835,7 @@ func (m *model) ensureVisible() {
 
 // cycleRanker cycles the ranker through: simple → tfidf → bm25 → structural → simple…
 func (m *model) cycleRanker() {
-	order := []string{"simple", "tfidf", "bm25", "structural"}
+	order := []string{"simple", "tfidf", "bm25", "structural", "min"}
 	for i, v := range order {
 		if v == m.cfg.Ranker {
 			m.cfg.Ranker = order[(i+1)%len(order)]

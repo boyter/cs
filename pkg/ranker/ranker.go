@@ -107,6 +107,11 @@ func RankResults(rankerName string, corpusCount int, results []*common.FileJob, 
 	case "bm25":
 		results = rankResultsBM25(corpusCount, results, CalculateDocumentFrequency(results), *profile)
 		results = rankResultsLocation(results)
+	case "min":
+		minProfile := DefaultMinRankingProfile()
+		minProfile.RankingProfile = *profile
+		results = rankResultsMinBM25(corpusCount, results, CalculateDocumentFrequency(results), minProfile)
+		results = rankResultsLocation(results)
 	case "tfidf":
 		results = rankResultsTFIDF(corpusCount, results, CalculateDocumentFrequency(results), false)
 		results = rankResultsLocation(results)

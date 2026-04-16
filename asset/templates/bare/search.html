@@ -38,6 +38,7 @@
 				<option value="tfidf" {{ if eq .Ranker "tfidf" }}selected{{ end }}>tfidf</option>
 				<option value="bm25" {{ if eq .Ranker "bm25" }}selected{{ end }}>bm25</option>
 				<option value="structural" {{ if eq .Ranker "structural" }}selected{{ end }}>structural</option>
+				<option value="min" {{ if eq .Ranker "min" }}selected{{ end }}>min</option>
 			</select>
 			<select name="cf" onchange="this.form.submit()">
 				<option value="default" {{ if eq .CodeFilter "default" }}selected{{ end }}>all</option>
