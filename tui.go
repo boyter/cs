@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -373,6 +375,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case editorErrMsg:
+		if msg.err != nil {
+			m.errMsg = fmt.Sprintf("editor failed: %v", msg.err)
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		m.errMsg = ""
 		if m.viewing {
@@ -401,6 +409,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.chosen = m.viewLocation
 				}
 				return m, tea.Quit
+			case tea.KeyCtrlE:
+				return m, editorAtLine(m.viewLocation, m.viewStartLine+1)
+			case tea.KeyRunes:
+				if string(msg.Runes) == "o" {
+					return m, editorAtLine(m.viewLocation, m.viewStartLine+1)
+				}
 			}
 			return m, nil
 		}
@@ -510,6 +524,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyF6:
 			m.cycleSnippetMode()
 			return m, m.retriggerSearch()
+		case tea.KeyCtrlE:
+			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
+				r := m.results[m.selectedIndex]
+				lineNum := 0
+				if r.LineRange != "" {
+					fmt.Sscanf(r.LineRange, "%d", &lineNum)
+				}
+				return m, editorAtLine(r.Location, lineNum)
+			}
+			return m, nil
 		}
 	}
 
@@ -1229,6 +1253,45 @@ func highlightMatchOnly(line string, locs [][]int, isSelected bool) string {
 	}
 
 	return result.String()
+}
+
+// editorErrMsg is delivered after tea.ExecProcess returns from the editor
+// so the TUI can surface a failure without crashing.
+type editorErrMsg struct{ err error }
+
+// editorAtLine suspends the TUI, runs the user's editor on location (jumping
+// to lineNum for editors that accept +N), and resumes the TUI on exit.
+// Editor is taken from CS_EDITOR, then EDITOR, defaulting to vim.
+func editorAtLine(location string, lineNum int) tea.Cmd {
+	if location == "" {
+		return nil
+	}
+	editor := os.Getenv("CS_EDITOR")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+	}
+	if editor == "" {
+		editor = "vim"
+	}
+	parts := strings.Fields(editor)
+	if len(parts) == 0 {
+		return nil
+	}
+	args := parts[1:]
+	if lineNum > 0 {
+		switch filepath.Base(parts[0]) {
+		case "vi", "vim", "nvim", "hx", "nano", "emacs":
+			args = append([]string{fmt.Sprintf("+%d", lineNum)}, args...)
+		}
+	}
+	args = append(args, location)
+	cmd := exec.Command(parts[0], args...)
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		if err != nil {
+			return editorErrMsg{err: err}
+		}
+		return nil
+	})
 }
 
 // openViewer reads the file from disk and sets up the viewer overlay state.
