@@ -344,13 +344,17 @@ Example search that uses all current functionality
 
 The default input field in tui mode supports some nano commands
 - CTRL+a move to the beginning of the input
-- CTRL+e move to the end of the input
 - CTRL+k to clear from the cursor location forward
 
 - F1 cycle ranker (simple/tfidf/bm25/structural)
 - F2 cycle code filter (default/only-code/only-comments/only-strings/only-declarations/only-usages)
 - F3 cycle gravity (off/low/default/logic/brain)
 - F4 cycle noise (silence/quiet/default/loud/raw)
+- CTRL+e open the selected result in your editor at the matched line, then return to the TUI
+  (also `o` from inside the in-TUI file viewer). Editor is taken from `$CS_EDITOR`, then
+  `$EDITOR`, defaulting to `vim`. The line jump uses the `+N` argument convention, so it
+  works with `vi`, `vim`, `nvim`, `hx`, `nano`, and `emacs`; other editors just open the
+  file.
 
 Usage:
   cs [flags]
