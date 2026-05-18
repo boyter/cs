@@ -352,9 +352,10 @@ The default input field in tui mode supports some nano commands
 - F4 cycle noise (silence/quiet/default/loud/raw)
 - CTRL+e open the selected result in your editor at the matched line, then return to the TUI
   (also `o` from inside the in-TUI file viewer). Editor is taken from `$CS_EDITOR`, then
-  `$EDITOR`, defaulting to `vim`. The line jump uses the `+N` argument convention, so it
-  works with `vi`, `vim`, `nvim`, `hx`, `nano`, and `emacs`; other editors just open the
-  file.
+  `$EDITOR`, defaulting to `vim`. Line jump works with `vi`, `vim`, `nvim`, `hx`, `nano`,
+  and `emacs` (via the `+N` argument) and with VS Code / VSCodium / Cursor (via `code -g
+  <file>:<line>`); other editors just open the file. To make `code` block until you close
+  the file, set `CS_EDITOR="code --wait"`.
 
 Usage:
   cs [flags]

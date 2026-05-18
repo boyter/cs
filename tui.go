@@ -1278,13 +1278,20 @@ func editorAtLine(location string, lineNum int) tea.Cmd {
 		return nil
 	}
 	args := parts[1:]
+	filePart := location
 	if lineNum > 0 {
 		switch filepath.Base(parts[0]) {
 		case "vi", "vim", "nvim", "hx", "nano", "emacs":
 			args = append([]string{fmt.Sprintf("+%d", lineNum)}, args...)
+		case "code", "code-insiders", "codium", "cursor":
+			// VS Code family: `code -g <file>:<line>` jumps to the line.
+			// Note: without --wait in $CS_EDITOR / $EDITOR, code returns
+			// immediately and the TUI redraws right away.
+			args = append(args, "-g")
+			filePart = fmt.Sprintf("%s:%d", location, lineNum)
 		}
 	}
-	args = append(args, location)
+	args = append(args, filePart)
 	cmd := exec.Command(parts[0], args...)
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
