@@ -613,8 +613,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
 				r := m.results[m.selectedIndex]
 				lineNum := 0
-				if r.LineRange != "" {
-					fmt.Sscanf(r.LineRange, "%d", &lineNum)
+				if lr := r.activeLineRange(); lr != "" {
+					fmt.Sscanf(lr, "%d", &lineNum)
 				}
 				return m, editorAtLine(r.Location, lineNum)
 			}
