@@ -74,7 +74,7 @@ func TestPostEvalMetadataFilters_NotLang(t *testing.T) {
 }
 
 func TestPostEvalMetadataFilters_AndWithLang(t *testing.T) {
-	// keyword AND lang:Go — keyword is true (already evaluated), lang:Go is checked
+	// keyword AND lang:Go - keyword is true (already evaluated), lang:Go is checked
 	node := &AndNode{
 		Left:  &KeywordNode{Value: "test"},
 		Right: &FilterNode{Field: "lang", Operator: "=", Value: "Go"},
@@ -126,7 +126,7 @@ func TestPostEvalMetadataFilters_NonMetadataFilterPassesThrough(t *testing.T) {
 }
 
 func TestPostEvalMetadataFilters_NotPathFilterPassesThrough(t *testing.T) {
-	// NOT path:vendor should pass through — the path filter was already
+	// NOT path:vendor should pass through - the path filter was already
 	// evaluated during per-file processing, so negating its pass-through
 	// value must not reject every file.
 	node := &NotNode{Expr: &FilterNode{Field: "path", Operator: "=", Value: "vendor"}}
@@ -196,7 +196,7 @@ func TestPostEvalMetadataFilters_FullPipeline_KeywordNotPath(t *testing.T) {
 	ast, _ = transformer.TransformAST(ast)
 	ast = PlanAST(ast)
 
-	// PostEvalMetadataFilters should pass through — path: is not a metadata filter
+	// PostEvalMetadataFilters should pass through - path: is not a metadata filter
 	if !PostEvalMetadataFilters(ast, "Go", 0) {
 		t.Error("PostEvalMetadataFilters should pass through for 'cat NOT path:vendor'")
 	}

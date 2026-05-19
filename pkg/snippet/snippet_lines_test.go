@@ -635,3 +635,249 @@ func TestFindAllMatchingLinesContextAfterOnly(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// FindMatchingLinesMulti
+// ---------------------------------------------------------------------------
+
+func TestFindMatchingLinesMultiEmpty(t *testing.T) {
+	cases := []*common.FileJob{
+		{Content: []byte{}, MatchLocations: map[string][][]int{}},
+		{Content: []byte("hello\nworld"), MatchLocations: map[string][][]int{}},
+	}
+	for i, res := range cases {
+		got := FindMatchingLinesMulti(res, 2, 3)
+		if got != nil {
+			t.Errorf("case %d: expected nil, got %v", i, got)
+		}
+	}
+}
+
+func TestFindMatchingLinesMultiSnippetCountZero(t *testing.T) {
+	// snippetCount=0 should clamp to 1 and return at most one cluster.
+	content := []byte("aaa\nbbb match\nccc\nddd")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"match": {{4, 9}},
+		},
+	}
+	got := FindMatchingLinesMulti(res, 1, 0)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 cluster, got %d", len(got))
+	}
+}
+
+func TestFindMatchingLinesMultiSnippetCountOneMatchesSingle(t *testing.T) {
+	// snippetCount=1 should produce a cluster structurally equal to FindMatchingLines.
+	content := []byte("line one\nline two\nline three\nline four\nline five")
+	res := &common.FileJob{
+		Content: content,
+		MatchLocations: map[string][][]int{
+			"two": {{14, 17}},
+		},
+	}
+	want := FindMatchingLines(res, 2)
+	got := FindMatchingLinesMulti(res, 2, 1)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 cluster, got %d", len(got))
+	}
+	if len(got[0]) != len(want) {
+		t.Fatalf("cluster size: want %d, got %d", len(want), len(got[0]))
+	}
+	for i := range want {
+		if got[0][i].LineNumber != want[i].LineNumber {
+			t.Errorf("[%d]: line want %d, got %d", i, want[i].LineNumber, got[0][i].LineNumber)
+		}
+		if got[0][i].Content != want[i].Content {
+			t.Errorf("[%d]: content want %q, got %q", i, want[i].Content, got[0][i].Content)
+		}
+	}
+}
+
+func TestFindMatchingLinesMultiMultipleClusters(t *testing.T) {
+	// Build a 30-line file with "match" on lines 3, 15, 27 (1-based).
+	// Each match is far enough apart (>4 lines) that with surround=1 they
+	// form three distinct clusters.
+	var b []byte
+	matchLineByteStarts := map[int]int{} // 1-based line -> byte offset of "match"
+	offset := 0
+	for line := 1; line <= 30; line++ {
+		var lineText string
+		switch line {
+		case 3, 15, 27:
+			lineText = "this is a match here"
+			matchLineByteStarts[line] = offset + len("this is a ")
+		default:
+			lineText = "filler line"
+		}
+		b = append(b, []byte(lineText+"\n")...)
+		offset += len(lineText) + 1
+	}
+
+	var matches [][]int
+	for _, start := range []int{matchLineByteStarts[3], matchLineByteStarts[15], matchLineByteStarts[27]} {
+		matches = append(matches, []int{start, start + len("match")})
+	}
+	res := &common.FileJob{
+		Content: b,
+		MatchLocations: map[string][][]int{
+			"match": matches,
+		},
+	}
+
+	got := FindMatchingLinesMulti(res, 1, 3)
+	if len(got) != 3 {
+		t.Fatalf("expected 3 clusters, got %d", len(got))
+	}
+
+	for ci, cluster := range got {
+		if len(cluster) == 0 {
+			t.Errorf("cluster %d empty", ci)
+			continue
+		}
+		// Each cluster: ascending order, 1-based.
+		for i := 1; i < len(cluster); i++ {
+			if cluster[i].LineNumber <= cluster[i-1].LineNumber {
+				t.Errorf("cluster %d not ascending at index %d", ci, i)
+			}
+		}
+		if cluster[0].LineNumber < 1 {
+			t.Errorf("cluster %d not 1-based (first line %d)", ci, cluster[0].LineNumber)
+		}
+	}
+
+	// Non-overlap: no line number repeats across clusters.
+	seen := map[int]int{} // line -> cluster index
+	for ci, cluster := range got {
+		for _, lr := range cluster {
+			if prev, dup := seen[lr.LineNumber]; dup {
+				t.Errorf("line %d in clusters %d and %d", lr.LineNumber, prev, ci)
+			}
+			seen[lr.LineNumber] = ci
+		}
+	}
+}
+
+func TestFindMatchingLinesMultiCountExceedsAnchors(t *testing.T) {
+	// Two well-separated matches; ask for 5 clusters; expect 2.
+	var b []byte
+	offset := 0
+	var matchStarts []int
+	for line := 1; line <= 20; line++ {
+		var lineText string
+		if line == 4 || line == 16 {
+			lineText = "have a match"
+			matchStarts = append(matchStarts, offset+len("have a "))
+		} else {
+			lineText = "filler"
+		}
+		b = append(b, []byte(lineText+"\n")...)
+		offset += len(lineText) + 1
+	}
+	var matches [][]int
+	for _, s := range matchStarts {
+		matches = append(matches, []int{s, s + len("match")})
+	}
+	res := &common.FileJob{
+		Content:        b,
+		MatchLocations: map[string][][]int{"match": matches},
+	}
+
+	got := FindMatchingLinesMulti(res, 1, 5)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 clusters (anchors exhausted), got %d", len(got))
+	}
+	for i, c := range got {
+		if c == nil {
+			t.Errorf("cluster %d is nil", i)
+		}
+	}
+}
+
+func TestFindMatchingLinesMultiNonOverlap(t *testing.T) {
+	// Dense neighbouring matches: ensure surround claims neighbours so a
+	// later cluster can't reuse them.
+	// Matches on lines 5, 6, 7 (adjacent). With surround=2 and snippetCount=3,
+	// the first anchor should consume 3-9. Second anchor candidate should
+	// either be skipped (because its line is used) or produce a non-overlap.
+	content := []byte("a\nb\nc\nd\ne match here\nf match here\ng match here\nh\ni\nj\n")
+	// "match" positions:
+	// line 5 (0-indexed 4): "e match here" — "match" at offset starts at  8 (after "a\nb\nc\nd\ne ") = 10
+	// We'll compute simpler: just say match positions are correct.
+	// Just build manually with known offsets.
+	res := &common.FileJob{
+		Content:        content,
+		MatchLocations: locationsOfWord(content, "match"),
+	}
+	got := FindMatchingLinesMulti(res, 2, 3)
+	if len(got) == 0 {
+		t.Fatal("expected at least one cluster")
+	}
+	seen := map[int]bool{}
+	for ci, c := range got {
+		for _, lr := range c {
+			if seen[lr.LineNumber] {
+				t.Errorf("line %d duplicated (cluster %d)", lr.LineNumber, ci)
+			}
+			seen[lr.LineNumber] = true
+		}
+	}
+}
+
+func TestFindMatchingLinesMulti1Based(t *testing.T) {
+	content := []byte("first\nsecond match\nthird\n")
+	res := &common.FileJob{
+		Content:        content,
+		MatchLocations: locationsOfWord(content, "match"),
+	}
+	got := FindMatchingLinesMulti(res, 1, 2)
+	for ci, c := range got {
+		for _, lr := range c {
+			if lr.LineNumber < 1 {
+				t.Errorf("cluster %d line %d not 1-based", ci, lr.LineNumber)
+			}
+		}
+	}
+}
+
+func TestFindMatchingLinesMultiCRLF(t *testing.T) {
+	content := []byte("aaa\r\nbbb match\r\nccc\r\n")
+	res := &common.FileJob{
+		Content:        content,
+		MatchLocations: locationsOfWord(content, "match"),
+	}
+	got := FindMatchingLinesMulti(res, 1, 1)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 cluster, got %d", len(got))
+	}
+	for _, lr := range got[0] {
+		if len(lr.Content) > 0 && lr.Content[len(lr.Content)-1] == '\r' {
+			t.Errorf("line %d still has trailing \\r: %q", lr.LineNumber, lr.Content)
+		}
+	}
+}
+
+// locationsOfWord is a tiny test helper that returns MatchLocations for every
+// occurrence of word in content. Used by the FindMatchingLinesMulti tests
+// where computing byte offsets by hand is tedious.
+func locationsOfWord(content []byte, word string) map[string][][]int {
+	var locs [][]int
+	w := []byte(word)
+	for i := 0; i+len(w) <= len(content); i++ {
+		match := true
+		for j := 0; j < len(w); j++ {
+			if content[i+j] != w[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			locs = append(locs, []int{i, i + len(w)})
+		}
+	}
+	if locs == nil {
+		return map[string][][]int{}
+	}
+	return map[string][][]int{word: locs}
+}

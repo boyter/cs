@@ -104,13 +104,13 @@ The search engine processes a query through a multi-stage pipeline. This decoupl
 
 The engine ships with the following metadata filters, registered in `executor.go`:
 
-| Filter Name          | Aliases              | Type    | Operators        | Multi-value | Description                         |
-|----------------------|----------------------|---------|------------------|-------------|-------------------------------------|
-| `complexity`         | —                    | Numeric | `=` `!=` `>=` `<=` | No       | Matches `Document.Complexity`       |
-| `lang` / `language`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Language` (case-insensitive) |
-| `file` / `filename`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Filename` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
-| `path` / `filepath`  | Each is an alias     | String  | `=` `!=`         | No          | Matches `Document.Path` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
-| `ext` / `extension`  | Each is an alias     | String  | `=` `!=`         | Yes         | Matches `Document.Extension` (case-insensitive) |
+| Filter Name          | Aliases          | Type    | Operators        | Multi-value | Description                         |
+|----------------------|------------------|---------|------------------|-------------|-------------------------------------|
+| `complexity`         | -                | Numeric | `=` `!=` `>=` `<=` | No       | Matches `Document.Complexity`       |
+| `lang` / `language`  | Each is an alias | String  | `=` `!=`         | Yes         | Matches `Document.Language` (case-insensitive) |
+| `file` / `filename`  | Each is an alias | String  | `=` `!=`         | Yes         | Matches `Document.Filename` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
+| `path` / `filepath`  | Each is an alias | String  | `=` `!=`         | No          | Matches `Document.Path` (case-insensitive substring, or glob when `*`, `?`, `[` present) |
+| `ext` / `extension`  | Each is an alias | String  | `=` `!=`         | Yes         | Matches `Document.Extension` (case-insensitive) |
 
 **Semantic alias**: `complexity=high` is rewritten to `complexity>=8`.
 
