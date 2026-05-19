@@ -65,7 +65,7 @@ They solve different problems. You'll probably want both.
 
 - Structural Awareness: A match in code ranks higher than the same word in a comment (1.0 vs 0.2) - and it's configurable. Or filter strictly: `--only-code`, `--only-comments`, `--only-strings`.
 - Complexity Gravity: Uses [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) as a ranking signal. Searching for `Authenticate`? The complex implementation file ranks above the interface definition. (`--gravity=brain`)
-- Smart Ranking: BM25 relevance scoring, file-location boosting, noise penalty for data blobs, and automatic test-file dampening — all on the fly with no pre-built index.
+- Smart Ranking: BM25 relevance scoring, file-location boosting, noise penalty for data blobs, and automatic test-file dampening - all on the fly with no pre-built index.
 - Multiple interfaces: Console output, a built-in TUI, an HTTP server with syntax highlighting, or an MCP server for LLM tooling.
 
 ### Key Features
@@ -232,7 +232,7 @@ Using a 9950x3D it can search the kernel in ~400 milliseconds.
 
 #### Does it work on normal documents?
 
-So long as they are text. I wrote it to search code, but it works just as well on full text documents. The snippet
+So long as they are text. I wrote it to search code, but it works just as well on full-text documents. The snippet
 extraction, for example, was tested on Pride and Prejudice, a text I know more about than I probably should considering I'm male.
 
 #### Where is the index?
@@ -398,7 +398,7 @@ Flags:
       --only-strings              only rank matches in string literals (auto-selects structural ranker)
       --only-usages               only show matches on usage lines (excludes declarations)
   -o, --output string             output filename (default stdout)
-      --profile string            ranking profile [balanced, precise, broad] — overrides --gravity, --noise, and --test-penalty
+      --profile string            ranking profile [balanced, precise, broad] - overrides --gravity, --noise, and --test-penalty
       --ranker string             set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
       --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
       --reverse                   reverse the result order
@@ -491,16 +491,16 @@ The MCP server exposes two tools:
 
 **`search`** — Search code files recursively with relevance ranking.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `query` | string | yes | Search query (supports boolean logic, quotes, regex, fuzzy) |
-| `max_results` | number | no | Maximum results to return (default 20) |
-| `snippet_length` | number | no | Snippet size in characters |
-| `case_sensitive` | boolean | no | Case sensitive search |
-| `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`) |
-| `language` | string | no | Comma-separated language types (e.g. `Go,Python`) |
-| `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off` |
-| `profile` | string | no | Ranking profile: `balanced` (default), `precise`, `broad` — overrides gravity/noise/test-penalty |
+| Parameter | Type | Required | Description                                                                                      |
+|---|---|---|--------------------------------------------------------------------------------------------------|
+| `query` | string | yes | Search query (supports boolean logic, quotes, regex, fuzzy)                                      |
+| `max_results` | number | no | Maximum results to return (default 20)                                                           |
+| `snippet_length` | number | no | Snippet size in characters                                                                       |
+| `case_sensitive` | boolean | no | Case sensitive search                                                                            |
+| `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`)                                                |
+| `language` | string | no | Comma-separated language types (e.g. `Go,Python`)                                                |
+| `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off`                             |
+| `profile` | string | no | Ranking profile: `balanced` (default), `precise`, `broad` - overrides gravity/noise/test-penalty |
 
 Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
 

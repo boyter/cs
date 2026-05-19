@@ -25,10 +25,9 @@ type searchResult struct {
 	Filename       string
 	Location       string
 	Score          float64
-	Snippet        string               // plain text snippet (snippet mode)
-	SnippetLocs    [][]int              // match positions within Snippet [start, end]
-	LineRange      string               // line range info
-	LineResults    []snippet.LineResult // per-line results with positions (lines mode)
+	Snippets       []snippet.Snippet      // free-text snippet mode
+	LineClusters   [][]snippet.LineResult // lines/grep mode (grep = single cluster)
+	SnippetIdx     int                    // shared cycle index across Snippets / LineClusters
 	Language       string
 	TotalLines     int64
 	Code           int64
@@ -38,6 +37,58 @@ type searchResult struct {
 	DuplicateCount int
 	MatchLocations map[string][][]int // absolute byte positions in file
 	Prose          bool               // true for prose/text files (skip syntax highlighting)
+}
+
+// snippetCount returns the number of cyclable "snippets" — free-text snippets
+// in snippet mode, or line clusters in lines/grep mode.
+func (r *searchResult) snippetCount() int {
+	if len(r.Snippets) > 0 {
+		return len(r.Snippets)
+	}
+	return len(r.LineClusters)
+}
+
+// activeIdx clamps SnippetIdx into a valid range.
+func (r *searchResult) activeIdx() int {
+	n := r.snippetCount()
+	if n == 0 {
+		return 0
+	}
+	if r.SnippetIdx < 0 {
+		return 0
+	}
+	if r.SnippetIdx >= n {
+		return n - 1
+	}
+	return r.SnippetIdx
+}
+
+// activeSnippet returns the currently displayed free-text snippet, or nil.
+func (r *searchResult) activeSnippet() *snippet.Snippet {
+	if len(r.Snippets) == 0 {
+		return nil
+	}
+	return &r.Snippets[r.activeIdx()]
+}
+
+// activeCluster returns the currently displayed cluster of LineResult, or nil.
+func (r *searchResult) activeCluster() []snippet.LineResult {
+	if len(r.LineClusters) == 0 {
+		return nil
+	}
+	return r.LineClusters[r.activeIdx()]
+}
+
+// activeLineRange returns the "start-end" range string for the currently
+// displayed snippet or cluster.
+func (r *searchResult) activeLineRange() string {
+	if s := r.activeSnippet(); s != nil {
+		return fmt.Sprintf("%d-%d", s.LineStart, s.LineEnd)
+	}
+	if c := r.activeCluster(); len(c) > 0 {
+		return fmt.Sprintf("%d-%d", c[0].LineNumber, c[len(c)-1].LineNumber)
+	}
+	return ""
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -91,13 +142,26 @@ var (
 	selectedIndicator = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("5")).
 				SetString("▎")
+
+	navIndicator = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("13")). // bright magenta — signals snippet-cycling focus
+			Bold(true).
+			SetString("▌")
+
+	snippetCounterStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("6")). // cyan — visible without screaming
+				Italic(true)
+
+	snippetCounterActiveStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("13")). // bright magenta when actively cycling
+					Bold(true)
 )
 
 type model struct {
 	cfg           *Config
 	searchInput   textinput.Model
 	snippetInput  textinput.Model
-	focusIndex    int // 0=search, 1=snippet
+	focusIndex    int // 0=search, 1=snippet-length, 2=result-nav (snippet cycling)
 	results       []searchResult
 	fileJobs      []*common.FileJob
 	selectedIndex int
@@ -251,19 +315,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					isProse := snippet.IsProseFile(fj.Extension)
 					if fileMode == "grep" {
 						lineResults := snippet.FindAllMatchingLines(fj, m.cfg.LineLimit, ctxBefore, ctxAfter)
-						lineRange := ""
+						var clusters [][]snippet.LineResult
 						if len(lineResults) > 0 {
-							lineRange = fmt.Sprintf("%d-%d",
-								lineResults[0].LineNumber,
-								lineResults[len(lineResults)-1].LineNumber)
+							clusters = [][]snippet.LineResult{lineResults}
 						}
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
 							Filename:       fj.Location,
 							Location:       fj.Location,
 							Score:          fj.Score,
-							LineResults:    lineResults,
-							LineRange:      lineRange,
+							LineClusters:   clusters,
 							Language:       fj.Language,
 							TotalLines:     fj.Lines,
 							Code:           fj.Code,
@@ -279,20 +340,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if surroundLines < 1 {
 							surroundLines = 1
 						}
-						lineResults := snippet.FindMatchingLines(fj, surroundLines)
-						lineRange := ""
-						if len(lineResults) > 0 {
-							lineRange = fmt.Sprintf("%d-%d",
-								lineResults[0].LineNumber,
-								lineResults[len(lineResults)-1].LineNumber)
-						}
+						clusters := snippet.FindMatchingLinesMulti(fj, surroundLines, m.cfg.SnippetCount)
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
 							Filename:       fj.Location,
 							Location:       fj.Location,
 							Score:          fj.Score,
-							LineResults:    lineResults,
-							LineRange:      lineRange,
+							LineClusters:   clusters,
 							Language:       fj.Language,
 							TotalLines:     fj.Lines,
 							Code:           fj.Code,
@@ -305,22 +359,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						})
 					} else {
 						snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
-						snippetText := ""
-						lineRange := ""
-						var sLocs [][]int
-						if len(snippets) > 0 {
-							snippetText = snippets[0].Content
-							lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
-							sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
+						if m.cfg.SnippetCount > 0 && len(snippets) > m.cfg.SnippetCount {
+							snippets = snippets[:m.cfg.SnippetCount]
 						}
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
 							Filename:       fj.Location,
 							Location:       fj.Location,
 							Score:          fj.Score,
-							Snippet:        snippetText,
-							SnippetLocs:    sLocs,
-							LineRange:      lineRange,
+							Snippets:       snippets,
+							SnippetIdx:     0,
 							Language:       fj.Language,
 							TotalLines:     fj.Lines,
 							Code:           fj.Code,
@@ -441,11 +489,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case tea.KeyTab, tea.KeyShiftTab:
-			if m.focusIndex == 0 {
+			switch m.focusIndex {
+			case 0:
 				m.focusIndex = 1
 				m.searchInput.Blur()
 				m.snippetInput.Focus()
-			} else {
+			case 2:
+				m.focusIndex = 0
+				m.searchInput.Focus()
+			default:
 				m.focusIndex = 0
 				m.snippetInput.Blur()
 				m.searchInput.Focus()
@@ -458,6 +510,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if q := strings.TrimSpace(m.searchInput.Value()); q != "" {
 					m.searchSeq++
 					return m, makeDebounceCmd(m.searchSeq, m.searchInput.Value())
+				}
+				return m, nil
+			}
+			if m.focusIndex == 2 {
+				if m.selectedIndex > 0 {
+					m.selectedIndex--
+					m.ensureVisible()
+				} else {
+					m.focusIndex = 0
+					m.searchInput.Focus()
 				}
 				return m, nil
 			}
@@ -476,11 +538,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+			if m.focusIndex == 0 && m.cfg.SnippetCount > 1 && len(m.results) > 0 {
+				m.focusIndex = 2
+				m.searchInput.Blur()
+				return m, nil
+			}
 			if m.selectedIndex < len(m.results)-1 {
 				m.selectedIndex++
 				m.ensureVisible()
 			}
 			return m, nil
+
+		case tea.KeyLeft:
+			if m.focusIndex == 2 && m.selectedIndex < len(m.results) {
+				r := &m.results[m.selectedIndex]
+				if r.SnippetIdx > 0 {
+					r.SnippetIdx--
+				}
+				return m, nil
+			}
+
+		case tea.KeyRight:
+			if m.focusIndex == 2 && m.selectedIndex < len(m.results) {
+				r := &m.results[m.selectedIndex]
+				if r.SnippetIdx < r.snippetCount()-1 {
+					r.SnippetIdx++
+				}
+				return m, nil
+			}
 
 		case tea.KeyPgUp:
 			if m.focusIndex == 1 {
@@ -528,17 +613,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.results) > 0 && m.selectedIndex < len(m.results) {
 				r := m.results[m.selectedIndex]
 				lineNum := 0
-				if r.LineRange != "" {
-					fmt.Sscanf(r.LineRange, "%d", &lineNum)
+				if lr := r.activeLineRange(); lr != "" {
+					fmt.Sscanf(lr, "%d", &lineNum)
 				}
 				return m, editorAtLine(r.Location, lineNum)
 			}
 			return m, nil
 		}
+
+		// In result-nav focus, a printable key returns focus to the search
+		// input and feeds the key through so typing resumes immediately.
+		if m.focusIndex == 2 && msg.Type == tea.KeyRunes {
+			m.focusIndex = 0
+			m.searchInput.Focus()
+		}
 	}
 
 	// Update the focused input
-	if m.focusIndex == 0 {
+	switch m.focusIndex {
+	case 0:
 		prevValue := m.searchInput.Value()
 		var cmd tea.Cmd
 		m.searchInput, cmd = m.searchInput.Update(msg)
@@ -549,7 +642,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.searchSeq++
 			cmds = append(cmds, makeDebounceCmd(m.searchSeq, m.searchInput.Value()))
 		}
-	} else {
+	case 1:
 		var cmd tea.Cmd
 		m.snippetInput, cmd = m.snippetInput.Update(msg)
 		cmds = append(cmds, cmd)
@@ -615,17 +708,14 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 		var sr searchResult
 		if fileMode == "grep" {
 			lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit, ctxBefore, ctxAfter)
-			lineRange := ""
+			var clusters [][]snippet.LineResult
 			if len(lineResults) > 0 {
-				lineRange = fmt.Sprintf("%d-%d",
-					lineResults[0].LineNumber,
-					lineResults[len(lineResults)-1].LineNumber)
+				clusters = [][]snippet.LineResult{lineResults}
 			}
 			sr = searchResult{
 				Filename:       fj.Location,
 				Location:       fj.Location,
-				LineResults:    lineResults,
-				LineRange:      lineRange,
+				LineClusters:   clusters,
 				Language:       fj.Language,
 				TotalLines:     fj.Lines,
 				Code:           fj.Code,
@@ -636,18 +726,11 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Prose:          isProse,
 			}
 		} else if fileMode == "lines" {
-			lineResults := snippet.FindMatchingLines(fj, 2)
-			lineRange := ""
-			if len(lineResults) > 0 {
-				lineRange = fmt.Sprintf("%d-%d",
-					lineResults[0].LineNumber,
-					lineResults[len(lineResults)-1].LineNumber)
-			}
+			clusters := snippet.FindMatchingLinesMulti(fj, 2, cfg.SnippetCount)
 			sr = searchResult{
 				Filename:       fj.Location,
 				Location:       fj.Location,
-				LineResults:    lineResults,
-				LineRange:      lineRange,
+				LineClusters:   clusters,
 				Language:       fj.Language,
 				TotalLines:     fj.Lines,
 				Code:           fj.Code,
@@ -663,20 +746,14 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				docFreq[k] = len(v)
 			}
 			snippets := snippet.ExtractRelevant(fj, docFreq, snippetLen)
-			snippetText := ""
-			lineRange := ""
-			var sLocs [][]int
-			if len(snippets) > 0 {
-				snippetText = snippets[0].Content
-				lineRange = fmt.Sprintf("%d-%d", snippets[0].LineStart, snippets[0].LineEnd)
-				sLocs = snippetMatchLocs(fj.MatchLocations, snippets[0].StartPos, snippets[0].EndPos)
+			if cfg.SnippetCount > 0 && len(snippets) > cfg.SnippetCount {
+				snippets = snippets[:cfg.SnippetCount]
 			}
 			sr = searchResult{
 				Filename:       fj.Location,
 				Location:       fj.Location,
-				Snippet:        snippetText,
-				SnippetLocs:    sLocs,
-				LineRange:      lineRange,
+				Snippets:       snippets,
+				SnippetIdx:     0,
 				Language:       fj.Language,
 				TotalLines:     fj.Lines,
 				Code:           fj.Code,
@@ -736,25 +813,36 @@ func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [
 }
 
 // resultHeight returns the number of terminal lines a result takes up
-func resultHeight(r searchResult) int {
-	if len(r.LineResults) > 0 {
+func (m *model) resultHeight(r searchResult) int {
+	height := 1 // title
+	if cluster := r.activeCluster(); cluster != nil {
 		gaps := 0
-		for i := 1; i < len(r.LineResults); i++ {
-			if r.LineResults[i].LineNumber > r.LineResults[i-1].LineNumber+1 {
+		for i := 1; i < len(cluster); i++ {
+			if cluster[i].LineNumber > cluster[i-1].LineNumber+1 {
 				gaps++
 			}
 		}
-		return 1 + len(r.LineResults) + gaps + 1
+		height += len(cluster) + gaps + 1 // lines + gap blanks + trailing blank
+	} else {
+		snippetText := ""
+		if s := r.activeSnippet(); s != nil {
+			snippetText = s.Content
+		}
+		lines := strings.Count(snippetText, "\n") + 1
+		height += lines + 1 // lines + trailing blank
 	}
-	// 1 for title + lines in snippet + 1 blank line separator
-	lines := strings.Count(r.Snippet, "\n") + 1
-	return 1 + lines + 1
+	// Reserve a line for the "< N of M snippets >" counter when cycling is
+	// enabled and we have at least one snippet/cluster (matches renderResult).
+	if m.cfg.SnippetCount > 1 && r.snippetCount() >= 1 {
+		height++
+	}
+	return height
 }
 
 func (m *model) totalContentHeight() int {
 	total := 0
 	for _, r := range m.results {
-		total += resultHeight(r)
+		total += m.resultHeight(r)
 	}
 	return total
 }
@@ -784,7 +872,7 @@ func (m *model) resultIndexAtY(y int) int {
 	contentLine := m.scrollOffset + (y - headerLines)
 	accum := 0
 	for i, r := range m.results {
-		rh := resultHeight(r)
+		rh := m.resultHeight(r)
 		if contentLine < accum+rh {
 			return i
 		}
@@ -804,7 +892,7 @@ func (m *model) syncSelectedToScroll() {
 	accum := 0
 	firstVisible, lastVisible := -1, -1
 	for i, r := range m.results {
-		rh := resultHeight(r)
+		rh := m.resultHeight(r)
 		if accum+rh > m.scrollOffset && accum < m.scrollOffset+availHeight {
 			if firstVisible == -1 {
 				firstVisible = i
@@ -835,13 +923,13 @@ func (m *model) ensureVisible() {
 	heightBefore := 0
 	for i := 0; i < m.selectedIndex; i++ {
 		if i < len(m.results) {
-			heightBefore += resultHeight(m.results[i])
+			heightBefore += m.resultHeight(m.results[i])
 		}
 	}
 
 	selectedH := 0
 	if m.selectedIndex < len(m.results) {
-		selectedH = resultHeight(m.results[m.selectedIndex])
+		selectedH = m.resultHeight(m.results[m.selectedIndex])
 	}
 
 	// Scroll up if selected is above viewport
@@ -1073,7 +1161,7 @@ func (m model) View() string {
 	linesSkipped := 0
 
 	for i, r := range m.results {
-		rh := resultHeight(r)
+		rh := m.resultHeight(r)
 
 		// Skip results that are above the scroll offset
 		if linesSkipped+rh <= m.scrollOffset {
@@ -1114,9 +1202,13 @@ func (m model) View() string {
 	}
 
 	// === Bottom bar (nano-style keybinding hints) ===
-	bottomBar := snippetLabelStyle.Render(fmt.Sprintf(
+	hint := fmt.Sprintf(
 		"F1 Ranker:%s  F2 Filter:%s  F3 Gravity:%s  F4 Noise:%s  F5/^O/^P View  F6 Snippet:%s",
-		m.cfg.Ranker, m.codeFilterLabel(), m.cfg.GravityIntent, m.cfg.NoiseIntent, m.snippetMode))
+		m.cfg.Ranker, m.codeFilterLabel(), m.cfg.GravityIntent, m.cfg.NoiseIntent, m.snippetMode)
+	if m.cfg.SnippetCount > 1 {
+		hint += "  ↓ then ←/→ Cycle"
+	}
+	bottomBar := snippetLabelStyle.Render(hint)
 	b.WriteString("\n")
 	b.WriteString(bottomBar)
 
@@ -1131,18 +1223,26 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	if r.TotalLines > 0 {
 		codeStats = fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d Complexity:%d)", r.TotalLines, r.Code, r.Comment, r.Blank, r.Complexity)
 	}
+	lineRange := r.activeLineRange()
 	var titleText string
 	if r.Language != "" {
-		titleText = fmt.Sprintf("%s (%s) (%0.4f) [%s]%s", r.Filename, r.Language, r.Score, r.LineRange, codeStats)
+		titleText = fmt.Sprintf("%s (%s) (%0.4f) [%s]%s", r.Filename, r.Language, r.Score, lineRange, codeStats)
 	} else {
-		titleText = fmt.Sprintf("%s (%0.4f) [%s]%s", r.Filename, r.Score, r.LineRange, codeStats)
+		titleText = fmt.Sprintf("%s (%0.4f) [%s]%s", r.Filename, r.Score, lineRange, codeStats)
 	}
 	if r.DuplicateCount > 0 {
 		titleText += fmt.Sprintf(" [+%d duplicates]", r.DuplicateCount)
 	}
 
+	// In result-nav focus, brighten the selected indicator so the user can
+	// see that Left/Right will cycle snippets on this row.
+	indicator := selectedIndicator.String()
+	if isSelected && m.focusIndex == 2 {
+		indicator = navIndicator.String()
+	}
+
 	if isSelected {
-		b.WriteString(selectedIndicator.String())
+		b.WriteString(indicator)
 		b.WriteString(selectedTitleStyle.Render(titleText))
 	} else {
 		b.WriteString(" ")
@@ -1150,17 +1250,17 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	}
 	b.WriteString("\n")
 
-	// Render content: line-based or snippet-based
-	if len(r.LineResults) > 0 {
+	// Render content: line-based (active cluster) or free-text snippet.
+	if cluster := r.activeCluster(); cluster != nil {
 		prevLine := 0
-		for _, lr := range r.LineResults {
+		for _, lr := range cluster {
 			if prevLine > 0 && lr.LineNumber > prevLine+1 {
 				b.WriteString("\n")
 			}
 			prevLine = lr.LineNumber
 			prefix := "  "
 			if isSelected {
-				prefix = selectedIndicator.String() + " "
+				prefix = indicator + " "
 			}
 			lineNum := snippetLabelStyle.Render(fmt.Sprintf("%4d ", lr.LineNumber))
 			highlighted := m.highlightWithLocs(lr.Content, lr.Locs, isSelected, r.Prose)
@@ -1168,18 +1268,25 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 			b.WriteString("\n")
 		}
 	} else {
-		snippetLines := strings.Split(r.Snippet, "\n")
+		active := r.activeSnippet()
+		snippetText := ""
+		var sLocs [][]int
+		if active != nil {
+			snippetText = active.Content
+			sLocs = snippetMatchLocs(r.MatchLocations, active.StartPos, active.EndPos)
+		}
+		snippetLines := strings.Split(snippetText, "\n")
 		offset := 0
 		for _, line := range snippetLines {
 			prefix := "  "
 			if isSelected {
-				prefix = selectedIndicator.String() + " "
+				prefix = indicator + " "
 			}
 
-			// Compute per-line match locations from snippet-wide SnippetLocs
+			// Compute per-line match locations from snippet-wide locs
 			var lineLocs [][]int
 			lineEnd := offset + len(line)
-			for _, loc := range r.SnippetLocs {
+			for _, loc := range sLocs {
 				if loc[1] <= offset || loc[0] >= lineEnd {
 					continue // outside this line
 				}
@@ -1198,6 +1305,29 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 			b.WriteString(prefix + highlighted)
 			b.WriteString("\n")
 			offset = lineEnd + 1 // +1 for the \n
+		}
+	}
+
+	// Counter line: shown for the selected result whenever cycling is enabled
+	// (SnippetCount > 1) and there's at least one snippet/cluster. Applies in
+	// both snippet and lines modes. Non-selected rows render a blank line so
+	// scroll math (resultHeight) stays stable.
+	total := r.snippetCount()
+	if m.cfg.SnippetCount > 1 && total >= 1 {
+		if isSelected {
+			style := snippetCounterStyle
+			if m.focusIndex == 2 {
+				style = snippetCounterActiveStyle
+			}
+			noun := "snippets"
+			if total == 1 {
+				noun = "snippet"
+			}
+			counter := fmt.Sprintf("  < %d of %d %s >", r.activeIdx()+1, total, noun)
+			b.WriteString(style.Render(counter))
+			b.WriteString("\n")
+		} else {
+			b.WriteString("\n")
 		}
 	}
 
@@ -1318,10 +1448,11 @@ func (m *model) openViewer(r searchResult) error {
 		pos += len(line) + 1 // +1 for \n
 	}
 
-	// Parse start line from LineRange (e.g. "42-58")
+	// Parse start line from active snippet (snippet mode) or LineRange (grep/lines).
+	lineRange := r.activeLineRange()
 	startLine := 0
-	if r.LineRange != "" {
-		fmt.Sscanf(r.LineRange, "%d", &startLine)
+	if lineRange != "" {
+		fmt.Sscanf(lineRange, "%d", &startLine)
 		startLine-- // convert to 0-based
 	}
 
@@ -1332,7 +1463,7 @@ func (m *model) openViewer(r searchResult) error {
 	m.viewFilename = r.Filename
 	m.viewLocation = r.Location
 	m.viewLanguage = r.Language
-	m.viewLineRange = r.LineRange
+	m.viewLineRange = lineRange
 	m.viewMatchLocs = r.MatchLocations
 	m.viewLineOffsets = offsets
 	m.viewProse = r.Prose

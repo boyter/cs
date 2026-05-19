@@ -17,7 +17,7 @@ func TestExtractRelevant_ZeroDocumentFrequency_NoInf(t *testing.T) {
 		},
 	}
 
-	// Empty documentFrequencies map — word not present → defaults to 0
+	// Empty documentFrequencies map - word not present → defaults to 0
 	df := map[string]int{}
 	snippets := ExtractRelevant(res, df, 200)
 

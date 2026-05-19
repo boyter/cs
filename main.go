@@ -148,6 +148,11 @@ func main() {
 					stopSync := startGitSync(&cfg)
 					defer stopSync()
 				}
+				// TUI default: show 5 snippets per result (vs. console's 1)
+				// so the Left/Right cycling feature is discoverable out of the box.
+				if !cmd.Flags().Changed("snippet-count") {
+					cfg.SnippetCount = 5
+				}
 				p := tea.NewProgram(initialModel(&cfg), tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(os.Stderr))
 				m, err := p.Run()
 				if err != nil {

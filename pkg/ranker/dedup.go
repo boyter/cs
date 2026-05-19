@@ -82,7 +82,7 @@ func DeduplicateResults(results []*common.FileJob) []*common.FileJob {
 	for _, fj := range results {
 		hash := fj.MatchHash
 		if hash == "" {
-			// No hash means no match content — keep as-is (unique)
+			// No hash means no match content - keep as-is (unique)
 			hash = "[[no-hash]]:" + fj.Location
 		}
 

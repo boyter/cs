@@ -212,6 +212,182 @@ func FindMatchingLines(res *common.FileJob, surroundLines int) []LineResult {
 	return clean
 }
 
+// FindMatchingLinesMulti returns up to snippetCount independent clusters of
+// matching lines + surrounding context, drawn from the same pool of scored
+// matches that FindMatchingLines considers. Lines consumed by one cluster
+// (anchor or context) are excluded from later clusters, so clusters are
+// non-overlapping. Each cluster is sorted by LineNumber ascending and uses
+// 1-based line numbers. May return fewer than snippetCount clusters if
+// anchors are exhausted; returns nil if there are no matches.
+//
+// v1 intentionally duplicates the front-half scaffolding of FindMatchingLines
+// (line offsets, per-line overlap scoring, score sort) rather than refactoring
+// the hot path.
+func FindMatchingLinesMulti(res *common.FileJob, surroundLines, snippetCount int) [][]LineResult {
+	if len(res.MatchLocations) == 0 || len(res.Content) == 0 {
+		return nil
+	}
+	if snippetCount < 1 {
+		snippetCount = 1
+	}
+
+	const maxMatchingLines = 100
+	const maxResultLines = 15
+
+	// Split content into lines, tracking byte offsets
+	rawLines := bytes.Split(res.Content, []byte("\n"))
+	lineOffsets := make([]int, len(rawLines))
+	offset := 0
+	for i, line := range rawLines {
+		lineOffsets[i] = offset
+		offset += len(line) + 1 // +1 for the \n separator
+	}
+
+	// For each line, find match locations that overlap with it
+	var matchingLines []LineResult
+	for i, rawLine := range rawLines {
+		lineStart := lineOffsets[i]
+		lineEnd := lineStart + len(rawLine)
+
+		var locs [][]int
+		var score float64
+
+		filterShort := shouldFilterShortTerms(res.MatchLocations)
+		for term, positions := range res.MatchLocations {
+			if filterShort && len(term) < minTermLen {
+				continue
+			}
+			for _, pos := range positions {
+				mStart, mEnd := pos[0], pos[1]
+
+				if mStart < lineEnd && mEnd > lineStart {
+					relStart := mStart - lineStart
+					relEnd := mEnd - lineStart
+					if relStart < 0 {
+						relStart = 0
+					}
+					if relEnd > len(rawLine) {
+						relEnd = len(rawLine)
+					}
+					locs = append(locs, []int{relStart, relEnd})
+					score += 4.0
+				}
+			}
+		}
+
+		if len(locs) > 0 {
+			content := strings.TrimRight(string(rawLine), "\r")
+			for j := range locs {
+				if locs[j][1] > len(content) {
+					locs[j][1] = len(content)
+				}
+			}
+
+			matchingLines = append(matchingLines, LineResult{
+				LineNumber: i, // 0-based for now
+				Content:    content,
+				Locs:       locs,
+				Score:      score,
+			})
+
+			if len(matchingLines) > maxMatchingLines {
+				break
+			}
+		}
+	}
+
+	if len(matchingLines) == 0 {
+		return nil
+	}
+
+	sort.Slice(matchingLines, func(i, j int) bool {
+		return matchingLines[i].Score > matchingLines[j].Score
+	})
+
+	// Outer cluster loop. usedLines tracks every line consumed by any cluster
+	// (anchor or context), so subsequent clusters skip already-claimed regions.
+	usedLines := make(map[int]struct{})
+	var clusters [][]LineResult
+
+	for c := 0; c < snippetCount; c++ {
+		var resultLines []LineResult
+
+		// One cluster = one anchor + its surround context. Neighbouring
+		// matching lines (within surround) are absorbed as context here, so
+		// the next cluster naturally jumps to the next disjoint region.
+		for _, ml := range matchingLines {
+			if _, used := usedLines[ml.LineNumber]; used {
+				continue
+			}
+			resultLines = append(resultLines, ml)
+			usedLines[ml.LineNumber] = struct{}{}
+
+			for d := 1; d <= surroundLines; d++ {
+				before := ml.LineNumber - d
+				if before >= 0 {
+					if _, used := usedLines[before]; !used {
+						if existing, found := findInLineResults(before, matchingLines); found {
+							resultLines = append(resultLines, existing)
+						} else {
+							content := strings.TrimRight(string(rawLines[before]), "\r")
+							resultLines = append(resultLines, LineResult{
+								LineNumber: before,
+								Content:    content,
+							})
+						}
+						usedLines[before] = struct{}{}
+					}
+				}
+
+				after := ml.LineNumber + d
+				if after < len(rawLines) {
+					if _, used := usedLines[after]; !used {
+						if existing, found := findInLineResults(after, matchingLines); found {
+							resultLines = append(resultLines, existing)
+						} else {
+							content := strings.TrimRight(string(rawLines[after]), "\r")
+							resultLines = append(resultLines, LineResult{
+								LineNumber: after,
+								Content:    content,
+							})
+						}
+						usedLines[after] = struct{}{}
+					}
+				}
+
+				if len(resultLines) >= maxResultLines {
+					break // safety cap (rarely hit at typical surround values)
+				}
+			}
+			break // one anchor per cluster
+		}
+
+		if len(resultLines) == 0 {
+			break // anchors exhausted
+		}
+
+		// Per-cluster: dedup (parity with FindMatchingLines, though usedLines
+		// already prevents duplicates), sort ascending by line, convert 1-based.
+		seen := make(map[int]struct{})
+		var clean []LineResult
+		for _, lr := range resultLines {
+			if _, ok := seen[lr.LineNumber]; !ok {
+				seen[lr.LineNumber] = struct{}{}
+				clean = append(clean, lr)
+			}
+		}
+		sort.Slice(clean, func(i, j int) bool {
+			return clean[i].LineNumber < clean[j].LineNumber
+		})
+		for i := range clean {
+			clean[i].LineNumber++
+		}
+		clusters = append(clusters, clean)
+	}
+
+	return clusters
+}
+
 // FindAllMatchingLines returns every line with at least one match, in file order.
 // Unlike FindMatchingLines it has no artificial cap on the number of lines,
 // does not add context lines, and does not sort by score.
