@@ -25,10 +25,9 @@ type searchResult struct {
 	Filename       string
 	Location       string
 	Score          float64
-	Snippets       []snippet.Snippet    // all extracted snippets (snippet mode); empty for lines/grep
-	SnippetIdx     int                  // index of currently displayed snippet within Snippets
-	LineRange      string               // line range info (grep/lines modes only)
-	LineResults    []snippet.LineResult // per-line results with positions (lines mode)
+	Snippets       []snippet.Snippet      // free-text snippet mode
+	LineClusters   [][]snippet.LineResult // lines/grep mode (grep = single cluster)
+	SnippetIdx     int                    // shared cycle index across Snippets / LineClusters
 	Language       string
 	TotalLines     int64
 	Code           int64
@@ -40,25 +39,56 @@ type searchResult struct {
 	Prose          bool               // true for prose/text files (skip syntax highlighting)
 }
 
-// activeSnippet returns the currently displayed snippet, or nil if none.
+// snippetCount returns the number of cyclable "snippets" — free-text snippets
+// in snippet mode, or line clusters in lines/grep mode.
+func (r *searchResult) snippetCount() int {
+	if len(r.Snippets) > 0 {
+		return len(r.Snippets)
+	}
+	return len(r.LineClusters)
+}
+
+// activeIdx clamps SnippetIdx into a valid range.
+func (r *searchResult) activeIdx() int {
+	n := r.snippetCount()
+	if n == 0 {
+		return 0
+	}
+	if r.SnippetIdx < 0 {
+		return 0
+	}
+	if r.SnippetIdx >= n {
+		return n - 1
+	}
+	return r.SnippetIdx
+}
+
+// activeSnippet returns the currently displayed free-text snippet, or nil.
 func (r *searchResult) activeSnippet() *snippet.Snippet {
 	if len(r.Snippets) == 0 {
 		return nil
 	}
-	idx := r.SnippetIdx
-	if idx < 0 || idx >= len(r.Snippets) {
-		idx = 0
-	}
-	return &r.Snippets[idx]
+	return &r.Snippets[r.activeIdx()]
 }
 
-// activeLineRange returns the line range string for the currently displayed snippet,
-// or the LineRange field for grep/lines modes.
+// activeCluster returns the currently displayed cluster of LineResult, or nil.
+func (r *searchResult) activeCluster() []snippet.LineResult {
+	if len(r.LineClusters) == 0 {
+		return nil
+	}
+	return r.LineClusters[r.activeIdx()]
+}
+
+// activeLineRange returns the "start-end" range string for the currently
+// displayed snippet or cluster.
 func (r *searchResult) activeLineRange() string {
 	if s := r.activeSnippet(); s != nil {
 		return fmt.Sprintf("%d-%d", s.LineStart, s.LineEnd)
 	}
-	return r.LineRange
+	if c := r.activeCluster(); len(c) > 0 {
+		return fmt.Sprintf("%d-%d", c[0].LineNumber, c[len(c)-1].LineNumber)
+	}
+	return ""
 }
 
 // debounceTickMsg is sent after the debounce delay to trigger a search
@@ -285,19 +315,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					isProse := snippet.IsProseFile(fj.Extension)
 					if fileMode == "grep" {
 						lineResults := snippet.FindAllMatchingLines(fj, m.cfg.LineLimit, ctxBefore, ctxAfter)
-						lineRange := ""
+						var clusters [][]snippet.LineResult
 						if len(lineResults) > 0 {
-							lineRange = fmt.Sprintf("%d-%d",
-								lineResults[0].LineNumber,
-								lineResults[len(lineResults)-1].LineNumber)
+							clusters = [][]snippet.LineResult{lineResults}
 						}
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
 							Filename:       fj.Location,
 							Location:       fj.Location,
 							Score:          fj.Score,
-							LineResults:    lineResults,
-							LineRange:      lineRange,
+							LineClusters:   clusters,
 							Language:       fj.Language,
 							TotalLines:     fj.Lines,
 							Code:           fj.Code,
@@ -313,20 +340,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if surroundLines < 1 {
 							surroundLines = 1
 						}
-						lineResults := snippet.FindMatchingLines(fj, surroundLines)
-						lineRange := ""
-						if len(lineResults) > 0 {
-							lineRange = fmt.Sprintf("%d-%d",
-								lineResults[0].LineNumber,
-								lineResults[len(lineResults)-1].LineNumber)
-						}
+						clusters := snippet.FindMatchingLinesMulti(fj, surroundLines, m.cfg.SnippetCount)
 						fj.Content = nil
 						newResults = append(newResults, searchResult{
 							Filename:       fj.Location,
 							Location:       fj.Location,
 							Score:          fj.Score,
-							LineResults:    lineResults,
-							LineRange:      lineRange,
+							LineClusters:   clusters,
 							Language:       fj.Language,
 							TotalLines:     fj.Lines,
 							Code:           fj.Code,
@@ -541,7 +561,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyRight:
 			if m.focusIndex == 2 && m.selectedIndex < len(m.results) {
 				r := &m.results[m.selectedIndex]
-				if r.SnippetIdx < len(r.Snippets)-1 {
+				if r.SnippetIdx < r.snippetCount()-1 {
 					r.SnippetIdx++
 				}
 				return m, nil
@@ -688,17 +708,14 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 		var sr searchResult
 		if fileMode == "grep" {
 			lineResults := snippet.FindAllMatchingLines(fj, cfg.LineLimit, ctxBefore, ctxAfter)
-			lineRange := ""
+			var clusters [][]snippet.LineResult
 			if len(lineResults) > 0 {
-				lineRange = fmt.Sprintf("%d-%d",
-					lineResults[0].LineNumber,
-					lineResults[len(lineResults)-1].LineNumber)
+				clusters = [][]snippet.LineResult{lineResults}
 			}
 			sr = searchResult{
 				Filename:       fj.Location,
 				Location:       fj.Location,
-				LineResults:    lineResults,
-				LineRange:      lineRange,
+				LineClusters:   clusters,
 				Language:       fj.Language,
 				TotalLines:     fj.Lines,
 				Code:           fj.Code,
@@ -709,18 +726,11 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Prose:          isProse,
 			}
 		} else if fileMode == "lines" {
-			lineResults := snippet.FindMatchingLines(fj, 2)
-			lineRange := ""
-			if len(lineResults) > 0 {
-				lineRange = fmt.Sprintf("%d-%d",
-					lineResults[0].LineNumber,
-					lineResults[len(lineResults)-1].LineNumber)
-			}
+			clusters := snippet.FindMatchingLinesMulti(fj, 2, cfg.SnippetCount)
 			sr = searchResult{
 				Filename:       fj.Location,
 				Location:       fj.Location,
-				LineResults:    lineResults,
-				LineRange:      lineRange,
+				LineClusters:   clusters,
 				Language:       fj.Language,
 				TotalLines:     fj.Lines,
 				Code:           fj.Code,
@@ -804,25 +814,26 @@ func snippetMatchLocs(matchLocations map[string][][]int, startPos, endPos int) [
 
 // resultHeight returns the number of terminal lines a result takes up
 func (m *model) resultHeight(r searchResult) int {
-	if len(r.LineResults) > 0 {
+	height := 1 // title
+	if cluster := r.activeCluster(); cluster != nil {
 		gaps := 0
-		for i := 1; i < len(r.LineResults); i++ {
-			if r.LineResults[i].LineNumber > r.LineResults[i-1].LineNumber+1 {
+		for i := 1; i < len(cluster); i++ {
+			if cluster[i].LineNumber > cluster[i-1].LineNumber+1 {
 				gaps++
 			}
 		}
-		return 1 + len(r.LineResults) + gaps + 1
+		height += len(cluster) + gaps + 1 // lines + gap blanks + trailing blank
+	} else {
+		snippetText := ""
+		if s := r.activeSnippet(); s != nil {
+			snippetText = s.Content
+		}
+		lines := strings.Count(snippetText, "\n") + 1
+		height += lines + 1 // lines + trailing blank
 	}
-	snippetText := ""
-	if s := r.activeSnippet(); s != nil {
-		snippetText = s.Content
-	}
-	// 1 for title + lines in snippet + 1 blank line separator
-	lines := strings.Count(snippetText, "\n") + 1
-	height := 1 + lines + 1
 	// Reserve a line for the "< N of M snippets >" counter when cycling is
-	// enabled and we have at least one snippet (matches renderResult).
-	if m.cfg.SnippetCount > 1 && len(r.Snippets) >= 1 {
+	// enabled and we have at least one snippet/cluster (matches renderResult).
+	if m.cfg.SnippetCount > 1 && r.snippetCount() >= 1 {
 		height++
 	}
 	return height
@@ -1239,10 +1250,10 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	}
 	b.WriteString("\n")
 
-	// Render content: line-based or snippet-based
-	if len(r.LineResults) > 0 {
+	// Render content: line-based (active cluster) or free-text snippet.
+	if cluster := r.activeCluster(); cluster != nil {
 		prevLine := 0
-		for _, lr := range r.LineResults {
+		for _, lr := range cluster {
 			if prevLine > 0 && lr.LineNumber > prevLine+1 {
 				b.WriteString("\n")
 			}
@@ -1295,28 +1306,28 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 			b.WriteString("\n")
 			offset = lineEnd + 1 // +1 for the \n
 		}
+	}
 
-		// Snippet counter line. Shown for the selected result whenever cycling
-		// is enabled (SnippetCount > 1), even if this file only extracted one
-		// snippet — so the user always has feedback that the feature is active
-		// and knows how many snippets are available here. Non-selected rows
-		// render a blank line to keep scroll alignment stable.
-		if m.cfg.SnippetCount > 1 && len(r.Snippets) >= 1 {
-			if isSelected {
-				style := snippetCounterStyle
-				if m.focusIndex == 2 {
-					style = snippetCounterActiveStyle
-				}
-				noun := "snippets"
-				if len(r.Snippets) == 1 {
-					noun = "snippet"
-				}
-				counter := fmt.Sprintf("  < %d of %d %s >", r.SnippetIdx+1, len(r.Snippets), noun)
-				b.WriteString(style.Render(counter))
-				b.WriteString("\n")
-			} else {
-				b.WriteString("\n")
+	// Counter line: shown for the selected result whenever cycling is enabled
+	// (SnippetCount > 1) and there's at least one snippet/cluster. Applies in
+	// both snippet and lines modes. Non-selected rows render a blank line so
+	// scroll math (resultHeight) stays stable.
+	total := r.snippetCount()
+	if m.cfg.SnippetCount > 1 && total >= 1 {
+		if isSelected {
+			style := snippetCounterStyle
+			if m.focusIndex == 2 {
+				style = snippetCounterActiveStyle
 			}
+			noun := "snippets"
+			if total == 1 {
+				noun = "snippet"
+			}
+			counter := fmt.Sprintf("  < %d of %d %s >", r.activeIdx()+1, total, noun)
+			b.WriteString(style.Render(counter))
+			b.WriteString("\n")
+		} else {
+			b.WriteString("\n")
 		}
 	}
 
