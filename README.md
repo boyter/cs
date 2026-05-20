@@ -344,76 +344,71 @@ Example search that uses all current functionality
 
 The default input field in tui mode supports some nano commands
 - CTRL+a move to the beginning of the input
+- CTRL+e move to the end of the input
 - CTRL+k to clear from the cursor location forward
 
 - F1 cycle ranker (simple/tfidf/bm25/structural)
 - F2 cycle code filter (default/only-code/only-comments/only-strings/only-declarations/only-usages)
 - F3 cycle gravity (off/low/default/logic/brain)
 - F4 cycle noise (silence/quiet/default/loud/raw)
-- CTRL+e open the selected result in your editor at the matched line, then return to the TUI
-  (also `o` from inside the in-TUI file viewer). Editor is taken from `$CS_EDITOR`, then
-  `$EDITOR`, defaulting to `vim`. Line jump works with `vi`, `vim`, `nvim`, `hx`, `nano`,
-  and `emacs` (via the `+N` argument) and with VS Code / VSCodium / Cursor (via `code -g
-  <file>:<line>`); other editors just open the file. To make `code` block until you close
-  the file, set `CS_EDITOR="code --wait"`.
 
 Usage:
   cs [flags]
 
 Flags:
-      --address string            address and port to listen on (default ":8080")
-  -A, --after-context int         lines of context after each match (grep mode)
-  -B, --before-context int        lines of context before each match (grep mode)
-      --binary                    set to disable binary file detection and search binary files
-  -c, --case-sensitive            make the search case sensitive
-      --color string              color output mode [auto, always, never] (default "auto")
-  -C, --context int               lines of context before and after each match (grep mode)
-      --cpu-profile string        write CPU profile to file (for use with go tool pprof or PGO)
-      --dedup                     collapse byte-identical search matches, keeping the highest-scored representative
-      --dir string                directory to search, if not set defaults to current working directory
-      --exclude-dir strings       directories to exclude (default [.git,.hg,.svn])
-  -x, --exclude-pattern strings   file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]
-  -r, --find-root                 attempts to find the root of this repository by traversing in reverse looking for .git or .hg
-  -f, --format string             set output format [text, json, vimgrep] (default "text")
-      --git-sync                  periodically git pull repositories found in the search directory (TUI/HTTP/MCP only)
+      --address string               address and port to listen on (default ":8080")
+  -A, --after-context int            lines of context after each match (grep mode)
+  -B, --before-context int           lines of context before each match (grep mode)
+      --binary                       set to disable binary file detection and search binary files
+  -c, --case-sensitive               make the search case sensitive
+      --color string                 color output mode [auto, always, never] (default "auto")
+  -C, --context int                  lines of context before and after each match (grep mode)
+      --cpu-profile string           write CPU profile to file (for use with go tool pprof or PGO)
+      --dedup                        collapse byte-identical search matches, keeping the highest-scored representative
+      --dir string                   directory to search, if not set defaults to current working directory
+      --exclude-dir strings          directories to exclude (default [.git,.hg,.svn])
+  -x, --exclude-pattern strings      file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]
+  -r, --find-root                    attempts to find the root of this repository by traversing in reverse looking for .git or .hg
+  -f, --format string                set output format [text, json, vimgrep] (default "text")
+      --git-sync                     periodically git pull repositories found in the search directory (TUI/HTTP/MCP only)
       --git-sync-interval duration   interval between git sync pulls (e.g. 5m, 30s, 1h) (default 5m0s)
-      --git-sync-workers int    number of concurrent git pull workers (default 1)
-      --gravity string            complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0) (default "default")
-  -h, --help                      help for cs
-      --hidden                    include hidden files
-  -d, --http-server               start the HTTP server
-  -i, --include-ext strings       limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]
-      --line-limit int            max matching lines per file in grep mode (-1 = unlimited) (default -1)
-      --max-read-size-bytes int   number of bytes to read into a file with the remaining content ignored (default 1000000)
-      --mcp                       start as an MCP (Model Context Protocol) server over stdio
-      --min                       include minified files
-      --min-line-length int       number of bytes per average line for file to be considered minified (default 255)
-      --no-gitignore              disables .gitignore file logic
-      --no-ignore                 disables .ignore file logic
-      --no-syntax                 disable syntax highlighting in output
-      --noise string              noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off) (default "default")
-      --only-code                 only rank matches in code (auto-selects structural ranker)
-      --only-comments             only rank matches in comments (auto-selects structural ranker)
-      --only-declarations         only show matches on declaration lines (func, type, var, const, class, def, etc.)
-      --only-strings              only rank matches in string literals (auto-selects structural ranker)
-      --only-usages               only show matches on usage lines (excludes declarations)
-  -o, --output string             output filename (default stdout)
-      --profile string            ranking profile [balanced, precise, broad] - overrides --gravity, --noise, and --test-penalty
-      --ranker string             set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
-      --result-limit int          maximum number of results to return (-1 for unlimited) (default -1)
-      --reverse                   reverse the result order
-  -s, --snippet-count int         number of snippets to display (default 1)
-  -n, --snippet-length int        size of the snippet to display (default 300)
-      --snippet-mode string       snippet extraction mode: auto, snippet, lines, or grep (default "auto")
-      --template-display string   path to a custom display template
-      --template-search string    path to a custom search template
-      --template-style string     built-in theme for the HTTP server UI [dark, light, bare] (default "dark")
-      --test-penalty float        score multiplier for test files when query has no test intent (0.0-1.0, 1.0=disabled) (default 0.4)
-  -t, --type strings              limit to language types [comma separated list: e.g. Go,Java,Python]
-  -v, --version                   version for cs
-      --weight-code float         structural ranker: weight for matches in code (default 1.0) (default 1)
-      --weight-comment float      structural ranker: weight for matches in comments (default 0.2) (default 0.2)
-      --weight-string float       structural ranker: weight for matches in strings (default 0.5) (default 0.5)
+      --git-sync-workers int         number of concurrent git pull workers (default 1)
+      --gravity string               complexity gravity intent: brain (2.5), logic (1.5), default (1.0), low (0.2), off (0.0) (default "default")
+  -h, --help                         help for cs
+      --hidden                       include hidden files
+  -d, --http-server                  start the HTTP server
+  -i, --include-ext strings          limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]
+      --line-limit int               max matching lines per file in grep mode (-1 = unlimited) (default -1)
+      --max-read-size-bytes int      number of bytes to read into a file with the remaining content ignored (default 1000000)
+      --mcp                          start as an MCP (Model Context Protocol) server over stdio
+      --min                          include minified files
+      --min-line-length int          number of bytes per average line for file to be considered minified (default 255)
+      --no-gitignore                 disables .gitignore file logic
+      --no-ignore                    disables .ignore file logic
+      --no-syntax                    disable syntax highlighting in output
+      --noise string                 noise penalty intent: silence (0.1), quiet (0.5), default (1.0), loud (2.0), raw (off) (default "default")
+      --only-code                    only rank matches in code (auto-selects structural ranker)
+      --only-comments                only rank matches in comments (auto-selects structural ranker)
+      --only-declarations            only show matches on declaration lines (func, type, var, const, class, def, etc.)
+      --only-strings                 only rank matches in string literals (auto-selects structural ranker)
+      --only-usages                  only show matches on usage lines (excludes declarations)
+  -o, --output string                output filename (default stdout)
+      --profile string               ranking profile [balanced, precise, broad] — overrides --gravity, --noise, and --test-penalty when set
+      --ranker string                set ranking algorithm [simple, tfidf, bm25, structural] (default "structural")
+      --result-limit int             maximum number of results to return (-1 for unlimited) (default -1)
+      --reverse                      reverse the result order
+  -s, --snippet-count int            number of snippets to display (default 1)
+  -n, --snippet-length int           size of the snippet to display (default 300)
+      --snippet-mode string          snippet extraction mode: auto, snippet, lines, or grep (default "auto")
+      --template-display string      path to a custom display template
+      --template-search string       path to a custom search template
+      --template-style string        built-in theme for the HTTP server UI [dark, light, bare] (default "dark")
+      --test-penalty float           score multiplier for test files when query has no test intent (0.0-1.0, 1.0=disabled) (default 0.4)
+  -t, --type strings                 limit to language types [comma separated list: e.g. Go,Java,Python]
+  -v, --version                      version for cs
+      --weight-code float            structural ranker: weight for matches in code (default 1.0) (default 1)
+      --weight-comment float         structural ranker: weight for matches in comments (default 0.2) (default 0.2)
+      --weight-string float          structural ranker: weight for matches in strings (default 0.5) (default 0.5)
 ```
 
 Searches work on single or multiple words with a logical AND applied between them. You can negate with NOT before a term.
