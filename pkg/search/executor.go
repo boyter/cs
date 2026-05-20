@@ -5,6 +5,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"unsafe"
 
 	str "github.com/boyter/go-string"
 )
@@ -173,7 +174,15 @@ func EvaluateFile(node Node, content []byte, filename string, location string, c
 		return true, nil
 	}
 	locations := make(map[string][][]int)
-	contentStr := string(content) // convert once, reused by all AST nodes
+	// Alias content as a string without copying. Safe because the worker that
+	// calls EvaluateFile owns `content` exclusively for the duration of this
+	// call, does not mutate it, and `locations` stores integer offsets rather
+	// than substring views. If the file matches, DoSearch copies content into
+	// an owned slice before reusing the pool buffer for the next file.
+	var contentStr string
+	if len(content) > 0 {
+		contentStr = unsafe.String(unsafe.SliceData(content), len(content))
+	}
 	matched := evalFile(node, content, contentStr, filename, location, caseSensitive, locations)
 	return matched, locations
 }
