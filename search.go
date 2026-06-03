@@ -72,7 +72,7 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 		dir = cfg.Directory
 	}
 	if cfg.FindRoot {
-		dir = gocodewalker.FindRepositoryRoot(dir)
+		dir = findRepositoryRoot(dir)
 	}
 
 	// Resolve to absolute path once so downstream filepath.Abs() calls
@@ -397,4 +397,43 @@ func readFileContent(location string, maxBytes int64) ([]byte, error) {
 		return nil, err
 	}
 	return buf[:n], nil
+}
+
+// findRepositoryRoot walks startDir upward looking for a .git or .hg entry,
+// returning the first matching ancestor (inclusive of startDir) or startDir
+// if none is found. Unlike gocodewalker.FindRepositoryRoot, this recognizes
+// git worktrees, where .git is a regular file (containing "gitdir: …")
+// rather than a directory — so a nested worktree resolves to its own root
+// instead of the enclosing main repo.
+func findRepositoryRoot(startDir string) string {
+	abs, err := filepath.Abs(startDir)
+	if err != nil {
+		return startDir
+	}
+	dir := abs
+	for {
+		if hasRepoMarker(dir) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return startDir
+		}
+		dir = parent
+	}
+}
+
+// hasRepoMarker reports whether dir contains a .git or .hg entry.
+// .git is accepted as either a directory (normal repo) or a regular file
+// (git worktree, submodule).
+func hasRepoMarker(dir string) bool {
+	if stat, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		if stat.IsDir() || stat.Mode().IsRegular() {
+			return true
+		}
+	}
+	if stat, err := os.Stat(filepath.Join(dir, ".hg")); err == nil && stat.IsDir() {
+		return true
+	}
+	return false
 }
