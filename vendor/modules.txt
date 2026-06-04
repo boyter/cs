@@ -13,7 +13,7 @@ github.com/bahlo/generic-list-go
 # github.com/boyter/go-string v1.0.6-0.20260306001355-d32948e4ea00
 ## explicit; go 1.24
 github.com/boyter/go-string
-# github.com/boyter/gocodewalker v1.5.2-0.20260303001053-b0f7f6afdc70
+# github.com/boyter/gocodewalker v1.5.2-0.20260604012941-c5c998078802
 ## explicit; go 1.23.0
 github.com/boyter/gocodewalker
 github.com/boyter/gocodewalker/go-gitignore
