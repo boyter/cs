@@ -4,7 +4,7 @@ package str
 
 import (
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"unicode"
@@ -99,7 +99,17 @@ func init() {
 	for i := range _charRarity {
 		_charRarity[i] = 100
 	}
-	order := "zjqxkvbpygfwmucldrhsnioate"
+	// 's' and 'k' are deliberately omitted from this ordering. They are the only
+	// ASCII letters that case-fold to a third, non-ASCII form ('ſ' U+017F and the
+	// KELVIN SIGN 'K' U+212A), giving them three fold variants, so the fast
+	// two-byte indexByteTwo SIMD scan in IndexAllIgnoreCase cannot be used when
+	// they are the anchor. By English frequency 'k' is rare and would otherwise
+	// be the preferred anchor for any needle containing it (e.g. "kelvin"),
+	// forcing the slow multi-pass fallback. Leaving them at the common default
+	// (100) keeps bestCharOffset from preferring them, so such needles anchor on
+	// a SIMD-capable letter instead. If a needle contains no other letter we
+	// still anchor on them and the slower unicode-aware fallback handles it.
+	order := "zjqxvbpygfwmucldrhnioate"
 	for i, ch := range order {
 		_charRarity[ch] = i
 		if ch >= 'a' && ch <= 'z' {
@@ -245,23 +255,16 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 			_permuteCacheLock.Unlock()
 		}
 
-		for _, term := range searchTerms {
-			locs = append(locs, IndexAll(haystack, term, limit)...)
+		// Stream the permutation matches out in regexp.FindAllIndex order,
+		// stopping as soon as we have limit of them, so a small limit on a huge
+		// haystack stays cheap. collectFoldedMatches already returns ordered,
+		// non-overlapping results, so we can return directly.
+		locs = collectFoldedMatches(haystack, searchTerms, limit)
+
+		if len(locs) == 0 {
+			return nil
 		}
-
-		// if the limit is not -1 we need to sort and return the first X results so we maintain compatibility with how
-		// FindAllIndex would work
-		if limit > 0 && len(locs) > limit {
-
-			// now sort the results to we can get the first X results
-			// Now rank based on which ones are the best and sort them on that rank
-			// then get the top amount and the surrounding lines
-			sort.Slice(locs, func(i, j int) bool {
-				return locs[i][0] < locs[j][0]
-			})
-
-			return locs[:limit]
-		}
+		return locs
 	} else {
 		// Over the character limit so look for potential matches and only then check to find real ones
 
@@ -294,8 +297,11 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 		// two fold variants (upper + lower), use indexByteTwo to find both in
 		// a single SIMD pass instead of two separate IndexAll scans.
 		// This covers all ASCII letters except s/S (which also fold to ſ)
-		// and k/K (which also fold to K). Since bestCharOffset picks the
-		// rarest character, those are unlikely to be selected anyway.
+		// and k/K (which also fold to K); those have three fold variants so
+		// the len == 2 guard below excludes them. The rarity table (see init)
+		// omits s and k so bestCharOffset avoids anchoring on them whenever the
+		// needle has a SIMD-capable letter, keeping needles like "kelvin" on
+		// this fast path.
 		searchRune := needleRune[searchStart]
 		useSIMD := len(searchTerms) == 2 && len(searchTerms[0]) == 1 && len(searchTerms[1]) == 1 &&
 			searchRune < utf8.RuneSelf &&
@@ -411,19 +417,22 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 			}
 		}
 
-		// if the limit is not -1 we need to sort and return the first X results so we maintain compatibility with how
-		// FindAllIndex would work
-		if limit > 0 && len(locs) > limit {
+	}
 
-			// now sort the results to we can get the first X results
-			// Now rank based on which ones are the best and sort them on that rank
-			// then get the top amount and the surrounding lines
-			sort.Slice(locs, func(i, j int) bool {
-				return locs[i][0] < locs[j][0]
-			})
+	// The case-fold search above runs each permutation independently and
+	// concatenates the hits, so the slice can be unordered (a lowercase match
+	// found after an uppercase one further left) and can contain overlaps (e.g.
+	// needle "aa" matching both [0,2] and [1,3] in "aAa", or different byte
+	// lengths via the ſ/KELVIN SIGN folds). regexp.FindAllIndex, which this
+	// method mirrors, returns matches left-to-right and non-overlapping, so we
+	// order and resolve overlaps before applying the limit.
+	locs = sortAndDedupe(locs)
 
-			return locs[:limit]
-		}
+	// Match regexp.FindAllIndex's limit semantics: a negative limit returns all
+	// matches, while a non-negative limit returns at most that many (so 0 returns
+	// none). The case-sensitive IndexAll already behaves this way.
+	if limit >= 0 && len(locs) > limit {
+		locs = locs[:limit]
 	}
 
 	// Retain compatibility with the FindAllIndex method
@@ -432,4 +441,100 @@ func IndexAllIgnoreCase(haystack string, needle string, limit int) [][]int {
 	}
 
 	return locs
+}
+
+// collectFoldedMatches searches haystack for every case-fold permutation in
+// terms and returns the matches in left-to-right, non-overlapping order,
+// stopping once it has limit of them (limit < 0 means all, limit == 0 means
+// none). It is the case-folded equivalent of regexp.FindAllIndex.
+//
+// It works as a lazy k-way merge: each term keeps its next pending match, and
+// each step takes the earliest-starting one, keeps it only if it begins at or
+// after the end of the previously kept match (regexp's consume-and-advance
+// rule), then advances that term to its next match. Crucially the next match is
+// found one byte past the current one, so overlapping occurrences of a periodic
+// permutation (e.g. "aa" at [0,2] and [1,3] in "aaa") are still produced. At
+// most one permutation can match at any given byte offset, so two pending
+// matches never share a start. Because results are emitted in order we can stop
+// at limit without scanning the rest of the haystack.
+func collectFoldedMatches(haystack string, terms []string, limit int) [][]int {
+	if limit == 0 {
+		return nil
+	}
+
+	// next[i] is the start offset of term i's pending match (-1 once exhausted);
+	// from[i] is where its following search resumes (one byte later).
+	next := make([]int, len(terms))
+	from := make([]int, len(terms))
+	for i, t := range terms {
+		next[i] = strings.Index(haystack, t)
+		if next[i] >= 0 {
+			from[i] = next[i] + 1
+		}
+	}
+
+	var out [][]int
+	lastEnd := 0
+	for {
+		best := -1
+		for i := range next {
+			if next[i] >= 0 && (best < 0 || next[i] < next[best]) {
+				best = i
+			}
+		}
+		if best < 0 {
+			break
+		}
+
+		pos := next[best]
+		end := pos + len(terms[best])
+		if pos >= lastEnd {
+			out = append(out, []int{pos, end})
+			lastEnd = end
+			if limit > 0 && len(out) == limit {
+				break
+			}
+		}
+
+		if idx := strings.Index(haystack[from[best]:], terms[best]); idx < 0 {
+			next[best] = -1
+		} else {
+			next[best] = from[best] + idx
+			from[best] = next[best] + 1
+		}
+	}
+
+	return out
+}
+
+// sortAndDedupe orders matches left-to-right and removes overlaps so the result
+// matches regexp.FindAllIndex semantics: a match is kept only if it starts at or
+// after the end of the previously kept match (leftmost wins, scanning resumes
+// after it). Exact duplicates produced by different case permutations are
+// dropped by the same rule. The slice is sorted and filtered in place.
+func sortAndDedupe(locs [][]int) [][]int {
+	if len(locs) < 2 {
+		return locs
+	}
+
+	slices.SortFunc(locs, func(a, b []int) int {
+		if a[0] != b[0] {
+			return a[0] - b[0]
+		}
+		return a[1] - b[1]
+	})
+
+	// Compact non-overlapping matches into the front of the slice; the write
+	// index never overtakes the read index, so this is safe in place.
+	n := 1
+	lastEnd := locs[0][1]
+	for _, m := range locs[1:] {
+		if m[0] >= lastEnd {
+			locs[n] = m
+			n++
+			lastEnd = m[1]
+		}
+	}
+
+	return locs[:n]
 }

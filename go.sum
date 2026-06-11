@@ -8,8 +8,8 @@ github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiE
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/bahlo/generic-list-go v0.2.0 h1:5sz/EEAK+ls5wF+NeqDpk5+iNdMDXrh3z3nPnH1Wvgk=
 github.com/bahlo/generic-list-go v0.2.0/go.mod h1:2KvAjgMlE5NNynlg/5iLrrCCZ2+5xWbdbCW3pNTGyYg=
-github.com/boyter/go-string v1.0.6-0.20260306001355-d32948e4ea00 h1:7KwviIIjJwC1omxkN8/Vuauysatyz6hAignwAv4MNS8=
-github.com/boyter/go-string v1.0.6-0.20260306001355-d32948e4ea00/go.mod h1:kPtIc+VM7/0azF7xOKFPnYl85qJe1Wwf0hJzV8mSGQk=
+github.com/boyter/go-string v1.0.6-0.20260611011129-ac73d0bec139 h1:dHTcdm3GjISZ1aLh0BzprxLPlA3eydz3GJN2LZoXx9M=
+github.com/boyter/go-string v1.0.6-0.20260611011129-ac73d0bec139/go.mod h1:kPtIc+VM7/0azF7xOKFPnYl85qJe1Wwf0hJzV8mSGQk=
 github.com/boyter/gocodewalker v1.5.2-0.20260604012941-c5c998078802 h1:mB0bHevJMuobegOfnTIBYGR+TZFZ0RhX2nihsPXdf9g=
 github.com/boyter/gocodewalker v1.5.2-0.20260604012941-c5c998078802/go.mod h1:9k+yM6+fIx61F0xI9ChXEGE5DYoLhggw8AxSOtW+kKo=
 github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964 h1:8/6NkAdSg6PanmIi3BpJVVgPgG9eJgeCxyKiAhsT5Xg=

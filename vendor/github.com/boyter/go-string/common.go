@@ -64,16 +64,29 @@ func PermuteCase(input string) []string {
 
 // PermuteCaseFolding given a str returns a slice containing all possible case permutations
 // with characters being folded such that S will return S s ſ
+//
+// Folding is applied to every rune independently and the full cross-product is
+// produced. This matters when more than one rune folds to a non-trivial form:
+// for "kk" we must emit the permutation where both positions are the KELVIN SIGN
+// (U+212A), otherwise a haystack of two KELVIN SIGNs would never be matched.
 func PermuteCaseFolding(input string) []string {
-	combinations := PermuteCase(input)
 	var combos []string
 
-	for _, combo := range combinations {
-		for index, runeValue := range combo {
-			for _, p := range AllSimpleFold(runeValue) {
-				combos = append(combos, combo[:index]+string(p)+combo[index+len(string(runeValue)):])
+	for _, combo := range PermuteCase(input) {
+		// Start with the empty prefix and extend it by every fold of each
+		// successive rune, building the cross-product across all positions.
+		prefixes := []string{""}
+		for _, runeValue := range combo {
+			folds := AllSimpleFold(runeValue)
+			next := make([]string, 0, len(prefixes)*len(folds))
+			for _, prefix := range prefixes {
+				for _, p := range folds {
+					next = append(next, prefix+string(p))
+				}
 			}
+			prefixes = next
 		}
+		combos = append(combos, prefixes...)
 	}
 
 	return RemoveStringDuplicates(combos)
