@@ -73,6 +73,9 @@ func TestIsDeclarationLine_JavaScript(t *testing.T) {
 		{"export const x = 1", true},
 		{"export let x = 1", true},
 		{"export default class Foo {", true},
+		{"async function foo() {", true},
+		{"export async function foo() {", true},
+		{"export default async function foo() {", true},
 		{"console.log(x)", false},
 		{"return x", false},
 	}
@@ -97,6 +100,10 @@ func TestIsDeclarationLine_TypeScript(t *testing.T) {
 		{"export interface Foo {", true},
 		{"export type Foo = string", true},
 		{"export enum Color {", true},
+		{"async function foo() {", true},
+		{"export async function foo() {", true},
+		{"export default async function foo() {", true},
+		{"export async function markCommandUninstalled(): Promise<void> {", true},
 		{"console.log(x)", false},
 	}
 
