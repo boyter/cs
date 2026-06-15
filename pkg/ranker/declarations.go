@@ -9,6 +9,15 @@ import (
 // DeclarationPattern represents a line-start pattern that indicates a declaration.
 type DeclarationPattern struct {
 	Prefix []byte // bytes that the trimmed line must start with
+
+	// NameBindsAfterPrefix marks patterns where the declared identifier appears
+	// immediately after Prefix (e.g. `const NAME = ...`). For these,
+	// ClassifyMatchLocations only treats a match as a declaration when the match
+	// begins at that identifier position, so a usage on the right-hand side
+	// (`const x = someFn()`) is classified as a usage rather than a declaration.
+	// Left false for patterns whose declared name is not directly after the
+	// keyword (e.g. Go `func (r *T) Method()`), which keep line-level behaviour.
+	NameBindsAfterPrefix bool
 }
 
 // languageDeclarationPatterns maps scc language names to their declaration patterns.
@@ -18,9 +27,9 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("func ")},
 		{Prefix: []byte("func(")},
 		{Prefix: []byte("type ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("var(")},
-		{Prefix: []byte("const ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("const(")},
 	},
 	"Python": {
@@ -33,16 +42,16 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("function(")},
 		{Prefix: []byte("async function ")},
 		{Prefix: []byte("class ")},
-		{Prefix: []byte("const ")},
-		{Prefix: []byte("let ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("let "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("export function ")},
 		{Prefix: []byte("export async function ")},
 		{Prefix: []byte("export default function")},
 		{Prefix: []byte("export default async function")},
 		{Prefix: []byte("export class ")},
-		{Prefix: []byte("export const ")},
-		{Prefix: []byte("export let ")},
+		{Prefix: []byte("export const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("export let "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("export default class")},
 	},
 	"TypeScript": {
@@ -50,9 +59,9 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("function(")},
 		{Prefix: []byte("async function ")},
 		{Prefix: []byte("class ")},
-		{Prefix: []byte("const ")},
-		{Prefix: []byte("let ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("let "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("interface ")},
 		{Prefix: []byte("type ")},
 		{Prefix: []byte("enum ")},
@@ -61,8 +70,8 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("export default function")},
 		{Prefix: []byte("export default async function")},
 		{Prefix: []byte("export class ")},
-		{Prefix: []byte("export const ")},
-		{Prefix: []byte("export let ")},
+		{Prefix: []byte("export const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("export let "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("export default class")},
 		{Prefix: []byte("export interface ")},
 		{Prefix: []byte("export type ")},
@@ -73,9 +82,9 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("function(")},
 		{Prefix: []byte("async function ")},
 		{Prefix: []byte("class ")},
-		{Prefix: []byte("const ")},
-		{Prefix: []byte("let ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("let "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("interface ")},
 		{Prefix: []byte("type ")},
 		{Prefix: []byte("enum ")},
@@ -84,8 +93,8 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("export default function")},
 		{Prefix: []byte("export default async function")},
 		{Prefix: []byte("export class ")},
-		{Prefix: []byte("export const ")},
-		{Prefix: []byte("export let ")},
+		{Prefix: []byte("export const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("export let "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("export default class")},
 		{Prefix: []byte("export interface ")},
 		{Prefix: []byte("export type ")},
@@ -104,10 +113,10 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("impl ")},
 		{Prefix: []byte("type ")},
 		{Prefix: []byte("pub type ")},
-		{Prefix: []byte("const ")},
-		{Prefix: []byte("pub const ")},
-		{Prefix: []byte("static ")},
-		{Prefix: []byte("pub static ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("pub const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("static "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("pub static "), NameBindsAfterPrefix: true},
 	},
 	"Java": {
 		{Prefix: []byte("public class ")},
@@ -175,8 +184,8 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("interface ")},
 		{Prefix: []byte("enum class ")},
 		{Prefix: []byte("typealias ")},
-		{Prefix: []byte("val ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("val "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 	},
 	"Swift": {
 		{Prefix: []byte("func ")},
@@ -185,8 +194,8 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("enum ")},
 		{Prefix: []byte("protocol ")},
 		{Prefix: []byte("typealias ")},
-		{Prefix: []byte("let ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("let "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 	},
 	"Shell": {
 		{Prefix: []byte("function ")},
@@ -198,8 +207,8 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 	},
 	"Scala": {
 		{Prefix: []byte("def ")},
-		{Prefix: []byte("val ")},
-		{Prefix: []byte("var ")},
+		{Prefix: []byte("val "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("class ")},
 		{Prefix: []byte("trait ")},
 		{Prefix: []byte("object ")},
@@ -236,10 +245,10 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 	"Zig": {
 		{Prefix: []byte("fn ")},
 		{Prefix: []byte("pub fn ")},
-		{Prefix: []byte("const ")},
-		{Prefix: []byte("pub const ")},
-		{Prefix: []byte("var ")},
-		{Prefix: []byte("pub var ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("pub const "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("var "), NameBindsAfterPrefix: true},
+		{Prefix: []byte("pub var "), NameBindsAfterPrefix: true},
 	},
 	"Dart": {
 		{Prefix: []byte("class ")},
@@ -284,10 +293,10 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("trait ")},
 	},
 	"OCaml": {
-		{Prefix: []byte("let ")},
+		{Prefix: []byte("let "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("type ")},
 		{Prefix: []byte("module ")},
-		{Prefix: []byte("val ")},
+		{Prefix: []byte("val "), NameBindsAfterPrefix: true},
 		{Prefix: []byte("external ")},
 	},
 	"MATLAB": {
@@ -322,7 +331,7 @@ var languageDeclarationPatterns = map[string][]DeclarationPattern{
 		{Prefix: []byte("pub struct ")},
 		{Prefix: []byte("enum ")},
 		{Prefix: []byte("type ")},
-		{Prefix: []byte("const ")},
+		{Prefix: []byte("const "), NameBindsAfterPrefix: true},
 	},
 }
 
@@ -339,6 +348,39 @@ func IsDeclarationLine(trimmedLine []byte, language string) bool {
 		if bytes.HasPrefix(trimmedLine, pat.Prefix) {
 			return true
 		}
+	}
+	return false
+}
+
+// isDeclarationMatch reports whether a match is a declaration of the matched
+// token, given the trimmed line it sits on and matchCol — the match's byte
+// offset relative to the start of the trimmed line.
+//
+// It refines IsDeclarationLine: for value-binding patterns (NameBindsAfterPrefix),
+// the match counts as a declaration only when it begins at the bound identifier
+// (immediately after the keyword), so `const x = someFn()` classifies the `x`
+// match as a declaration and the `someFn` match as a usage. All other patterns
+// keep line-level behaviour.
+func isDeclarationMatch(trimmedLine []byte, matchCol int, language string) bool {
+	patterns, ok := languageDeclarationPatterns[language]
+	if !ok {
+		return false
+	}
+
+	for _, pat := range patterns {
+		if !bytes.HasPrefix(trimmedLine, pat.Prefix) {
+			continue
+		}
+		if pat.NameBindsAfterPrefix {
+			// The bound identifier is the first token after the keyword. Skip any
+			// extra spacing between keyword and name so `const   x` still matches.
+			nameStart := len(pat.Prefix)
+			for nameStart < len(trimmedLine) && (trimmedLine[nameStart] == ' ' || trimmedLine[nameStart] == '\t') {
+				nameStart++
+			}
+			return matchCol == nameStart
+		}
+		return true
 	}
 	return false
 }
@@ -406,7 +448,13 @@ func ClassifyMatchLocations(
 			line := content[lineStart:lineEnd]
 			trimmedLine := bytes.TrimLeft(line, " \t")
 
-			if IsDeclarationLine(trimmedLine, language) {
+			// matchCol is the match offset relative to the start of the trimmed
+			// line, so value-binding patterns can require the match to sit at the
+			// bound identifier rather than anywhere on the line.
+			leadingWS := len(line) - len(trimmedLine)
+			matchCol := startByte - lineStart - leadingWS
+
+			if isDeclarationMatch(trimmedLine, matchCol, language) {
 				declarations[term] = append(declarations[term], loc)
 			} else {
 				usages[term] = append(usages[term], loc)

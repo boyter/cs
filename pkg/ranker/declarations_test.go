@@ -3,6 +3,7 @@
 package ranker
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -900,6 +901,105 @@ func TestFindLine_SingleLine(t *testing.T) {
 	got := findLine(lineStarts, 5)
 	if got != 0 {
 		t.Errorf("findLine([0], 5) = %d, want 0", got)
+	}
+}
+
+// classifyTerm is a helper that classifies the single occurrence of term in
+// content for the given language, returning whether it landed in declarations.
+func classifyTerm(t *testing.T, content, term, language string) (isDecl, isUsage bool) {
+	t.Helper()
+	idx := bytes.Index([]byte(content), []byte(term))
+	if idx < 0 {
+		t.Fatalf("term %q not found in content", term)
+	}
+	locs := map[string][][]int{term: {{idx, idx + len(term)}}}
+	decl, usage := ClassifyMatchLocations([]byte(content), locs, language)
+	return len(decl[term]) > 0, len(usage[term]) > 0
+}
+
+func TestClassifyMatchLocations_TypeScriptBindingRHS(t *testing.T) {
+	// Bug 2: a function call on the RHS of a const/let/var binding must be a
+	// usage, not a declaration, even though the line starts with a binding keyword.
+	cases := []struct {
+		name     string
+		content  string
+		term     string
+		wantDecl bool
+	}{
+		{"const RHS call is a usage", "const context = await createCommandValidationContext();\n", "createCommandValidationContext", false},
+		{"const bound name is a declaration", "const context = await createCommandValidationContext();\n", "context", true},
+		{"let RHS call is a usage", "let result = computeThing();\n", "computeThing", false},
+		{"var RHS call is a usage", "var handler = makeHandler();\n", "makeHandler", false},
+		{"export const RHS call is a usage", "export const client = createClient();\n", "createClient", false},
+		{"export const bound name is a declaration", "export const client = createClient();\n", "client", true},
+		{"function declaration still detected", "export function fetchData(): void {\n", "fetchData", true},
+		{"extra spaces before bound name", "const    context = createCommandValidationContext();\n", "context", true},
+		{"extra spaces, RHS call still a usage", "const    context = createCommandValidationContext();\n", "createCommandValidationContext", false},
+		{"indented binding, RHS call still a usage", "        const result = computeResult();\n", "computeResult", false},
+		{"call inside indexed const line is a usage", "    const staleResults = await Promise.all(commandsWithHotkeys.map((entry) => isCommandStale(entry.id)));\n", "isCommandStale", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isDecl, isUsage := classifyTerm(t, tc.content, tc.term, "TypeScript")
+			if isDecl != tc.wantDecl {
+				t.Errorf("declaration=%v, want %v (usage=%v)", isDecl, tc.wantDecl, isUsage)
+			}
+			if isDecl == isUsage {
+				t.Errorf("match should be exactly one of declaration/usage, got decl=%v usage=%v", isDecl, isUsage)
+			}
+		})
+	}
+}
+
+func TestClassifyMatchLocations_BindingKeywordsAcrossLanguages(t *testing.T) {
+	// For value-binding keywords across languages, a call on the right-hand side
+	// is a usage, the bound name is the declaration, and a real function/type
+	// declaration of the same name stays a declaration.
+	cases := []struct {
+		name     string
+		language string
+		content  string
+		term     string
+		wantDecl bool
+	}{
+		{"Go var RHS call", "Go", "var handler = makeHandler()\n", "makeHandler", false},
+		{"Go var bound name", "Go", "var handler = makeHandler()\n", "handler", true},
+		{"Go const RHS call", "Go", "const limit = computeLimit()\n", "computeLimit", false},
+		{"Go func decl unaffected", "Go", "func computeLimit() int {\n", "computeLimit", true},
+
+		{"Rust const RHS call", "Rust", "const MAX: i32 = computeMax();\n", "computeMax", false},
+		{"Rust static RHS call", "Rust", "static REG: Reg = buildReg();\n", "buildReg", false},
+		{"Rust pub const RHS call", "Rust", "pub const MAX: i32 = computeMax();\n", "computeMax", false},
+		{"Rust fn decl unaffected", "Rust", "fn computeMax() -> i32 {\n", "computeMax", true},
+
+		{"Swift let RHS call", "Swift", "let value = makeThing()\n", "makeThing", false},
+		{"Kotlin val RHS call", "Kotlin", "val client = createClient()\n", "createClient", false},
+		{"Scala val RHS call", "Scala", "val result = compute()\n", "compute", false},
+		{"Zig const RHS call", "Zig", "const handle = openHandle();\n", "openHandle", false},
+		{"OCaml let RHS call", "OCaml", "let x = computeValue ()\n", "computeValue", false},
+		{"V const RHS call", "V", "const answer = makeAnswer()\n", "makeAnswer", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isDecl, isUsage := classifyTerm(t, tc.content, tc.term, tc.language)
+			if isDecl != tc.wantDecl {
+				t.Errorf("declaration=%v, want %v (usage=%v)", isDecl, tc.wantDecl, isUsage)
+			}
+			if isDecl == isUsage {
+				t.Errorf("match should be exactly one of declaration/usage, got decl=%v usage=%v", isDecl, isUsage)
+			}
+		})
+	}
+}
+
+func TestClassifyMatchLocations_GoMethodUnaffected(t *testing.T) {
+	// Go `func ` is not a binding pattern, so a receiver-method name that is not
+	// directly after the keyword must still be classified as a declaration.
+	isDecl, _ := classifyTerm(t, "func (r *Receiver) Method() {\n}\n", "Method", "Go")
+	if !isDecl {
+		t.Error("Go receiver method name should remain a declaration (line-level)")
 	}
 }
 
