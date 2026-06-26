@@ -1,5 +1,7 @@
 # codespelunker (cs)
 
+> scc powers [searchcode.com](https://searchcode.com) — structured code intelligence over any repo, built for AI agents.
+> 
 ### CLI code search tool that understands code structure and ranks results by relevance. No indexing required
 
 Ever searched for `authenticate` and gotten 200 results from config files, comments, and test stubs before finding the actual implementation? `cs` fixes that.
