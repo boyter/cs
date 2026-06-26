@@ -1,6 +1,6 @@
 # codespelunker (cs)
 
-> scc powers [searchcode.com](https://searchcode.com) — structured code intelligence over any repo, built for AI agents.
+> cs powers [searchcode.com](https://searchcode.com) — structured code intelligence over any repo, built for AI agents.
 > 
 ### CLI code search tool that understands code structure and ranks results by relevance. No indexing required
 
