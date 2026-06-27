@@ -4,7 +4,7 @@ go 1.25.2
 
 require (
 	github.com/boyter/go-string v1.0.6-0.20260611011129-ac73d0bec139
-	github.com/boyter/gocodewalker v1.5.2-0.20260604012941-c5c998078802
+	github.com/boyter/gocodewalker v1.5.2-0.20260627224246-75bd04cd8742
 	github.com/boyter/scc/v3 v3.6.1-0.20260217234719-b35b9d41c964
 	github.com/boyter/simplecache v0.0.0-20250401093414-ea7f89017ab4
 	github.com/charmbracelet/bubbles v0.16.1
