@@ -56,6 +56,10 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 		return out, stats, nil
 	}
 
+	// Filters (path:, ext:, ...) constrain the whole query, so lift them out of
+	// any implicit OR grouping introduced by a default-or operator.
+	ast = search.HoistFilters(ast)
+
 	// Validate query term count
 	if cfg.MaxQueryTerms > 0 && search.CountAllTerms(ast) > cfg.MaxQueryTerms {
 		close(out)

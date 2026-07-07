@@ -24,6 +24,10 @@ func (n *AndNode) String() string { return fmt.Sprintf("(%s AND %s)", n.Left, n.
 type OrNode struct {
 	Left  Node
 	Right Node
+	// Implicit is true when this OR was created by combining adjacent terms
+	// under a default-or operator (rather than an explicit "OR" in the query).
+	// Filter hoisting only reaches through implicit OR groupings.
+	Implicit bool
 }
 
 func (n *OrNode) String() string { return fmt.Sprintf("(%s OR %s)", n.Left, n.Right) }

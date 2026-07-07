@@ -322,6 +322,16 @@ the default `AND` is often too restrictive and returns zero results.
 cs --default-operator=or foo bar baz
 ```
 
+Even with `or`, metadata filters (`path:`, `ext:`, `file:`, `lang:`,
+`complexity:`, …) still constrain the whole query rather than being OR'd with
+individual terms. For example `foo bar path:pkg` is treated as
+`(foo OR bar) AND path:pkg`, so the filter applies no matter where it appears in
+the query. An explicit `foo OR path:pkg` is left as written.
+
+A filter inside parentheses is scoped to that group: `(foo path:pkg) bar` means
+`(foo AND path:pkg) OR bar`, so `path:pkg` constrains only `foo` while `bar`
+matches anywhere. A filter outside any group still applies to the whole query.
+
 ### Usage
 
 Command line usage of `cs` is designed to be as simple as possible.

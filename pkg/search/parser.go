@@ -193,7 +193,11 @@ func (p *Parser) parsePrefix() Node {
 	case LPAREN:
 		p.parenDepth++
 		p.nextToken() // Consume '('
-		node = p.parseExpression(0)
+		// Hoist filters within the group so they constrain the group's terms
+		// only. Wrapping them in an AndNode here also makes the group opaque to
+		// any outer hoist, so an explicit "(foo path:x) bar" keeps path:x scoped
+		// to foo rather than applying to bar as well.
+		node = HoistFilters(p.parseExpression(0))
 		if p.tok.Type == RPAREN {
 			p.parenDepth--
 			p.nextToken() // Consume ')'
@@ -291,7 +295,7 @@ func (p *Parser) parseImplicitExpression(left Node) Node {
 	// DO NOT consume a token here because there is no operator.
 	right := p.parseExpression(precedence)
 	if p.defaultOp == DefaultOr {
-		return &OrNode{Left: left, Right: right}
+		return &OrNode{Left: left, Right: right, Implicit: true}
 	}
 	return &AndNode{Left: left, Right: right}
 }

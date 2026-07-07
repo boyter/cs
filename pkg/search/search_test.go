@@ -207,6 +207,81 @@ func TestDefaultOperator(t *testing.T) {
 	}
 }
 
+func TestHoistFilters(t *testing.T) {
+	testCases := []struct {
+		name  string
+		query string
+		op    DefaultOperator
+		want  string
+	}{
+		{
+			"filter hoisted out of implicit OR",
+			"cat dog path:pkg", DefaultOr,
+			"((KEYWORD(cat) OR KEYWORD(dog)) AND FILTER(path = pkg))",
+		},
+		{
+			"filter in the middle is still hoisted",
+			"cat path:pkg dog", DefaultOr,
+			"((KEYWORD(cat) OR KEYWORD(dog)) AND FILTER(path = pkg))",
+		},
+		{
+			"multiple filters all hoisted",
+			"cat dog path:pkg ext:go", DefaultOr,
+			"(((KEYWORD(cat) OR KEYWORD(dog)) AND FILTER(path = pkg)) AND FILTER(ext = go))",
+		},
+		{
+			"only filters yields their conjunction",
+			"path:pkg ext:go", DefaultOr,
+			"(FILTER(path = pkg) AND FILTER(ext = go))",
+		},
+		{
+			"AND default is unchanged",
+			"cat dog path:pkg", DefaultAnd,
+			"((KEYWORD(cat) AND KEYWORD(dog)) AND FILTER(path = pkg))",
+		},
+		{
+			"explicit OR with a filter is left untouched",
+			"cat OR path:pkg", DefaultOr,
+			"(KEYWORD(cat) OR FILTER(path = pkg))",
+		},
+		{
+			"negated filter is not hoisted into a positive AND",
+			"cat NOT path:vendor", DefaultOr,
+			"(KEYWORD(cat) OR NOT FILTER(path = vendor))",
+		},
+		{
+			"filter in a paren group stays scoped to the group",
+			"(cat path:pkg) dog", DefaultOr,
+			"((KEYWORD(cat) AND FILTER(path = pkg)) OR KEYWORD(dog))",
+		},
+		{
+			"top-level filter still applies across a paren group",
+			"(cat dog) fish path:pkg", DefaultOr,
+			"(((KEYWORD(cat) OR KEYWORD(dog)) OR KEYWORD(fish)) AND FILTER(path = pkg))",
+		},
+		{
+			"filters scope independently inside and outside a group",
+			"(cat path:internal) dog ext:go", DefaultOr,
+			"(((KEYWORD(cat) AND FILTER(path = internal)) OR KEYWORD(dog)) AND FILTER(ext = go))",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lexer := NewLexer(strings.NewReader(tc.query))
+			parser := NewParser(lexer, WithDefaultOperator(tc.op))
+			ast, _ := parser.ParseQuery()
+			ast = HoistFilters(ast)
+			if ast == nil {
+				t.Fatalf("nil AST for %q", tc.query)
+			}
+			if got := ast.String(); got != tc.want {
+				t.Errorf("query %q: got %s, want %s", tc.query, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestTransformer(t *testing.T) {
 	se := NewSearchEngine(testDocs)
 	res, err := se.Search("complexity=high", false)

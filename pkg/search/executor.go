@@ -52,6 +52,10 @@ func (se *SearchEngine) Search(query string, caseSensitive bool) (*SearchResult,
 		return nil, ErrInvalidQuery
 	}
 
+	// Filters constrain the whole query, so lift them out of any implicit OR
+	// grouping introduced by a default-or operator.
+	ast = HoistFilters(ast)
+
 	// 2. Transform
 	transformer := &Transformer{}
 	ast, transformNotices := transformer.TransformAST(ast)
