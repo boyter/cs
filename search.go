@@ -43,8 +43,13 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 	}
 
 	// Parse query into AST
+	defaultOp, err := cfg.ResolveDefaultOperator()
+	if err != nil {
+		close(out)
+		return out, stats, err
+	}
 	lexer := search.NewLexer(strings.NewReader(query))
-	parser := search.NewParser(lexer)
+	parser := search.NewParser(lexer, search.WithDefaultOperator(defaultOp))
 	ast, _ := parser.ParseQuery()
 	if ast == nil {
 		close(out)

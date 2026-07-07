@@ -307,6 +307,21 @@ cs -d --template-style light
 cs -d --template-display ./asset/templates/display.tmpl --template-search ./asset/templates/search.tmpl
 ```
 
+### Default operator
+
+Adjacent terms with no explicit `AND`/`OR` between them are combined with the
+default operator, set by `--default-operator`:
+
+- `and` (default) requires all terms, so `foo bar` matches files containing both.
+- `or` matches any term, so `foo bar` matches files containing either.
+
+`or` is handy for tools and agents that issue broad multi-keyword queries, where
+the default `AND` is often too restrictive and returns zero results.
+
+```shell
+cs --default-operator=or foo bar baz
+```
+
 ### Usage
 
 Command line usage of `cs` is designed to be as simple as possible.
@@ -327,6 +342,7 @@ or in a TUI mode with no arguments. Can also run in HTTP mode with
 the -d or --http-server flag.
 
 Searches by default use AND boolean syntax for all terms
+ - use --default-operator=or (or a settings file) to combine terms with OR
  - exact match using quotes "find this"
  - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2
  - negate using NOT such as pride NOT prejudice
@@ -367,6 +383,7 @@ Flags:
   -C, --context int                  lines of context before and after each match (grep mode)
       --cpu-profile string           write CPU profile to file (for use with go tool pprof or PGO)
       --dedup                        collapse byte-identical search matches, keeping the highest-scored representative
+      --default-operator string      how to combine adjacent terms with no explicit AND/OR [and, or]. 'or' is useful for broad multi-keyword searches (default "and")
       --dir string                   directory to search, if not set defaults to current working directory
       --exclude-dir strings          directories to exclude (default [.git,.hg,.svn])
   -x, --exclude-pattern strings      file and directory locations matching case sensitive patterns will be ignored [comma separated list: e.g. vendor,_test.go]

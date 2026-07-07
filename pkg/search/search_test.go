@@ -177,6 +177,36 @@ func TestParserHealing(t *testing.T) {
 	}
 }
 
+func TestDefaultOperator(t *testing.T) {
+	testCases := []struct {
+		name  string
+		query string
+		op    DefaultOperator
+		want  string
+	}{
+		{"implicit AND (default)", "cat dog", DefaultAnd, "(KEYWORD(cat) AND KEYWORD(dog))"},
+		{"implicit OR", "cat dog", DefaultOr, "(KEYWORD(cat) OR KEYWORD(dog))"},
+		{"three terms AND", "cat dog fish", DefaultAnd, "((KEYWORD(cat) AND KEYWORD(dog)) AND KEYWORD(fish))"},
+		{"three terms OR", "cat dog fish", DefaultOr, "((KEYWORD(cat) OR KEYWORD(dog)) OR KEYWORD(fish))"},
+		{"explicit OR unaffected by AND default", "cat OR dog", DefaultAnd, "(KEYWORD(cat) OR KEYWORD(dog))"},
+		{"explicit AND unaffected by OR default", "cat AND dog", DefaultOr, "(KEYWORD(cat) AND KEYWORD(dog))"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lexer := NewLexer(strings.NewReader(tc.query))
+			parser := NewParser(lexer, WithDefaultOperator(tc.op))
+			ast, _ := parser.ParseQuery()
+			if ast == nil {
+				t.Fatalf("ParseQuery returned nil for %q", tc.query)
+			}
+			if got := ast.String(); got != tc.want {
+				t.Errorf("query %q: got %s, want %s", tc.query, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestTransformer(t *testing.T) {
 	se := NewSearchEngine(testDocs)
 	res, err := se.Search("complexity=high", false)

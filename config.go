@@ -3,11 +3,13 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/boyter/cs/v3/pkg/ranker"
+	"github.com/boyter/cs/v3/pkg/search"
 	"github.com/boyter/cs/v3/pkg/snippet"
 	"github.com/boyter/gocodewalker"
 )
@@ -36,6 +38,10 @@ type Config struct {
 	TestPenalty   float64
 	ResultLimit   int
 	LineLimit     int
+
+	// DefaultOperator combines adjacent terms with no explicit AND/OR between
+	// them: "and" (default) requires all terms, "or" matches any term.
+	DefaultOperator string
 
 	// File walker
 	Directory              string
@@ -109,6 +115,7 @@ func DefaultConfig() Config {
 		TestPenalty:            0.4,
 		ResultLimit:            -1,
 		LineLimit:              -1,
+		DefaultOperator:        "and",
 		PathDenylist:           []string{".git", ".hg", ".svn"},
 		MinifiedLineByteLength: 255,
 		MaxReadSizeBytes:       1_000_000,
@@ -204,6 +211,19 @@ func (c *Config) ResolveNoiseSensitivity() float64 {
 		return 100.0
 	default:
 		return 1.0
+	}
+}
+
+// ResolveDefaultOperator maps the DefaultOperator string to the search package
+// enum. It returns an error for unrecognised values.
+func (c *Config) ResolveDefaultOperator() (search.DefaultOperator, error) {
+	switch strings.ToLower(strings.TrimSpace(c.DefaultOperator)) {
+	case "and", "":
+		return search.DefaultAnd, nil
+	case "or":
+		return search.DefaultOr, nil
+	default:
+		return search.DefaultAnd, fmt.Errorf("unknown default-operator %q (valid: and, or)", c.DefaultOperator)
 	}
 }
 

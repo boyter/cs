@@ -34,6 +34,7 @@ func main() {
 			"the -d or --http-server flag.\n" +
 			"\n" +
 			"Searches by default use AND boolean syntax for all terms\n" +
+			" - use --default-operator=or to combine terms with OR\n" +
 			" - exact match using quotes \"find this\"\n" +
 			" - fuzzy match within 1 or 2 distance fuzzy~1 fuzzy~2\n" +
 			" - negate using NOT such as pride NOT prejudice\n" +
@@ -76,6 +77,12 @@ func main() {
 			}
 
 			cfg.SearchString = args
+
+			// Validate --default-operator
+			if _, err := cfg.ResolveDefaultOperator(); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
 
 			// Validate --profile
 			switch cfg.Profile {
@@ -283,6 +290,12 @@ func main() {
 		"profile",
 		"",
 		"ranking profile [balanced, precise, broad] — overrides --gravity, --noise, and --test-penalty when set",
+	)
+	flags.StringVar(
+		&cfg.DefaultOperator,
+		"default-operator",
+		"and",
+		"how to combine adjacent terms with no explicit AND/OR [and, or]. 'or' is useful for broad multi-keyword searches",
 	)
 	flags.StringVar(
 		&cfg.GravityIntent,

@@ -7,6 +7,17 @@ import (
 	"strings"
 )
 
+// DefaultOperator controls how adjacent terms with no explicit AND/OR between
+// them are combined (e.g. the query "cat dog fish").
+type DefaultOperator int
+
+const (
+	// DefaultAnd combines adjacent terms with AND (a file must contain all of them).
+	DefaultAnd DefaultOperator = iota
+	// DefaultOr combines adjacent terms with OR (a file may contain any of them).
+	DefaultOr
+)
+
 // Parser creates an AST from a stream of tokens.
 type Parser struct {
 	l          *Lexer
@@ -14,11 +25,24 @@ type Parser struct {
 	peekTok    Token
 	notices    []string
 	parenDepth int
+	defaultOp  DefaultOperator
+}
+
+// ParserOption configures optional Parser behaviour.
+type ParserOption func(*Parser)
+
+// WithDefaultOperator sets the operator used to combine adjacent terms that are
+// not separated by an explicit AND/OR. The default is DefaultAnd.
+func WithDefaultOperator(op DefaultOperator) ParserOption {
+	return func(p *Parser) { p.defaultOp = op }
 }
 
 // NewParser creates a new Parser.
-func NewParser(l *Lexer) *Parser {
+func NewParser(l *Lexer, opts ...ParserOption) *Parser {
 	p := &Parser{l: l}
+	for _, opt := range opts {
+		opt(p)
+	}
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -93,8 +117,8 @@ func (p *Parser) parseExpression(precedence int) Node {
 				return left
 			}
 			left = p.parseInfixExpression(left)
-		case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT: // An expression-starting token here means an implicit AND.
-			left = p.parseImplicitAndExpression(left)
+		case IDENTIFIER, PHRASE, REGEX, FUZZY, LPAREN, NOT: // An expression-starting token here means an implicit combination.
+			left = p.parseImplicitExpression(left)
 		default:
 			// If the token can't be part of an infix expression, stop.
 			return left
@@ -262,9 +286,12 @@ func (p *Parser) parseInfixExpression(left Node) Node {
 	return &OrNode{Left: left, Right: right}
 }
 
-func (p *Parser) parseImplicitAndExpression(left Node) Node {
+func (p *Parser) parseImplicitExpression(left Node) Node {
 	precedence := p.getPrecedence()
 	// DO NOT consume a token here because there is no operator.
 	right := p.parseExpression(precedence)
+	if p.defaultOp == DefaultOr {
+		return &OrNode{Left: left, Right: right}
+	}
 	return &AndNode{Left: left, Right: right}
 }
