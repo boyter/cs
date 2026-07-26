@@ -65,7 +65,7 @@ var duplicates = CheckDuplicates{
 func checkForMatchSingle(currentByte byte, index int, endPoint int, matches []byte, fileJob *FileJob) bool {
 	potentialMatch := true
 	if currentByte == matches[0] {
-		for j := 0; j < len(matches); j++ {
+		for j := range matches {
 			if index+j >= endPoint || matches[j] != fileJob.Content[index+j] {
 				potentialMatch = false
 				break
@@ -86,6 +86,97 @@ func isWhitespace(currentByte byte) bool {
 	}
 
 	return true
+}
+
+func isIdentifierContinue(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
+}
+
+func hasNonWhitespaceBefore(content []byte, index int) bool {
+	for i := index - 1; i >= 0; i-- {
+		if !isWhitespace(content[i]) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func nextNonWhitespaceIndex(content []byte, index int) int {
+	for index < len(content) && isWhitespace(content[index]) {
+		index++
+	}
+
+	return index
+}
+
+func hasPostfixExclude(content []byte, index, offsetJump int, excludes [][]byte) bool {
+	token := content[index : index+offsetJump]
+	for _, exclude := range excludes {
+		if len(exclude) < offsetJump || !bytes.Equal(token, exclude[:offsetJump]) {
+			continue
+		}
+
+		remaining := exclude[offsetJump:]
+		if len(remaining) == 0 {
+			return true
+		}
+
+		next := nextNonWhitespaceIndex(content, index+offsetJump)
+		if next+len(remaining) > len(content) || !bytes.Equal(content[next:next+len(remaining)], remaining) {
+			continue
+		}
+
+		afterExclude := next + len(remaining)
+		if isIdentifierContinue(remaining[len(remaining)-1]) {
+			return afterExclude == len(content) || !isIdentifierContinue(content[afterExclude])
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func countComplexityPostfix(fileJob *FileJob, index, offsetJump int, postfixExcludes [][]byte) {
+	if index == 0 {
+		return
+	}
+
+	content := fileJob.Content
+	if isWhitespace(content[index-1]) && !hasNonWhitespaceBefore(content, index-1) {
+		return
+	}
+
+	if len(postfixExcludes) > 0 && hasPostfixExclude(content, index, offsetJump, postfixExcludes) {
+		return
+	}
+
+	fileJob.Complexity++
+	fileJob.bumpComplexityLine()
+	fileJob.bumpCognitive()
+}
+
+// bumpComplexityLine adds one complexity tick to the line currently being
+// counted. No-op when TrackComplexityLines is off — ComplexityLine is left
+// empty by CountStats in that case, so there is no slot to bump.
+func (fileJob *FileJob) bumpComplexityLine() {
+	if n := len(fileJob.ComplexityLine); n > 0 {
+		fileJob.ComplexityLine[n-1]++
+	}
+}
+
+// bumpCognitive weights a single complexity token by the nesting level of the
+// line it appears on. An approximation of nested complexity, but with almost
+// no calculation overhead.
+func (fileJob *FileJob) bumpCognitive() {
+	if Cognitive {
+		weight := 1 + int64(fileJob.cognitiveNesting)
+		fileJob.Cognitive += weight
+		if n := len(fileJob.CognitiveLine); n > 0 {
+			fileJob.CognitiveLine[n-1] += weight
+		}
+	}
 }
 
 // Check if this file is binary by checking for nul byte and if so bail out
@@ -162,7 +253,10 @@ func stringState(fileJob *FileJob, index int, endPoint int, endString []byte, cu
 		// If we are in a literal string we want to ignore escapes OR we aren't checking for special ones
 		if ignoreEscape || !is_escaped {
 			if checkForMatchSingle(fileJob.Content[i], index, endPoint, endString, fileJob) {
-				return i, SCode
+				// Skip past the whole end delimiter. For multi byte terminators such
+				// as the C++ raw string )" the trailing byte is itself a quote start,
+				// so leaving the cursor on it would re-open a new string. See #175.
+				return i + len(endString) - 1, SCode
 			}
 		}
 	}
@@ -172,7 +266,7 @@ func stringState(fileJob *FileJob, index int, endPoint int, endString []byte, cu
 
 // This is a special state check pretty much only ever used by Python codebases
 // but potentially it could be expanded to deal with other types
-func docStringState(fileJob *FileJob, index int, endPoint int, stringTrie *Trie, endString []byte, currentState int64) (int, int64) {
+func docStringState(fileJob *FileJob, index int, endPoint int, endString []byte, currentState int64) (int, int64) {
 	// It's not possible to enter this state without checking at least 1 byte so it is safe to check -1 here
 	// without checking if it is out of bounds first
 	for i := index; i < endPoint; i++ {
@@ -187,7 +281,7 @@ func docStringState(fileJob *FileJob, index int, endPoint int, stringTrie *Trie,
 		}
 
 		if fileJob.Content[i-1] != '\\' {
-			if ok, _, _ := stringTrie.Match(fileJob.Content[i:]); ok != 0 {
+			if checkForMatchSingle(fileJob.Content[i], index, endPoint, endString, fileJob) {
 				// So we have hit end of docstring at this point in which case check if only whitespace characters till the next
 				// newline and if so we change to a comment otherwise to code
 				// need to start the loop after ending definition of docstring, therefore adding the length of the string to
@@ -282,10 +376,17 @@ func codeState(
 				}
 
 			case TComplexity:
-				if index == 0 || isWhitespace(fileJob.Content[index-1]) {
+				if index == 0 || !isIdentifierContinue(fileJob.Content[index-1]) {
 					fileJob.Complexity++
-					fileJob.ComplexityLine[len(fileJob.ComplexityLine)-1] = fileJob.ComplexityLine[len(fileJob.ComplexityLine)-1] + 1
+					fileJob.bumpComplexityLine()
+					fileJob.bumpCognitive()
 				}
+				// Skip past the matched token so a shorter token overlapping it
+				// (e.g. 為是 inside 恆為是) is not also counted. See #466.
+				i += offsetJump - 1
+
+			case TComplexityPostfix:
+				countComplexityPostfix(fileJob, index, offsetJump, langFeatures.PostfixExcludes)
 			}
 		}
 	}
@@ -390,10 +491,21 @@ func blankState(
 		if fileJob.ContentByteType != nil {
 			fileJob.ContentByteType[index] = ByteTypeCode
 		}
-		if index == 0 || isWhitespace(fileJob.Content[index-1]) {
+		if index == 0 || !isIdentifierContinue(fileJob.Content[index-1]) {
 			fileJob.Complexity++
-			fileJob.ComplexityLine[len(fileJob.ComplexityLine)-1] = fileJob.ComplexityLine[len(fileJob.ComplexityLine)-1] + 1
+			fileJob.bumpComplexityLine()
+			fileJob.bumpCognitive()
 		}
+		// Skip past the matched token so a shorter token overlapping it
+		// (e.g. 為是 inside 恆為是) is not also counted. See #466.
+		index += offsetJump - 1
+
+	case TComplexityPostfix:
+		currentState = SCode
+		if fileJob.ContentByteType != nil {
+			fileJob.ContentByteType[index] = ByteTypeCode
+		}
+		countComplexityPostfix(fileJob, index, offsetJump, langFeatures.PostfixExcludes)
 
 	default:
 		currentState = SCode
@@ -426,6 +538,14 @@ func verifyIgnoreEscape(langFeatures LanguageFeature, fileJob *FileJob, index in
 			if isMatch {
 				ignoreEscape = true
 				index = index + len(langFeatures.Quotes[i].Start)
+
+				// Clamp to the last byte when the start token ends the file, such as a
+				// Python file whose final bytes are """ with no trailing newline. Left
+				// unbounded the caller lands on len(Content) and blankState writes past
+				// the end of ContentByteType, and the final line is never counted.
+				if index >= len(fileJob.Content) {
+					index = len(fileJob.Content) - 1
+				}
 			}
 		}
 	}
@@ -481,13 +601,41 @@ func CountStats(fileJob *FileJob) {
 
 	// TODO needs to be set via langFeatures.Quotes[0].IgnoreEscape for the matching feature
 	ignoreEscape := false
-	fileJob.ComplexityLine = append(fileJob.ComplexityLine, 0)
+	if fileJob.TrackComplexityLines {
+		fileJob.ComplexityLine = append(fileJob.ComplexityLine, 0)
+		if Cognitive {
+			fileJob.CognitiveLine = append(fileJob.CognitiveLine, 0)
+		}
+	}
 
 	if fileJob.ClassifyContent {
 		fileJob.ContentByteType = make([]byte, fileJob.Bytes)
 	}
 
-	for index := checkBomSkip(fileJob); index < int(fileJob.Bytes); index++ {
+	bomSkip := checkBomSkip(fileJob)
+
+	//We want to track cognitive complexity nesting. Cognitive complexity
+	//means we assign higher complexity to nested branch conditions, so
+	//
+	//if something:
+	//    if otherthing:
+	//
+	//would be assigned a higher complexity than
+	//
+	//if something:
+	//if otherthing:
+	//
+	//because the nested if requires more mental overhead. To do this we need to track
+	//how nested each condition is when we hit it. We do this by counting the number of
+	//whitespace characters are in front of the condition.
+	//This is an appoximation, true for languages like Python, and probably true for anything
+	//else. However, the benefit of this approach is that it's almost free from a CPU point of view
+	//and the increase in spotting complex code, is genuinely useful.
+	var indentStack []int
+	lineStart := bomSkip
+	needIndent := true
+
+	for index := bomSkip; index < int(fileJob.Bytes); index++ {
 		if fileJob.ContentByteType != nil {
 			fileJob.ContentByteType[index] = stateToByteType(currentState)
 		}
@@ -497,6 +645,29 @@ func CountStats(fileJob *FileJob) {
 		// changing anything in here and profile/measure afterwards!
 		// NB that the order of the if statements matters and has been set to what in benchmarks is most efficient
 		if !isWhitespace(fileJob.Content[index]) {
+
+			// At the first non-whitespace byte of a code-bearing line, update the
+			// indent stack so complexity tokens on this line are weighted by their
+			// nesting depth. Lines that begin a comment must not move the stack;
+			// lines inside a multiline comment/string never reach here in a
+			// blank-derived state so they are excluded automatically.
+			if Cognitive && needIndent && (currentState == SBlank || currentState == SMulticommentBlank) {
+				if tokenType, _, _ := langFeatures.Tokens.Match(fileJob.Content[index:]); tokenType != TSlcomment && tokenType != TMlcomment {
+					indent := index - lineStart
+					for len(indentStack) > 0 && indent < indentStack[len(indentStack)-1] {
+						indentStack = indentStack[:len(indentStack)-1]
+					}
+					if len(indentStack) == 0 || indent > indentStack[len(indentStack)-1] {
+						indentStack = append(indentStack, indent)
+					}
+					nesting := len(indentStack) - 1
+					if nesting < 0 {
+						nesting = 0
+					}
+					fileJob.cognitiveNesting = nesting
+					needIndent = false
+				}
+			}
 
 			switch currentState {
 			case SCode:
@@ -515,7 +686,7 @@ func CountStats(fileJob *FileJob) {
 			case SDocString:
 				// For a docstring we can either move into blank in which case we count it as a docstring
 				// or back into code in which case it should be counted as code
-				index, currentState = docStringState(fileJob, index, endPoint, langFeatures.Strings, endString, currentState)
+				index, currentState = docStringState(fileJob, index, endPoint, endString, currentState)
 			case SMulticomment, SMulticommentCode:
 				index, currentState, endString, endComments = commentState(
 					fileJob,
@@ -557,7 +728,16 @@ func CountStats(fileJob *FileJob) {
 		// we are currently in
 		if fileJob.Content[index] == '\n' || index >= endPoint {
 			fileJob.Lines++
-			fileJob.ComplexityLine = append(fileJob.ComplexityLine, 0)
+			if Cognitive {
+				lineStart = index + 1
+				needIndent = true
+			}
+			if fileJob.TrackComplexityLines {
+				fileJob.ComplexityLine = append(fileJob.ComplexityLine, 0)
+				if Cognitive {
+					fileJob.CognitiveLine = append(fileJob.CognitiveLine, 0)
+				}
+			}
 
 			if NoLarge && fileJob.Lines >= LargeLineCount {
 				// Save memory by unsetting the content as we no longer require it
@@ -633,10 +813,7 @@ func CountStats(fileJob *FileJob) {
 	isGenerated := false
 
 	if Generated {
-		headLen := 1000
-		if headLen >= len(fileJob.Content) {
-			headLen = len(fileJob.Content) - 1
-		}
+		headLen := min(1000, len(fileJob.Content))
 		head := bytes.ToLower(fileJob.Content[0:headLen])
 		for _, marker := range GeneratedMarkers {
 			if bytes.Contains(head, bytes.ToLower([]byte(marker))) {
@@ -655,7 +832,12 @@ func CountStats(fileJob *FileJob) {
 		minifiedGeneratedCheck(avgLineByteCount, fileJob)
 	}
 
-	fileJob.ComplexityLine = fileJob.ComplexityLine[:fileJob.Lines]
+	if fileJob.TrackComplexityLines {
+		fileJob.ComplexityLine = fileJob.ComplexityLine[:fileJob.Lines]
+		if Cognitive {
+			fileJob.CognitiveLine = fileJob.CognitiveLine[:fileJob.Lines]
+		}
+	}
 }
 
 func minifiedGeneratedCheck(avgLineByteCount int, fileJob *FileJob) {
@@ -691,15 +873,14 @@ func checkBomSkip(fileJob *FileJob) int {
 
 // Reads and processes files from input chan in parallel, and sends results to
 // output chan
-func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
+func (ctx processorContext) fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
 	var fileCount int64
 	var gcEnabled int64
 	var wg sync.WaitGroup
 
 	for i := 0; i < FileProcessJobWorkers; i++ {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			reader := NewFileReader()
 
 			for job := range input {
@@ -724,7 +905,7 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 				if err == nil {
 					job.Content = content
-					if processFile(job) {
+					if ctx.processFile(job) {
 						output <- job
 					}
 				} else {
@@ -732,8 +913,7 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 				}
 			}
 
-			wg.Done()
-		}()
+		})
 	}
 
 	go func() {
@@ -746,7 +926,7 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 
 // Process a single file
 // File must have been read to job.Content already
-func processFile(job *FileJob) bool {
+func (ctx processorContext) processFile(job *FileJob) bool {
 	fileStartTime := makeTimestampNano()
 
 	contents := job.Content
@@ -755,26 +935,21 @@ func processFile(job *FileJob) bool {
 	job.Language = DetermineLanguage(job.Filename, job.Language, job.PossibleLanguages, job.Content)
 
 	remapped := false
-	if RemapAll != "" {
-		hardRemapLanguage(job)
+	if len(ctx.remap.all) != 0 {
+		ctx.hardRemapLanguage(job)
 	}
 
 	// If the type is #! we should check to see if we can identify
 	if job.Language == SheBang {
-		if RemapUnknown != "" {
-			remapped = unknownRemapLanguage(job)
+		if len(ctx.remap.unknown) != 0 {
+			remapped = ctx.unknownRemapLanguage(job)
 		}
 
 		// if we didn't remap we then want to see if it's a #! map
 		if !remapped {
-			cutoff := 200
+			cutoff := min(200, len(contents))
 
-			// To avoid runtime panic check if the content we are cutting is smaller than 200
-			if len(contents) < cutoff {
-				cutoff = len(contents)
-			}
-
-			lang, err := DetectSheBang(string(contents[:cutoff]))
+			lang, err := DetectSheBang(contents[:cutoff])
 			if err != nil {
 				printWarnF("unable to determine #! language for %s", job.Location)
 				return false
@@ -843,46 +1018,30 @@ func processFile(job *FileJob) bool {
 	return true
 }
 
-func hardRemapLanguage(job *FileJob) bool {
+func (ctx processorContext) hardRemapLanguage(job *FileJob) bool {
 	remapped := false
-	for s := range strings.SplitSeq(RemapAll, ",") {
-		t := strings.Split(s, ":")
-		if len(t) == 2 {
-			cutoff := 1000 // 1000 bytes into the file to look
+	cutoff := min(1000, len(job.Content)) // at most 1000 bytes into the file to look
 
-			// To avoid runtime panic check if the content we are cutting is smaller than 1000
-			if len(job.Content) < cutoff {
-				cutoff = len(job.Content)
-			}
-
-			if strings.Contains(string(job.Content[:cutoff]), t[0]) {
-				job.Language = t[1]
-				remapped = true
-				printWarnF("hard remapping: %s to %s", job.Location, job.Language)
-			}
+	for _, rule := range ctx.remap.all {
+		if bytes.Contains(job.Content[:cutoff], rule.pattern) {
+			job.Language = rule.language
+			remapped = true
+			printWarnF("hard remapping: %s to %s", job.Location, job.Language)
 		}
 	}
 
 	return remapped
 }
 
-func unknownRemapLanguage(job *FileJob) bool {
+func (ctx processorContext) unknownRemapLanguage(job *FileJob) bool {
 	remapped := false
-	for s := range strings.SplitSeq(RemapUnknown, ",") {
-		t := strings.Split(s, ":")
-		if len(t) == 2 {
-			cutoff := 1000 // 1000 bytes into the file to look
+	cutoff := min(1000, len(job.Content)) // at most 1000 bytes into the file to look
 
-			// To avoid runtime panic check if the content we are cutting is smaller than 1000
-			if len(job.Content) < cutoff {
-				cutoff = len(job.Content)
-			}
-
-			if strings.Contains(string(job.Content[:cutoff]), t[0]) {
-				printWarnF("unknown remapping: %s to %s", job.Location, job.Language)
-				job.Language = t[1]
-				remapped = true
-			}
+	for _, rule := range ctx.remap.unknown {
+		if bytes.Contains(job.Content[:cutoff], rule.pattern) {
+			job.Language = rule.language
+			remapped = true
+			printWarnF("unknown remapping: %s to %s", job.Location, job.Language)
 		}
 	}
 

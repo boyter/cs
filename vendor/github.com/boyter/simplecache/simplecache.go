@@ -18,6 +18,21 @@ const (
 
 var ErrInvalidEvictionPolicy = errors.New("invalid eviction policy")
 
+// CacheStatus represents the freshness state of a cache lookup
+type CacheStatus int
+
+const (
+	CacheMiss  CacheStatus = iota
+	CacheHit
+	CacheStale
+)
+
+// CacheResult holds both the value and its freshness status
+type CacheResult[T any] struct {
+	Value  T
+	Status CacheStatus
+}
+
 // cacheEntry is a generic structure to hold cached items
 type cacheEntry[T any] struct {
 	entry   T
@@ -35,6 +50,7 @@ type Cache[T any] struct {
 	evictionPolicy  CacheEvictionPolicy
 	evictionSamples int           // how many random samples do we look for when expiring
 	maxAge          time.Duration // at what point should it be evicted no matter what
+	staleAge        time.Duration // at what point should the entry be considered stale
 }
 
 // CacheInterface is an interface for the Cache type mostly for mocking purposes
@@ -51,6 +67,12 @@ type CacheInterface[T any] interface {
 	// Clear removes all items from the cache
 	Clear()
 
+	// GetWithStatus retrieves an item and its freshness status (CacheMiss, CacheHit, or CacheStale)
+	GetWithStatus(key string) CacheResult[T]
+
+	// Peek retrieves an item and its freshness status without ever evicting the entry
+	Peek(key string) CacheResult[T]
+
 	// Sum returns the count of items in the cache
 	Sum() int
 }
@@ -60,6 +82,7 @@ type Option struct {
 	EvictionPolicy  *CacheEvictionPolicy
 	EvictionSamples *int
 	MaxAge          *time.Duration
+	StaleAge        *time.Duration
 }
 
 // New creates and returns a new Cache
@@ -85,6 +108,9 @@ func New[T any](opts ...Option) *Cache[T] {
 		}
 		if opt.MaxAge != nil {
 			sc.maxAge = *opt.MaxAge
+		}
+		if opt.StaleAge != nil {
+			sc.staleAge = *opt.StaleAge
 		}
 	}
 
@@ -151,6 +177,7 @@ func (c *Cache[T]) evictLFU() {
 		count++
 		if v.hits < pHit {
 			pKey = k
+			pHit = v.hits
 		}
 
 		if count > c.evictionSamples {
@@ -183,6 +210,70 @@ func (c *Cache[T]) Get(key string) (T, bool) {
 
 	var zero T
 	return zero, false
+}
+
+// GetWithStatus retrieves an item from the cache by key, returning a CacheResult
+// that includes the value and its freshness status (CacheMiss, CacheHit, or CacheStale).
+// Unlike Get, staleness is checked against the entry's creation time (age), not lastUse.
+func (c *Cache[T]) GetWithStatus(key string) CacheResult[T] {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	entry, found := c.items[key]
+	if !found {
+		var zero T
+		return CacheResult[T]{Value: zero, Status: CacheMiss}
+	}
+
+	age := time.Since(entry.age)
+
+	// Hard expiry
+	if c.maxAge > 0 && age > c.maxAge {
+		delete(c.items, key)
+		var zero T
+		return CacheResult[T]{Value: zero, Status: CacheMiss}
+	}
+
+	// Update hits/lastUse
+	entry.hits++
+	entry.lastUse = time.Now()
+	c.items[key] = entry
+
+	// Stale check
+	if c.staleAge > 0 && age > c.staleAge {
+		return CacheResult[T]{Value: entry.entry, Status: CacheStale}
+	}
+
+	return CacheResult[T]{Value: entry.entry, Status: CacheHit}
+}
+
+// Peek retrieves an item and its freshness status without ever evicting the entry.
+// Returns CacheMiss only when the key does not exist. Returns CacheStale when the
+// entry is past staleAge or maxAge, but still returns the value — it is up to the
+// caller to decide what to do (e.g. trigger a background refresh, delete the key).
+func (c *Cache[T]) Peek(key string) CacheResult[T] {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	entry, found := c.items[key]
+	if !found {
+		var zero T
+		return CacheResult[T]{Value: zero, Status: CacheMiss}
+	}
+
+	age := time.Since(entry.age)
+
+	// Past maxAge → stale (but not deleted)
+	if c.maxAge > 0 && age > c.maxAge {
+		return CacheResult[T]{Value: entry.entry, Status: CacheStale}
+	}
+
+	// Past staleAge → stale
+	if c.staleAge > 0 && age > c.staleAge {
+		return CacheResult[T]{Value: entry.entry, Status: CacheStale}
+	}
+
+	return CacheResult[T]{Value: entry.entry, Status: CacheHit}
 }
 
 // Delete removes an item from the cache by key

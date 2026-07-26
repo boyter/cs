@@ -81,6 +81,35 @@ func TestFileCodeStatsUnknown(t *testing.T) {
 	}
 }
 
+// A file ending on a docstring/multiline-comment opener at the start of a line
+// with no trailing newline used to panic inside scc's blankState with
+// "index out of range [N] with length N".
+func TestFileCodeStatsTrailingDocstringMarker(t *testing.T) {
+	initLanguageDatabase()
+
+	tests := []struct {
+		name     string
+		filename string
+		content  string
+	}{
+		{"python double quote", "hello.py", "def greet():\n    return \"hi\"\n\"\"\""},
+		{"python single quote", "hello.py", "def greet():\n    return 'hi'\n'''"},
+		{"python marker only", "hello.py", "\"\"\""},
+		{"python marker after blank", "hello.py", "\n\"\"\""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("fileCodeStats panicked on %q: %v", tt.content, r)
+				}
+			}()
+			fileCodeStats(tt.filename, []byte(tt.content))
+		})
+	}
+}
+
 func TestLanguageExtensions(t *testing.T) {
 	initLanguageDatabase()
 

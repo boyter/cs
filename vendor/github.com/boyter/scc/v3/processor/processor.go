@@ -4,6 +4,7 @@ package processor
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,7 +19,7 @@ import (
 )
 
 // Version indicates the version of the application
-var Version = "3.7.0"
+var Version = "4.0.0 (beta)"
 
 // Flags set via the CLI which control how the output is displayed
 
@@ -67,6 +68,9 @@ var IgnoreGenerated = false
 // Complexity toggles complexity calculation
 var Complexity = false
 
+// Cognitive toggles cognitive (nesting-weighted) complexity calculation
+var Cognitive = false
+
 // More enables wider output with more information in formatter
 var More = false
 
@@ -105,6 +109,12 @@ var SccIgnore = false
 
 // CountIgnore should we count ignore files?
 var CountIgnore = false
+
+// IgnoreFiles are paths to additional ignore files supplied via --ignore-file.
+// They are applied as a low priority base layer in the order supplied so a later
+// file can override an earlier one, and any in-tree .gitignore/.ignore/.sccignore
+// discovered while walking overrides all of them.
+var IgnoreFiles = []string{}
 
 // DisableCheckBinary toggles checking for binary files using NUL bytes
 var DisableCheckBinary = false
@@ -145,6 +155,82 @@ var RemapUnknown = ""
 // RemapAll allows remapping of all files with a string to search the content for
 var RemapAll = ""
 
+type remapRule struct {
+	pattern  []byte
+	language string
+}
+
+type remapConfig struct {
+	all     []remapRule
+	unknown []remapRule
+}
+
+type processorContext struct {
+	remap remapConfig
+}
+
+func parseRemapRules(value string) []remapRule {
+	rules := []remapRule{}
+
+	for s := range strings.SplitSeq(value, ",") {
+		t := strings.Split(s, ":")
+		if len(t) == 2 {
+			rules = append(rules, remapRule{
+				pattern:  []byte(t[0]),
+				language: t[1],
+			})
+		}
+	}
+
+	return rules
+}
+
+func newRemapConfig(remapAll string, remapUnknown string) remapConfig {
+	return remapConfig{
+		all:     parseRemapRules(remapAll),
+		unknown: parseRemapRules(remapUnknown),
+	}
+}
+
+// MatchEngine selects how a CountRule pattern is interpreted. Glob is the
+// default; regex is opt-in via the re: prefix.
+type MatchEngine int
+
+const (
+	// MatchGlob is the default. The pattern is a glob ('*' and '?') translated
+	// to an anchored regex and matched as a full match against the path.
+	MatchGlob MatchEngine = iota
+	// MatchRegex treats the pattern as a raw (unanchored) RE2 regex. Opt in
+	// with the re: prefix.
+	MatchRegex
+)
+
+// CountRule is the typed, library-facing form of a --count-as-pattern rule.
+// It matches files by their path and relabels them to a new named category
+// whose counting rules are cloned from an existing base language.
+type CountRule struct {
+	Engine       MatchEngine // MatchGlob (the default) or MatchRegex
+	Pattern      string      // glob or regex source
+	Name         string      // new category display name
+	BaseLanguage string      // existing language whose counting rules are cloned
+}
+
+// CountRules is the typed input set either directly by library users or by the
+// CLI after parsing CountAsPattern. Setup happens in setupCountRules.
+var CountRules []CountRule
+
+// CountAsPattern holds the raw repeatable --count-as-pattern flag values. Each
+// is parsed into a CountRule at setup. Library users may set CountRules directly.
+var CountAsPattern []string
+
+// compiledCountRule is the runtime form scanned by newFileJob
+type compiledCountRule struct {
+	re   *regexp.Regexp
+	name string
+}
+
+var compiledCountRules []compiledCountRule
+
 // CurrencySymbol allows setting the currency symbol for cocomo project cost estimation
 var CurrencySymbol = ""
 
@@ -184,6 +270,54 @@ var Overhead float64 = 2.4
 // EAF is the effort adjustment factor derived from the cost drivers, i.e. 1.0 if rated nominal
 var EAF float64 = 1.0
 
+// Locomo toggles the LOCOMO (LLM Output COst MOdel) calculation
+var Locomo = false
+
+// CostComparison enables both COCOMO and LOCOMO output for side-by-side comparison
+var CostComparison = false
+
+// LocomoPresetName is the LLM model preset for pricing and throughput defaults
+var LocomoPresetName = "medium"
+
+// LocomoInputPrice is the cost per 1M input tokens (overrides preset)
+var LocomoInputPrice float64
+var LocomoInputPriceSet = false
+
+// LocomoOutputPrice is the cost per 1M output tokens (overrides preset)
+var LocomoOutputPrice float64
+var LocomoOutputPriceSet = false
+
+// LocomoTPS is the output tokens per second (overrides preset)
+var LocomoTPS float64
+var LocomoTPSSet = false
+
+// LocomoReviewMinutesPerLine is the human review time per line of code in minutes
+var LocomoReviewMinutesPerLine float64 = 0.01
+
+// LocomoConfig is the power-user config string "tokensPerLine,baseInputPerLine,complexityWeight,iterations,iterationWeight"
+var LocomoConfig = ""
+
+// LocomoTokensPerLine is the average number of output tokens per line of code
+var LocomoTokensPerLine float64 = 10
+
+// LocomoBaseInputPerLine is the base number of input tokens per output line
+var LocomoBaseInputPerLine float64 = 20
+
+// LocomoComplexityWeight is the scaling weight applied to sqrt(complexity density) for input tokens
+var LocomoComplexityWeight float64 = 5
+
+// LocomoIterations is the base number of iteration/retry attempts
+var LocomoIterations float64 = 1.5
+
+// LocomoIterationWeight is the scaling weight for complexity-driven retries
+var LocomoIterationWeight float64 = 2
+
+// LocomoCyclesOverride is the user-supplied iteration factor override (--locomo-cycles)
+var LocomoCyclesOverride float64
+
+// LocomoCyclesSet indicates whether --locomo-cycles was explicitly set
+var LocomoCyclesSet = false
+
 // GcFileCount is the number of files to process before turning the GC back on
 var GcFileCount = 10000
 var gcPercent = -1
@@ -200,6 +334,40 @@ var LargeLineCount int64 = 40000
 
 // LargeByteCount number of bytes before being counted as a large file based on https://github.com/pinpt/ripsrc/blob/master/ripsrc/fileinfo/fileinfo.go#L44
 var LargeByteCount int64 = 1000000
+
+// Hotspots toggles the hotspots git-history report
+var Hotspots = false
+
+// Coupling toggles the change-coupling git-history report (file pairs that
+// change together)
+var Coupling = false
+
+// CouplingFor, when non-empty, switches the coupling report to the
+// file-oriented "blast radius" view for the given path: what tends to change
+// when that file changes.
+var CouplingFor = ""
+
+// CouplingWeighted ranks coupling by degree × the pair's (smaller) file
+// complexity instead of raw co-change, so pairs of genuinely complex files
+// outrank generated/data-file churn. Implies Coupling. Honours the Cognitive
+// global for its complexity source, matching --hotspots.
+var CouplingWeighted = false
+
+// ByAuthor toggles the author-rollup git-history report
+var ByAuthor = false
+
+// Timeline selects an over-time view. With ByAuthor, runs the author
+// timeline report (plan 04); alone, runs the languages-over-time report
+// (plan 05). With Hotspots set, the combination errors out.
+var Timeline = false
+
+// HistoryBuckets is the time-bucket resolution for the timeline reports.
+// Wired to --buckets in main.go; default 60.
+var HistoryBuckets = 60
+
+// FoldAuthors enables the name+domain identity folding fallback applied
+// after the mailmap. Toggled off via --no-fold-authors.
+var FoldAuthors = true
 
 // DirFilePaths is not set via flags but by arguments following the flags for file or directory to process
 var DirFilePaths = []string{}
@@ -229,6 +397,13 @@ func ConfigureGc() {
 	gcPercent = debug.SetGCPercent(gcPercent)
 }
 
+// EnableGc restores the garbage collector to the percentage captured by ConfigureGc.
+func EnableGc() {
+	if gcPercent != -1 {
+		debug.SetGCPercent(gcPercent)
+	}
+}
+
 // ConfigureLazy is a simple setter used to turn on lazy loading used only by command line
 func ConfigureLazy(lazy bool) {
 	isLazy = lazy
@@ -238,6 +413,17 @@ func ConfigureLazy(lazy bool) {
 // Needs to be called at least once in order for anything to actually happen
 func ProcessConstants() {
 	startTime := makeTimestampNano()
+
+	// Reset the reverse-lookup maps so ProcessConstants is idempotent. The
+	// ExtensionToLanguage entries are built with append, so without clearing
+	// first a repeated call (the long-lived MCP server invokes ProcessConstants
+	// once per tool call) would accumulate duplicate languages for every
+	// extension. scc was historically a one-shot CLI where this ran exactly
+	// once, so it never surfaced until server mode.
+	clear(ExtensionToLanguage)
+	clear(FilenameToLanguage)
+	clear(ShebangLookup)
+
 	for name, value := range languageDatabase {
 		for _, ext := range value.Extensions {
 			ExtensionToLanguage[ext] = append(ExtensionToLanguage[ext], name)
@@ -258,6 +444,13 @@ func ProcessConstants() {
 	}
 
 	printTraceF("nanoseconds build extension to language: %d", makeTimestampNano()-startTime)
+
+	// Set up any path pattern count rules, minting new categories backed by a
+	// base language. The function clones the base language and builds its
+	// features so counting works in both lazy and non-lazy modes.
+	if len(CountAsPattern) != 0 || len(CountRules) != 0 {
+		setupCountRules()
+	}
 
 	// Configure COCOMO setting
 	_, ok := projectType[strings.ToLower(CocomoProjectType)]
@@ -308,38 +501,168 @@ func ProcessConstants() {
 func setupCountAs() {
 	for s := range strings.SplitSeq(CountAs, ",") {
 		t := strings.Split(s, ":")
-		if len(t) == 2 {
-
-			identified := false
-
-			// There are two cases here.
-			// first is they provide the name e.g. "Cargo Lock"
-			// second is that the user supplies the extension EG wsdl
-			// we should support BOTH cases
-			// always remember we only need to validate t[1] as that's the one
-			// that tells us where we are trying to map
-
-			// See if we can identify based on language name which is the most
-			// reliable as the name should be unique
-			for name := range languageDatabase {
-				if strings.EqualFold(name, t[1]) {
-					ExtensionToLanguage[strings.ToLower(t[0])] = []string{name}
-					identified = true
-					printDebugF("set to count extension: %s as language %s by language", t[0], name)
-				}
-			}
-
-			// If the above did not work, its a matter of extension match
-			// note that this is less reliable as some languages share extensions
-			if !identified {
-				target, ok := ExtensionToLanguage[strings.ToLower(t[1])]
-
-				if ok {
-					ExtensionToLanguage[strings.ToLower(t[0])] = target
-					printDebugF("set to count extension: %s as language %s by extension", t[0], target)
-				}
-			}
+		if len(t) != 2 {
+			printError(fmt.Sprintf("ignoring malformed count-as rule %q: expected format <from>:<to>", s))
+			continue
 		}
+
+		// There are two cases here.
+		// first is they provide the name e.g. "Cargo Lock"
+		// second is that the user supplies the extension EG wsdl
+		// we should support BOTH cases
+		// always remember we only need to validate t[1] as that's the one
+		// that tells us where we are trying to map
+		target, ok := resolveBaseLanguage(t[1])
+		if ok {
+			ExtensionToLanguage[strings.ToLower(t[0])] = []string{target}
+			printDebugF("set to count extension: %s as language %s", t[0], target)
+			continue
+		}
+
+		// The target t[1] matched neither a known language name nor a known
+		// extension, so no mapping was registered. Warn rather than silently
+		// ignoring the rule, since count-as cannot mint new categories yet.
+		printError(fmt.Sprintf("ignoring count-as rule %q: target %q is not a known language or extension", s, t[1]))
+	}
+}
+
+// resolveBaseLanguage resolves a user supplied target to a canonical language
+// name. It first tries to match a language name (most reliable as names are
+// unique) and falls back to matching a known extension. Returns the canonical
+// language name and whether it was resolved.
+func resolveBaseLanguage(target string) (string, bool) {
+	// Match by language name which is the most reliable as the name is unique
+	for name := range languageDatabase {
+		if strings.EqualFold(name, target) {
+			return name, true
+		}
+	}
+
+	// Fall back to extension match, note this is less reliable as some
+	// languages share extensions so we take the first registered language
+	langs, ok := ExtensionToLanguage[strings.ToLower(target)]
+	if ok && len(langs) != 0 {
+		return langs[0], true
+	}
+
+	return "", false
+}
+
+// parseCountAsPattern parses a single --count-as-pattern rule of the form
+// [engine:]pattern:name:baselang into a CountRule.
+//
+// The engine prefix is optional and the pattern is treated as a GLOB BY
+// DEFAULT; prefix with re: to opt into a regex (or glob: to be explicit). We
+// keep glob and regex as distinct modes rather than inferring, because the same
+// string is valid in both engines with different meaning (e.g. "foo.rb" matches
+// only foo.rb as a glob but also fooXrb as a regex), so guessing would silently
+// match the wrong files.
+//
+// Because regex patterns and paths legitimately contain ':', name and baselang
+// are peeled from the right and the pattern is whatever remains in between.
+func parseCountAsPattern(s string) (CountRule, error) {
+	engine := MatchGlob
+	rest := s
+
+	switch {
+	case strings.HasPrefix(rest, "re:"):
+		engine = MatchRegex
+		rest = rest[len("re:"):]
+	case strings.HasPrefix(rest, "glob:"):
+		engine = MatchGlob
+		rest = rest[len("glob:"):]
+	}
+
+	// baselang = after the last ':', name = between the 2nd-last and last ':'
+	lastColon := strings.LastIndex(rest, ":")
+	if lastColon == -1 {
+		return CountRule{}, fmt.Errorf("expected format [engine:]pattern:name:baselang")
+	}
+	baseLanguage := rest[lastColon+1:]
+
+	nameColon := strings.LastIndex(rest[:lastColon], ":")
+	if nameColon == -1 {
+		return CountRule{}, fmt.Errorf("expected format [engine:]pattern:name:baselang")
+	}
+	name := rest[nameColon+1 : lastColon]
+	pattern := rest[:nameColon]
+
+	if pattern == "" || name == "" || baseLanguage == "" {
+		return CountRule{}, fmt.Errorf("pattern, name and baselang must all be non-empty")
+	}
+
+	return CountRule{Engine: engine, Pattern: pattern, Name: name, BaseLanguage: baseLanguage}, nil
+}
+
+// globToRegex converts a simple glob into an anchored regex. Glob is the
+// default --count-as-pattern engine. Only '*' (any run of characters) and '?'
+// (single character) are special, everything else is matched literally. The
+// result is anchored as a full match.
+func globToRegex(glob string) string {
+	var b strings.Builder
+	b.WriteByte('^')
+	for _, r := range glob {
+		switch r {
+		case '*':
+			b.WriteString(".*")
+		case '?':
+			b.WriteByte('.')
+		default:
+			b.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	b.WriteByte('$')
+	return b.String()
+}
+
+// setupCountRules parses CountAsPattern into CountRules, compiles each rule and
+// registers a cloned language under its new name so counting works. Invalid
+// rules are reported to stderr and skipped, consistent with --count-as.
+func setupCountRules() {
+	for _, s := range CountAsPattern {
+		rule, err := parseCountAsPattern(s)
+		if err != nil {
+			printError(fmt.Sprintf("ignoring malformed count-as-pattern rule %q: %s", s, err))
+			continue
+		}
+		CountRules = append(CountRules, rule)
+	}
+
+	for _, rule := range CountRules {
+		base, ok := resolveBaseLanguage(rule.BaseLanguage)
+		if !ok {
+			printError(fmt.Sprintf("ignoring count-as-pattern rule for %q: base language %q is not a known language or extension", rule.Name, rule.BaseLanguage))
+			continue
+		}
+
+		source := rule.Pattern
+		if rule.Engine == MatchGlob {
+			source = globToRegex(rule.Pattern)
+		}
+
+		re, err := regexp.Compile(source)
+		if err != nil {
+			printError(fmt.Sprintf("ignoring count-as-pattern rule for %q: invalid pattern %q: %s", rule.Name, rule.Pattern, err))
+			continue
+		}
+
+		// Clone the base language under the new name so it has counting rules,
+		// clearing the matchers so the minted category never participates in
+		// normal extension/filename/shebang detection.
+		cloned := languageDatabase[base]
+		cloned.Extensions = nil
+		cloned.FileNames = nil
+		cloned.SheBangs = nil
+		languageDatabase[rule.Name] = cloned
+
+		// Populate features now in non-lazy mode, otherwise LoadLanguageFeature
+		// will build them on first use since the name is in languageDatabase.
+		if !isLazy {
+			processLanguageFeature(rule.Name, cloned)
+		}
+
+		compiledCountRules = append(compiledCountRules, compiledCountRule{re: re, name: rule.Name})
+		printDebugF("set to count path matching %q as new language %s based on %s", rule.Pattern, rule.Name, base)
 	}
 }
 
@@ -377,6 +700,8 @@ func processLanguageFeature(name string, value Language) {
 	mlCommentTrie := &Trie{}
 	stringTrie := &Trie{}
 	tokenTrie := &Trie{}
+	keywordBytes := make([][]byte, 0, len(value.Keywords))
+	postfixExcludes := make([][]byte, 0, len(value.ComplexityChecksPostfixExcludes))
 
 	complexityMask := byte(0)
 	singleLineCommentMask := byte(0)
@@ -393,6 +718,17 @@ func processLanguageFeature(name string, value Language) {
 	}
 	if !Complexity {
 		processMask |= complexityMask
+	}
+
+	for _, v := range value.ComplexityChecksPostfix {
+		if !Complexity {
+			tokenTrie.Insert(TComplexityPostfix, []byte(v))
+			processMask |= v[0]
+		}
+	}
+
+	for _, v := range value.ComplexityChecksPostfixExcludes {
+		postfixExcludes = append(postfixExcludes, []byte(v))
 	}
 
 	for _, v := range value.LineComment {
@@ -416,6 +752,30 @@ func processLanguageFeature(name string, value Language) {
 	}
 	processMask |= stringMask
 
+	for _, v := range value.Keywords {
+		keywordBytes = append(keywordBytes, []byte(v))
+	}
+
+	// Compile any regex heuristics used to disambiguate shared extensions such
+	// as .h between C / C++ / Objective-C. The patterns are validated at
+	// generation time (scripts/include.go) so MustCompile is safe here, but we
+	// guard with Compile anyway to honour the no-panics policy. Each pattern's
+	// necessary literals are pre-converted to bytes so guessByHeuristics can
+	// cheaply skip running the regex when none of them appear in the content.
+	heuristics := make([]CompiledHeuristic, 0, len(value.Heuristics))
+	for _, v := range value.Heuristics {
+		re, err := regexp.Compile(v.Pattern)
+		if err != nil {
+			printWarnF("failed to compile heuristic %q for language %s: %v", v.Pattern, name, err)
+			continue
+		}
+		literals := make([][]byte, 0, len(v.Literals))
+		for _, l := range v.Literals {
+			literals = append(literals, []byte(l))
+		}
+		heuristics = append(heuristics, CompiledHeuristic{Re: re, Literals: literals, Anchored: v.Anchored})
+	}
+
 	LanguageFeaturesMutex.Lock()
 	LanguageFeatures[name] = LanguageFeature{
 		Complexity:            complexityTrie,
@@ -426,12 +786,15 @@ func processLanguageFeature(name string, value Language) {
 		Strings:               stringTrie,
 		Tokens:                tokenTrie,
 		Nested:                value.NestedMultiLine,
+		PostfixExcludes:       postfixExcludes,
 		ComplexityCheckMask:   complexityMask,
 		MultiLineCommentMask:  multiLineCommentMask,
 		SingleLineCommentMask: singleLineCommentMask,
 		StringCheckMask:       stringMask,
 		ProcessMask:           processMask,
 		Keywords:              value.Keywords,
+		KeywordBytes:          keywordBytes,
+		Heuristics:            heuristics,
 		Quotes:                value.Quotes,
 	}
 	LanguageFeaturesMutex.Unlock()
@@ -476,8 +839,30 @@ func processFlags() {
 	printDebugF("Duplicates Detection: %t", Duplicates)
 	printDebugF("Complexity Calculation: %t", !Complexity)
 	printDebugF("Wide: %t", More)
+	// If cost-comparison is enabled, turn on both COCOMO and LOCOMO
+	if CostComparison {
+		Cocomo = false
+		Locomo = true
+	}
+
+	// LOCOMO needs complexity data to produce accurate estimates.
+	// If complexity was disabled via --no-complexity, force it back on.
+	if Locomo && Complexity {
+		Complexity = false
+	}
+
+	// Cognitive complexity is derived from the complexity tokens, so it needs
+	// complexity counting enabled. Complexity is a disable switch, so force it
+	// off (i.e. enable counting) even when --no-complexity was passed; cognitive
+	// wins. Warn only when the user explicitly asked for both.
+	if Cognitive && Complexity {
+		Complexity = false
+		printWarn("--no-complexity ignored because --cognitive requires complexity counting")
+	}
+
 	printDebugF("Average Wage: %d", AverageWage)
 	printDebugF("Cocomo: %t", !Cocomo)
+	printDebugF("Locomo: %t", Locomo)
 	printDebugF("Minified/Generated Detection: %t/%t", Minified, Generated)
 	printDebugF("Ignore Minified/Generated: %t/%t", IgnoreMinified, IgnoreGenerated)
 	printDebugF("IncludeSymLinks: %t", IncludeSymLinks)
@@ -491,7 +876,7 @@ func LanguageDatabase() map[string]Language {
 	return languageDatabase
 }
 
-func printLanguages() {
+func PrintLanguages(dst io.Writer) {
 	names := make([]string, 0, len(languageDatabase))
 	for key := range languageDatabase {
 		names = append(names, key)
@@ -502,7 +887,7 @@ func printLanguages() {
 	})
 
 	for _, name := range names {
-		fmt.Printf("%s (%s)\n", name, strings.Join(append(languageDatabase[name].Extensions, languageDatabase[name].FileNames...), ","))
+		_, _ = fmt.Fprintf(dst, "%s (%s)\n", name, strings.Join(append(languageDatabase[name].Extensions, languageDatabase[name].FileNames...), ","))
 	}
 }
 
@@ -514,16 +899,99 @@ var ulocLanguageCount = map[string]map[string]struct{}{}
 // Process is the main entry point of the command line it sets everything up and starts running
 func Process() {
 	if Languages {
-		printLanguages()
+		PrintLanguages(os.Stdout)
 		return
 	}
 
 	ProcessConstants()
 	processFlags()
+	cleanVisitedPaths()
 
 	// Clean up any invalid arguments before setting everything up
 	if len(DirFilePaths) == 0 {
 		DirFilePaths = append(DirFilePaths, ".")
+	}
+
+	// --report mode short-circuits the normal format dispatch and writes a
+	// self-contained HTML report. Mutually exclusive with --format / -f: if
+	// the user passed both, warn on stderr and let --report win.
+	if ReportOut != "" {
+		if Format != "" && Format != "tabular" {
+			fmt.Fprintf(os.Stderr, "warning: --report overrides --format=%s\n", Format)
+		}
+		parseReportSkip(ReportSkip)
+		if len(DirFilePaths) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: --report only analyses the first positional path (%s); other paths ignored\n", DirFilePaths[0])
+		}
+		if err := runReport(DirFilePaths); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if Hotspots && (ByAuthor || Timeline) {
+		fmt.Println("--hotspots is mutually exclusive with --by-author / --timeline; pick one report")
+		os.Exit(1)
+	}
+
+	// --coupling-for implies the coupling report for a specific file, and
+	// --coupling-weighted is a modifier that implies the report too.
+	if CouplingFor != "" || CouplingWeighted {
+		Coupling = true
+	}
+
+	// Coupling is a standalone report — it doesn't combine with any other.
+	if Coupling && (Hotspots || ByAuthor || Timeline) {
+		fmt.Println("--coupling/--coupling-for is mutually exclusive with --hotspots / --by-author / --timeline; pick one report")
+		os.Exit(1)
+	}
+
+	if Hotspots || Coupling || ByAuthor || Timeline {
+		if err := validateHistoryFlags(os.Stderr); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	if Hotspots {
+		if err := runHotspotsReport(DirFilePaths[0]); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if Coupling {
+		if err := runCouplingReport(DirFilePaths[0]); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if ByAuthor && Timeline {
+		if err := runAuthorTimelineReport(DirFilePaths[0]); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if ByAuthor {
+		if err := runAuthorsReport(DirFilePaths[0]); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if Timeline {
+		if err := runLanguagesTimelineReport(DirFilePaths[0]); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	filePaths := []string{}
@@ -547,6 +1015,7 @@ func Process() {
 	}
 
 	SortBy = strings.ToLower(SortBy)
+	ctx := processorContext{remap: newRemapConfig(RemapAll, RemapUnknown)}
 
 	printDebugF("NumCPU: %d", runtime.NumCPU())
 	printDebugF("SortBy: %s", SortBy)
@@ -571,12 +1040,15 @@ func Process() {
 	if !SccIgnore {
 		fileWalker.CustomIgnore = []string{".sccignore"}
 	}
+	fileWalker.CustomIgnoreFiles = IgnoreFiles
 
+	var excludePathRegexes []*regexp.Regexp
 	for _, exclude := range Exclude {
 		regexpResult, err := regexp.Compile(exclude)
 		if err == nil {
 			fileWalker.ExcludeFilenameRegex = append(fileWalker.ExcludeFilenameRegex, regexpResult)
 			fileWalker.ExcludeDirectoryRegex = append(fileWalker.ExcludeDirectoryRegex, regexpResult)
+			excludePathRegexes = append(excludePathRegexes, regexpResult)
 		} else {
 			printError(err.Error())
 		}
@@ -603,6 +1075,17 @@ func Process() {
 		}
 
 		for fi := range potentialFilesQueue {
+			shouldExclude := false
+			for _, re := range excludePathRegexes {
+				if re.MatchString(fi.Location) {
+					shouldExclude = true
+					break
+				}
+			}
+			if shouldExclude {
+				continue
+			}
+
 			fileInfo, err := os.Lstat(fi.Location)
 			if err != nil {
 				continue
@@ -618,7 +1101,7 @@ func Process() {
 		close(fileListQueue)
 	}()
 
-	go fileProcessorWorker(fileListQueue, fileSummaryJobQueue)
+	go ctx.fileProcessorWorker(fileListQueue, fileSummaryJobQueue)
 
 	result := fileSummarize(fileSummaryJobQueue)
 	if FileOutput == "" {

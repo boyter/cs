@@ -13,6 +13,9 @@ import (
 // needs to be sync.Map as it potentially could be called by many GoRoutines
 var extensionCache sync.Map
 
+// Added as a way to track files per run.
+var visitedPaths sync.Map
+
 // A custom version of extracting extensions for a file
 // which also has a case-insensitive cache in order to save
 // some needless processing
@@ -39,6 +42,10 @@ func getExtension(name string) string {
 
 	extensionCache.Store(name, extension)
 	return extension.(string)
+}
+
+func cleanVisitedPaths() {
+	visitedPaths.Clear()
 }
 
 func newFileJob(path, name string, fileInfo os.FileInfo) *FileJob {
@@ -78,7 +85,33 @@ func newFileJob(path, name string, fileInfo os.FileInfo) *FileJob {
 		return nil
 	}
 
+	// This determines the real path
+	realPath := path
+	if symPath != "" {
+		realPath = symPath
+	}
+
+	// Prevent duplicate processing and loops
+	if _, exists := visitedPaths.Load(realPath); exists {
+		printWarnF("skipping already processed file: %s", realPath)
+		return nil
+	}
+	visitedPaths.Store(realPath, true)
+
 	language, extension := DetectLanguage(name)
+
+	// Path pattern count rules can relabel a file to a new minted category and
+	// can also rescue files that normal detection would otherwise skip. First
+	// matching rule wins, evaluated against the full path as supplied.
+	if len(compiledCountRules) != 0 {
+		for _, r := range compiledCountRules {
+			if r.re.MatchString(path) {
+				language = []string{r.name}
+				LoadLanguageFeature(r.name)
+				break
+			}
+		}
+	}
 
 	if len(language) != 0 {
 		// check if extensions in the allow list, which should limit to just those extensions
