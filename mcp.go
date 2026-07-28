@@ -248,6 +248,25 @@ func StartMCPServer(cfg *Config) {
 
 	mcpServer.AddTool(getFileTool, mcpGetFileHandler(cfg))
 
+	// Add You.com web search tool
+	youcomClient := NewYouComClient()
+	webSearchTool := mcp.NewTool("web_search",
+		mcp.WithDescription("Search the web using You.com Search API. Complements the 'search' tool which searches code files. "+
+			"Use this tool when you need current web information, documentation from websites, tutorials, articles, or any information not in the local codebase. "+
+			"Supports both authenticated (with YOU_COM_API_KEY env var) and keyless operation (100 free searches/day per IP). "+
+			"Returns web results with titles, URLs, snippets, and optional news results."),
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithString("query",
+			mcp.Description("The web search query. Can be keywords, phrases, or questions. Examples: 'golang error handling best practices', 'REST API authentication', 'how to implement JWT in Go'"),
+			mcp.Required(),
+		),
+		mcp.WithNumber("max_results",
+			mcp.Description("Maximum number of results to return (1-20). Defaults to 10."),
+		),
+	)
+
+	mcpServer.AddTool(webSearchTool, mcpWebSearchHandler(youcomClient))
+
 	// stdout is reserved for MCP JSON-RPC; log to stderr
 	errLogger := log.New(os.Stderr, "cs-mcp: ", log.LstdFlags)
 	if err := server.ServeStdio(mcpServer, server.WithErrorLogger(errLogger)); err != nil {
