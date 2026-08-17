@@ -4,6 +4,8 @@ package snippet
 
 import (
 	"bytes"
+	"cmp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -84,6 +86,7 @@ func FindMatchingLines(res *common.FileJob, surroundLines int) []LineResult {
 	}
 
 	// For each line, find match locations that overlap with it
+	filterShort := shouldFilterShortTerms(res.MatchLocations)
 	var matchingLines []LineResult
 	for i, rawLine := range rawLines {
 		lineStart := lineOffsets[i]
@@ -92,7 +95,6 @@ func FindMatchingLines(res *common.FileJob, surroundLines int) []LineResult {
 		var locs [][]int
 		var score float64
 
-		filterShort := shouldFilterShortTerms(res.MatchLocations)
 		for term, positions := range res.MatchLocations {
 			if filterShort && len(term) < minTermLen {
 				continue
@@ -244,6 +246,7 @@ func FindMatchingLinesMulti(res *common.FileJob, surroundLines, snippetCount int
 	}
 
 	// For each line, find match locations that overlap with it
+	filterShort := shouldFilterShortTerms(res.MatchLocations)
 	var matchingLines []LineResult
 	for i, rawLine := range rawLines {
 		lineStart := lineOffsets[i]
@@ -252,7 +255,6 @@ func FindMatchingLinesMulti(res *common.FileJob, surroundLines, snippetCount int
 		var locs [][]int
 		var score float64
 
-		filterShort := shouldFilterShortTerms(res.MatchLocations)
 		for term, positions := range res.MatchLocations {
 			if filterShort && len(term) < minTermLen {
 				continue
@@ -411,48 +413,103 @@ func FindAllMatchingLines(res *common.FileJob, limit int, contextBefore, context
 
 	filterShort := shouldFilterShortTerms(res.MatchLocations)
 
-	// Build per-line match locs
+	// Match locations and lines are two sets joined on byte offset. Testing every
+	// match against every line is O(lines*matches), which on machine generated
+	// files (tens of thousands of lines, tens of thousands of matches) dominates
+	// the entire search. lineOffsets is already sorted, so instead binary search
+	// each match straight to the lines it covers: O(matches*log lines + lines).
+	type lineLoc struct {
+		line  int
+		start int
+		end   int
+	}
+	numLines := len(rawLines)
+
+	// Size hits up front. Only matches spanning a line boundary add more than
+	// one entry, so this is the right capacity in all but a rare case.
+	numHits := 0
+	for term, positions := range res.MatchLocations {
+		if filterShort && len(term) < minTermLen {
+			continue
+		}
+		numHits += len(positions)
+	}
+
+	hits := make([]lineLoc, 0, numHits)
+	for term, positions := range res.MatchLocations {
+		if filterShort && len(term) < minTermLen {
+			continue
+		}
+		for _, pos := range positions {
+			mStart, mEnd := pos[0], pos[1]
+
+			// First line whose end offset is past the start of the match. Line
+			// end offsets strictly increase, so the lines a match overlaps are
+			// contiguous from here.
+			first := sort.Search(numLines, func(i int) bool {
+				return lineOffsets[i]+len(rawLines[i]) > mStart
+			})
+
+			// A match may span a line boundary, so attach it to every line it
+			// overlaps, not just the one its start offset falls in.
+			for i := first; i < numLines && lineOffsets[i] < mEnd; i++ {
+				relStart := mStart - lineOffsets[i]
+				relEnd := mEnd - lineOffsets[i]
+				if relStart < 0 {
+					relStart = 0
+				}
+				if relEnd > len(rawLines[i]) {
+					relEnd = len(rawLines[i])
+				}
+				hits = append(hits, lineLoc{line: i, start: relStart, end: relEnd})
+			}
+		}
+	}
+
+	if len(hits) == 0 {
+		return nil
+	}
+
+	// Order by line, then by position within the line. Match locations arrive in
+	// map iteration order, so without this the locs of a line come out in a
+	// different order run to run.
+	slices.SortFunc(hits, func(a, b lineLoc) int {
+		if a.line != b.line {
+			return cmp.Compare(a.line, b.line)
+		}
+		if a.start != b.start {
+			return cmp.Compare(a.start, b.start)
+		}
+		return cmp.Compare(a.end, b.end)
+	})
+
+	// Group the hits into per-line matches. The limit is on matching lines, so
+	// it is applied here rather than while collecting.
 	type lineMatch struct {
 		index int
 		locs  [][]int
 	}
 	var matches []lineMatch
-	for i, rawLine := range rawLines {
-		lineStart := lineOffsets[i]
-		lineEnd := lineStart + len(rawLine)
-
-		var locs [][]int
-
-		for term, positions := range res.MatchLocations {
-			if filterShort && len(term) < minTermLen {
-				continue
-			}
-			for _, pos := range positions {
-				mStart, mEnd := pos[0], pos[1]
-				if mStart < lineEnd && mEnd > lineStart {
-					relStart := mStart - lineStart
-					relEnd := mEnd - lineStart
-					if relStart < 0 {
-						relStart = 0
-					}
-					if relEnd > len(rawLine) {
-						relEnd = len(rawLine)
-					}
-					locs = append(locs, []int{relStart, relEnd})
-				}
-			}
+	backing := make([]int, 0, 2*len(hits)) // one allocation for every [start, end]
+	for i := 0; i < len(hits); {
+		line := hits[i].line
+		j := i
+		for j < len(hits) && hits[j].line == line {
+			j++
 		}
 
-		if len(locs) > 0 {
-			matches = append(matches, lineMatch{index: i, locs: locs})
-			if limit > 0 && len(matches) >= limit {
-				break
-			}
+		locs := make([][]int, 0, j-i)
+		for _, h := range hits[i:j] {
+			n := len(backing)
+			backing = append(backing, h.start, h.end)
+			locs = append(locs, backing[n:n+2:n+2])
 		}
-	}
+		matches = append(matches, lineMatch{index: line, locs: locs})
 
-	if len(matches) == 0 {
-		return nil
+		if limit > 0 && len(matches) >= limit {
+			break
+		}
+		i = j
 	}
 
 	// No context requested — fast path
