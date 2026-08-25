@@ -97,7 +97,7 @@ func DoSearch(ctx context.Context, cfg *Config, query string, cache *SearchCache
 	var walkerToTerminate *gocodewalker.FileWalker
 	cacheQuery := cfg.ContentFilterCachePrefix() + query
 	if cache != nil {
-		if cachedFiles, ok := cache.FindPrefixFiles(cfg.AllowListExtensions, cacheQuery); ok {
+		if cachedFiles, ok := cache.FindPrefixFiles(dir, cfg.AllowListExtensions, cacheQuery); ok {
 			go func() {
 				defer close(fileQueue)
 				for _, loc := range cachedFiles {
@@ -297,7 +297,7 @@ startWorkers:
 
 		// Populate cache with matched file locations
 		if cache != nil && len(matchedLocations) > 0 {
-			cache.Store(cfg.AllowListExtensions, cacheQuery, matchedLocations)
+			cache.Store(dir, cfg.AllowListExtensions, cacheQuery, matchedLocations)
 		}
 	}()
 

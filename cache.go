@@ -36,9 +36,11 @@ func NewSearchCache() *SearchCache {
 
 // FindPrefixFiles tries progressively shorter prefixes of the query to find
 // cached file locations from a previous search. Returns the cached locations
-// and true on hit, or nil and false on miss.
-func (sc *SearchCache) FindPrefixFiles(extensions []string, query string) ([]string, bool) {
-	prefix := cacheKeyPrefix(extensions)
+// and true on hit, or nil and false on miss. The root scopes the lookup so
+// that the same query run against two different directories never shares
+// entries.
+func (sc *SearchCache) FindPrefixFiles(root string, extensions []string, query string) ([]string, bool) {
+	prefix := cacheKeyPrefix(root, extensions)
 
 	// Try the full query first, then progressively shorter prefixes.
 	// We split on spaces and try removing the last word each time.
@@ -53,20 +55,30 @@ func (sc *SearchCache) FindPrefixFiles(extensions []string, query string) ([]str
 	return nil, false
 }
 
-// Store saves the matched file locations under the full query key.
-func (sc *SearchCache) Store(extensions []string, query string, locations []string) {
-	key := cacheKeyPrefix(extensions) + query
+// Store saves the matched file locations under the full query key, scoped to
+// the root the search walked.
+func (sc *SearchCache) Store(root string, extensions []string, query string, locations []string) {
+	key := cacheKeyPrefix(root, extensions) + query
 	_ = sc.cache.Set(key, locations)
 }
 
-// cacheKeyPrefix builds a deterministic prefix from the extension filter
-// so that searches with different ext= params don't share cache entries.
-func cacheKeyPrefix(extensions []string) string {
-	if len(extensions) == 0 {
-		return ""
+// cacheKeyPrefix builds a deterministic prefix from the search root and the
+// extension filter so that searches over different directories, or with
+// different ext= params, don't share cache entries.
+//
+// The root belongs in the prefix rather than the query string because
+// FindPrefixFiles truncates the query word by word — a root containing a
+// space would be shredded by that walk and could collide across directories.
+func cacheKeyPrefix(root string, extensions []string) string {
+	var sb strings.Builder
+	sb.WriteString(root)
+	sb.WriteByte(0)
+	if len(extensions) != 0 {
+		sorted := make([]string, len(extensions))
+		copy(sorted, extensions)
+		sort.Strings(sorted)
+		sb.WriteString(strings.Join(sorted, ","))
+		sb.WriteByte(':')
 	}
-	sorted := make([]string, len(extensions))
-	copy(sorted, extensions)
-	sort.Strings(sorted)
-	return strings.Join(sorted, ",") + ":"
+	return sb.String()
 }

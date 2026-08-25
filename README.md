@@ -160,6 +160,11 @@ Sync runs immediately on startup, then repeats at the configured interval. Error
 stderr but do not stop the process. Each pull has a 2-minute timeout and runs non-interactively
 (will not prompt for credentials). Ignored in console mode since it exits immediately.
 
+In MCP mode, only the `--dir` directory is discovered and synced. An agent that searches somewhere
+else via the `search` tool's `path` parameter gets that directory exactly as it is on disk, and the
+response carries a `git_sync_note` saying so. Use `--mcp-lock-dir` if you want searches confined to
+the synced tree.
+
 **Similar to Sourcegraph:** Clone your team's repos into a single directory, point `cs` at it with
 `--git-sync`, and you have a self-updating, relevance-ranked code search across all of them — no
 indexing server, no infrastructure, no configuration beyond a single command:
@@ -410,6 +415,7 @@ Flags:
       --line-limit int               max matching lines per file in grep mode (-1 = unlimited) (default -1)
       --max-read-size-bytes int      number of bytes to read into a file with the remaining content ignored (default 1000000)
       --mcp                          start as an MCP (Model Context Protocol) server over stdio
+      --mcp-lock-dir                 restrict the MCP server to --dir: reject searching or reading outside that tree
       --min                          include minified files
       --min-line-length int          number of bytes per average line for file to be considered minified (default 255)
       --no-gitignore                 disables .gitignore file logic
@@ -476,8 +482,14 @@ vi `cs`   # edit the selected file
 tools like Claude Desktop, Claude Code, Cursor, and others to use it as a code search tool.
 
 ```shell
-cs --mcp --dir /path/to/codebase
+cs --mcp                        # search the working directory
+cs --mcp --dir /path/to/codebase  # set a different default directory
 ```
+
+The calling agent chooses which directory to search per call via the `search` tool's `path`
+parameter, the same way it would with `grep`. `--dir` sets the *default* directory used when
+`path` is omitted — it is not a restriction. To restrict the server to a single tree, add
+`--mcp-lock-dir`, which rejects any `path` or `get_file` outside `--dir`.
 
 #### Claude Desktop Configuration
 
@@ -518,28 +530,32 @@ The MCP server exposes two tools:
 | Parameter | Type | Required | Description                                                                                      |
 |---|---|---|--------------------------------------------------------------------------------------------------|
 | `query` | string | yes | Search query (supports boolean logic, quotes, regex, fuzzy)                                      |
+| `path` | string | no | **Directory to search in**, like `grep`. Absolute, or relative to the default directory; `~` is expanded. Defaults to `--dir` (or the working directory) |
 | `max_results` | number | no | Maximum results to return (default 20)                                                           |
 | `snippet_length` | number | no | Snippet size in characters                                                                       |
 | `case_sensitive` | boolean | no | Case sensitive search                                                                            |
 | `include_ext` | string | no | Comma-separated file extensions (e.g. `go,js,py`)                                                |
 | `language` | string | no | Comma-separated language types (e.g. `Go,Python`)                                                |
-| `path` | string | no | Restrict to files whose full path matches (substring or glob; comma-separated values are ORed). ANDed against the whole query |
+| `path_filter` | string | no | Restrict to files whose full path matches (substring or glob; comma-separated values are ORed). ANDed against the whole query |
 | `file` | string | no | Restrict to files whose filename matches (substring or glob; comma-separated values are ORed). ANDed against the whole query |
 | `gravity` | string | no | Complexity gravity intent: `brain`, `logic`, `default`, `low`, `off`                             |
 | `profile` | string | no | Ranking profile: `balanced` (default), `precise`, `broad` - overrides gravity/noise/test-penalty |
 
-The `path`, `file`, `include_ext`, and `language` parameters apply to the whole query and are the robust way to
+Note that `path` selects **where** to search and `path_filter` narrows **what** matches — passing a glob to
+`path` is an error that points you at `path_filter`.
+
+The `path_filter`, `file`, `include_ext`, and `language` parameters apply to the whole query and are the robust way to
 scope a search — unlike in-query filters (`path:`, `file:`, `ext:`, `lang:`), which bind only to the adjacent term
 (`a OR b path:src` means `a OR (b AND path:src)`). Note there is no top-level `ext` parameter; use `include_ext`.
 Unknown parameters are rejected with an error rather than silently ignored.
 
-Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics.
+Results are returned as JSON with the same fields as `--format json`: filename, location, score, snippet content, match locations, language, and code statistics, plus a `searched_directory` field echoing the directory that was walked.
 
-**`get_file`** — Read the contents of a file within the project directory.
+**`get_file`** — Read the contents of a file.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | yes | File path relative to the project directory, or absolute path within the project |
+| `path` | string | yes | File path, absolute or relative to the default directory. Restricted to `--dir` only when `--mcp-lock-dir` is set |
 | `start_line` | number | no | 1-based start line number (reads from beginning if omitted) |
 | `end_line` | number | no | 1-based end line number, inclusive (reads to end if omitted) |
 

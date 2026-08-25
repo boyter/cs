@@ -89,6 +89,10 @@ type Config struct {
 	// MCP
 	MCPServer bool
 
+	// MCPLockDir restricts the MCP server to Directory: the per-call "path"
+	// search root and any get_file path outside that tree are rejected.
+	MCPLockDir bool
+
 	// HTTP
 	Address         string
 	HttpServer      bool

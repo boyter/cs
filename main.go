@@ -133,6 +133,10 @@ func main() {
 				}
 			}
 
+			if cfg.MCPLockDir && !cfg.MCPServer {
+				fmt.Fprintf(os.Stderr, "warning: --mcp-lock-dir has no effect without --mcp\n")
+			}
+
 			if cfg.MCPServer {
 				if cfg.GitSync {
 					stopSync := startGitSync(&cfg)
@@ -378,6 +382,12 @@ func main() {
 		"mcp",
 		false,
 		"start as an MCP (Model Context Protocol) server over stdio",
+	)
+	flags.BoolVar(
+		&cfg.MCPLockDir,
+		"mcp-lock-dir",
+		false,
+		"restrict the MCP server to --dir: reject searching or reading outside that tree",
 	)
 	flags.BoolVarP(
 		&cfg.HttpServer,

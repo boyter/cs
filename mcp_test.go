@@ -310,12 +310,12 @@ func TestMCPSearchHandlerAcceptsKnownParams(t *testing.T) {
 	cache := NewSearchCache()
 	handler := mcpSearchHandler(&cfg, cache)
 
-	// "path" is a valid top-level param — this must not be rejected.
+	// "path_filter" is a valid top-level param — this must not be rejected.
 	req := mcp.CallToolRequest{}
 	req.Params.Arguments = map[string]any{
-		"query": "anything",
-		"path":  "src",
-		"file":  "*.go",
+		"query":       "anything",
+		"path_filter": "src",
+		"file":        "*.go",
 	}
 	result, err := handler(context.Background(), req)
 	if err != nil {
@@ -347,8 +347,8 @@ func TestMCPSearchHandlerTopLevelPathScopesGlobally(t *testing.T) {
 
 	req := mcp.CallToolRequest{}
 	req.Params.Arguments = map[string]any{
-		"query": "alphatoken OR betatoken",
-		"path":  "wanted",
+		"query":       "alphatoken OR betatoken",
+		"path_filter": "wanted",
 	}
 	result, err := handler(context.Background(), req)
 	if err != nil {
@@ -655,9 +655,10 @@ func TestMCPGetFileHandlerLineRange(t *testing.T) {
 	}
 }
 
-func TestMCPGetFileHandlerPathTraversal(t *testing.T) {
+func TestMCPGetFileHandlerPathTraversalLocked(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Directory = t.TempDir()
+	cfg.MCPLockDir = true
 	handler := mcpGetFileHandler(&cfg)
 
 	req := mcp.CallToolRequest{}
@@ -669,7 +670,41 @@ func TestMCPGetFileHandlerPathTraversal(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !result.IsError {
-		t.Error("expected error result for path traversal")
+		t.Error("expected error result for path traversal under --mcp-lock-dir")
+	}
+	if text := result.Content[0].(mcp.TextContent).Text; !strings.Contains(text, "mcp-lock-dir") {
+		t.Errorf("expected error to mention --mcp-lock-dir, got: %s", text)
+	}
+}
+
+// Without --mcp-lock-dir, get_file must be able to read files outside the
+// default directory — search can now return locations from anywhere.
+func TestMCPGetFileHandlerOutsideDefaultRootAllowed(t *testing.T) {
+	outside := t.TempDir()
+	target := filepath.Join(outside, "elsewhere.go")
+	if err := os.WriteFile(target, []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := DefaultConfig()
+	cfg.Directory = t.TempDir()
+	handler := mcpGetFileHandler(&cfg)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]any{"path": target}
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected outside path to be readable, got: %s", result.Content[0].(mcp.TextContent).Text)
+	}
+	var fr mcpFileResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &fr); err != nil {
+		t.Fatalf("result is not valid JSON: %v", err)
+	}
+	if !strings.Contains(fr.Content, "package main") {
+		t.Errorf("expected file content, got: %s", fr.Content)
 	}
 }
 
@@ -719,5 +754,153 @@ func TestMCPGetFileHandlerStartLineExceedsLength(t *testing.T) {
 	}
 	if !result.IsError {
 		t.Error("expected error result for start_line exceeding file length")
+	}
+}
+
+// writeGoFile creates dir/name containing a unique token, for root-scoping tests.
+func writeGoFile(t *testing.T, dir, name, token string) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, name)
+	content := fmt.Sprintf("package main\n\nfunc f() {\n\tprintln(%q)\n}\n", token)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// searchWith runs the search handler and returns the decoded response, failing
+// the test if the handler reported an error.
+func searchWith(t *testing.T, cfg *Config, args map[string]any) mcpSearchResponse {
+	t.Helper()
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = args
+	result, err := mcpSearchHandler(cfg, NewSearchCache())(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", result.Content[0].(mcp.TextContent).Text)
+	}
+	var parsed mcpSearchResponse
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &parsed); err != nil {
+		t.Fatalf("result is not valid JSON: %v", err)
+	}
+	return parsed
+}
+
+// searchErrorText runs the search handler expecting an error result.
+func searchErrorText(t *testing.T, cfg *Config, args map[string]any) string {
+	t.Helper()
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = args
+	result, err := mcpSearchHandler(cfg, NewSearchCache())(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatalf("expected error result, got: %s", result.Content[0].(mcp.TextContent).Text)
+	}
+	return result.Content[0].(mcp.TextContent).Text
+}
+
+func TestMCPSearchPathSelectsRoot(t *testing.T) {
+	defaultRoot := t.TempDir()
+	otherRoot := t.TempDir()
+	writeGoFile(t, defaultRoot, "here.go", "sharedtoken")
+	writeGoFile(t, otherRoot, "there.go", "sharedtoken")
+
+	cfg := DefaultConfig()
+	cfg.Directory = defaultRoot
+
+	got := searchWith(t, &cfg, map[string]any{"query": "sharedtoken"})
+	if got.TotalMatches != 1 || !strings.HasSuffix(got.Results[0].Location, "here.go") {
+		t.Fatalf("default root should match here.go only, got %d: %+v", got.TotalMatches, got.Results)
+	}
+	if got.SearchedDirectory != defaultRoot {
+		t.Errorf("expected searched_directory %s, got %s", defaultRoot, got.SearchedDirectory)
+	}
+
+	got = searchWith(t, &cfg, map[string]any{"query": "sharedtoken", "path": otherRoot})
+	if got.TotalMatches != 1 || !strings.HasSuffix(got.Results[0].Location, "there.go") {
+		t.Fatalf("explicit root should match there.go only, got %d: %+v", got.TotalMatches, got.Results)
+	}
+	if got.SearchedDirectory != otherRoot {
+		t.Errorf("expected searched_directory %s, got %s", otherRoot, got.SearchedDirectory)
+	}
+}
+
+func TestMCPSearchRelativePathResolvesAgainstDefaultRoot(t *testing.T) {
+	root := t.TempDir()
+	writeGoFile(t, filepath.Join(root, "wanted"), "a.go", "reltoken")
+	writeGoFile(t, filepath.Join(root, "other"), "b.go", "reltoken")
+
+	cfg := DefaultConfig()
+	cfg.Directory = root
+
+	got := searchWith(t, &cfg, map[string]any{"query": "reltoken", "path": "wanted"})
+	if got.TotalMatches != 1 || !strings.HasSuffix(got.Results[0].Location, filepath.Join("wanted", "a.go")) {
+		t.Fatalf("expected only wanted/a.go, got %d: %+v", got.TotalMatches, got.Results)
+	}
+	if want := filepath.Join(root, "wanted"); got.SearchedDirectory != want {
+		t.Errorf("expected searched_directory %s, got %s", want, got.SearchedDirectory)
+	}
+}
+
+func TestMCPSearchPathRejectsBadRoots(t *testing.T) {
+	root := t.TempDir()
+	file := writeGoFile(t, root, "single.go", "token")
+
+	cfg := DefaultConfig()
+	cfg.Directory = root
+
+	cases := []struct{ name, path, wantSubstring string }{
+		{"glob", "*/pkg/*", "path_filter"},
+		{"missing", "no-such-dir", "does not exist"},
+		{"file", file, "get_file"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text := searchErrorText(t, &cfg, map[string]any{"query": "token", "path": tc.path})
+			if !strings.Contains(text, tc.wantSubstring) {
+				t.Errorf("expected error mentioning %q, got: %s", tc.wantSubstring, text)
+			}
+		})
+	}
+}
+
+func TestMCPSearchLockDirRejectsOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeGoFile(t, outside, "there.go", "locktoken")
+
+	cfg := DefaultConfig()
+	cfg.Directory = root
+	cfg.MCPLockDir = true
+
+	text := searchErrorText(t, &cfg, map[string]any{"query": "locktoken", "path": outside})
+	if !strings.Contains(text, "mcp-lock-dir") {
+		t.Errorf("expected error to mention --mcp-lock-dir, got: %s", text)
+	}
+}
+
+func TestMCPSearchGitSyncNoteOnlyOutsideSyncRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeGoFile(t, filepath.Join(root, "sub"), "a.go", "notetoken")
+	writeGoFile(t, outside, "b.go", "notetoken")
+
+	cfg := DefaultConfig()
+	cfg.Directory = root
+	cfg.GitSync = true
+
+	if got := searchWith(t, &cfg, map[string]any{"query": "notetoken", "path": "sub"}); got.GitSyncNote != "" {
+		t.Errorf("expected no git-sync note for a subdirectory of the sync root, got: %s", got.GitSyncNote)
+	}
+	got := searchWith(t, &cfg, map[string]any{"query": "notetoken", "path": outside})
+	if !strings.Contains(got.GitSyncNote, "may be stale") {
+		t.Errorf("expected a git-sync staleness note, got: %q", got.GitSyncNote)
 	}
 }

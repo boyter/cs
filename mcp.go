@@ -21,15 +21,18 @@ import (
 )
 
 // mcpSearchResponse wraps search results with metadata so callers always know
-// whether results were truncated and what the full match count was.
+// which directory was searched, whether results were truncated, and what the
+// full match count was.
 type mcpSearchResponse struct {
-	TotalMatches    int          `json:"total_matches"`
-	ResultsReturned int          `json:"results_returned"`
-	Offset          int          `json:"offset"`
-	NextOffset      int          `json:"next_offset"`
-	Truncated       bool         `json:"truncated"`
-	Message         string       `json:"message,omitempty"`
-	Results         []jsonResult `json:"results"`
+	SearchedDirectory string       `json:"searched_directory"`
+	TotalMatches      int          `json:"total_matches"`
+	ResultsReturned   int          `json:"results_returned"`
+	Offset            int          `json:"offset"`
+	NextOffset        int          `json:"next_offset"`
+	Truncated         bool         `json:"truncated"`
+	Message           string       `json:"message,omitempty"`
+	GitSyncNote       string       `json:"git_sync_note,omitempty"`
+	Results           []jsonResult `json:"results"`
 }
 
 // mcpFileResult is the JSON response for the get_file tool.
@@ -41,6 +44,101 @@ type mcpFileResult struct {
 	Blank      int64  `json:"blank,omitempty"`
 	Complexity int64  `json:"complexity,omitempty"`
 	Content    string `json:"content"`
+}
+
+// defaultSearchRoot returns the root a call uses when the caller passes no
+// "path": the configured --dir, or the process working directory. This is also
+// the tree --git-sync keeps up to date.
+func defaultSearchRoot(cfg *Config) (string, error) {
+	dir := strings.TrimSpace(cfg.Directory)
+	if dir == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("cannot determine working directory: %w", err)
+		}
+		dir = wd
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve directory %s: %w", dir, err)
+	}
+	return abs, nil
+}
+
+// expandHome expands a leading ~ or ~/ to the user's home directory. Agents
+// routinely pass shell-style paths that were never expanded by a shell.
+func expandHome(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~"+string(filepath.Separator)) {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if path == "~" {
+		return home
+	}
+	return filepath.Join(home, path[2:])
+}
+
+// withinRoot reports whether target is root itself or lives beneath it.
+func withinRoot(root, target string) bool {
+	return target == root || strings.HasPrefix(target, root+string(filepath.Separator))
+}
+
+// resolveSearchRoot turns the caller-supplied "path" argument into the absolute
+// directory to walk. It reports whether the caller named a root explicitly, so
+// the handler can honour it literally rather than letting --find-root climb out
+// of it. Relative paths resolve against the default root, which is the agent's
+// notion of "here".
+func resolveSearchRoot(cfg *Config, raw string) (root string, explicit bool, err error) {
+	base, err := defaultSearchRoot(cfg)
+	if err != nil {
+		return "", false, err
+	}
+
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return base, false, nil
+	}
+
+	// A glob here is almost always an agent reaching for the old filter
+	// semantics. Fail loudly and point at the parameter it meant.
+	if strings.ContainsAny(raw, "*?[") {
+		return "", false, fmt.Errorf(
+			"path %q looks like a pattern, but path is the directory to search in. "+
+				"To filter results by path use path_filter=%q instead", raw, raw)
+	}
+
+	resolved := expandHome(raw)
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(base, resolved)
+	}
+	resolved, err = filepath.Abs(resolved)
+	if err != nil {
+		return "", false, fmt.Errorf("cannot resolve path %q: %v", raw, err)
+	}
+
+	info, statErr := os.Stat(resolved)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			return "", false, fmt.Errorf("path does not exist: %s", resolved)
+		}
+		return "", false, fmt.Errorf("cannot access path %s: %v", resolved, statErr)
+	}
+	if !info.IsDir() {
+		return "", false, fmt.Errorf(
+			"path must be a directory to search in, but %s is a file. Use get_file to read a single file",
+			resolved)
+	}
+
+	if cfg.MCPLockDir && !withinRoot(base, resolved) {
+		return "", false, fmt.Errorf(
+			"path %s is outside %s and this server was started with --mcp-lock-dir",
+			resolved, base)
+	}
+
+	return resolved, true, nil
 }
 
 // StartMCPServer starts an MCP server over stdio, exposing a "search" tool
@@ -77,13 +175,17 @@ func StartMCPServer(cfg *Config) {
 			"Negation: NOT file:test, file!=test, NOT path:vendor, path!=vendor\n\n"+
 			"IMPORTANT — filter precedence: an in-query filter binds to the ADJACENT term, not the whole query. "+
 			"So 'a OR b path:src' parses as 'a OR (b AND path:src)' and matches for 'a' leak in from ANY path. "+
-			"To scope the whole query, either group it — '(a OR b) path:src' — or use the top-level 'path'/'file' "+
+			"To scope the whole query, either group it — '(a OR b) path:src' — or use the top-level 'path_filter'/'file' "+
 			"parameters, which are ANDed with the entire query regardless of OR grouping. Same rule applies to lang:/ext:.\n\n"+
-			"Top-level filter parameters (path, file, include_ext, language) are the ROBUST way to scope a search: "+
+			"Top-level filter parameters (path_filter, file, include_ext, language) are the ROBUST way to scope a search: "+
 			"they apply to the whole query, so they never hit the precedence trap above. Prefer them over in-query filters "+
 			"when you just want to restrict a search to a directory, filename, extension, or language. "+
 			"NOTE: there is no top-level 'ext' parameter — the extension parameter is named 'include_ext'. "+
 			"Unknown parameters are rejected with an error rather than silently ignored.\n\n"+
+			"WHERE TO SEARCH ('path' parameter): 'path' is the DIRECTORY to search in, exactly like grep/rg. "+
+			"Omit it to search the server's default directory. Pass it to search anywhere else on the machine — "+
+			"another repository, a subdirectory, an absolute path. It is NOT a filter: to narrow results by path use "+
+			"'path_filter'. Passing a glob to 'path' is an error.\n\n"+
 			"Content type filter (code_filter parameter):\n"+
 			"- 'only-code': matches in code only, skipping comments and strings — e.g. find where a function is called, not just mentioned\n"+
 			"- 'only-strings': matches in string literals only — find SQL queries, error messages, config values, connection strings\n"+
@@ -93,7 +195,8 @@ func StartMCPServer(cfg *Config) {
 			"Combined examples:\n"+
 			"- 'jwt middleware lang:go NOT path:vendor' — find Go JWT middleware outside vendor\n"+
 			"- query='dense_rank' code_filter='only-strings' — find the actual SQL string, not code references\n"+
-			"- query='middleware' code_filter='only-code' path='src' — find middleware implementations scoped to src via the top-level path param\n"+
+			"- query='middleware' code_filter='only-code' path_filter='src' — find middleware implementations scoped to src via the top-level path_filter param\n"+
+			"- query='parser' path='/home/me/other-repo' — search a different checkout entirely\n"+
 			"- query='authentication' code_filter='only-comments' — find where devs explain auth flow\n"+
 			"- query='ConnectDB' code_filter='only-declarations' language='Go' — find where ConnectDB is defined (func/type/var declaration)\n"+
 			"- query='ConnectDB' code_filter='only-usages' language='Go' — find all call sites of ConnectDB, excluding its definition\n\n"+
@@ -106,12 +209,13 @@ func StartMCPServer(cfg *Config) {
 			"- For structural patterns use regex: '/type\\s+\\w+Error\\s+struct/' not 'type Error struct'. Keywords match anywhere in the file, not adjacently.\n"+
 			"- Common regex mistake: `magic.*number` without slashes is treated as the keyword 'magic.*number', not as regex. Always wrap in slashes: `/magic.*number/`.\n"+
 			"- NOT binds to the next term only, not the whole query. 'a OR b NOT path:vendor' means 'a OR (b AND NOT path:vendor)'. To exclude globally, use grouping: '(a OR b) NOT path:vendor'. Precedence: NOT (tightest) > AND > OR (loosest).\n"+
-			"- The same trap applies to POSITIVE filters: 'a OR b path:src' means 'a OR (b AND path:src)', so 'a' matches leak in from any path. Group the query — '(a OR b) path:src' — or use the top-level 'path'/'file'/'include_ext'/'language' parameters, which scope the whole query.\n"+
+			"- The same trap applies to POSITIVE filters: 'a OR b path:src' means 'a OR (b AND path:src)', so 'a' matches leak in from any path. Group the query — '(a OR b) path:src' — or use the top-level 'path_filter'/'file'/'include_ext'/'language' parameters, which scope the whole query.\n"+
 			"- max_results defaults to 20. Set higher (e.g. 100) for broad discovery or exploring unfamiliar code.\n\n"+
 			"Workflow tips:\n"+
 			"- Searching for a specific term, identifier, or function name → use snippet_mode='grep' with context=5-10. This gives every occurrence with surrounding code in one call.\n"+
 			"- Conceptual or discovery queries ('how does auth work', 'what handles errors') → use the default auto mode. The ranker surfaces the most relevant files.\n"+
-			"- Once a specific file is identified, switch to get_file to read it — don't keep searching the same file."),
+			"- Once a specific file is identified, switch to get_file to read it — don't keep searching the same file.\n"+
+			"- Searching a repository other than the default one → pass its directory as 'path'. Note that only the default directory is kept up to date by --git-sync; other directories are searched exactly as they are on disk."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query",
 			mcp.Description("The search query. Terms are ANDed by default. Supports: OR ('error OR exception'), NOT ('NOT vendor'), "+
@@ -119,7 +223,7 @@ func StartMCPServer(cfg *Config) {
 				"In-query filters: file:name, path:dir, lang:go, ext:ts. Operators: = != (lang!=python, file!=test). "+
 				"Multi-value: lang=go,python, ext=ts,tsx. 'file:' matches filename only; 'path:' matches the full directory path. "+
 				"NOTE: in-query filters bind to the adjacent term — 'a OR b path:src' means 'a OR (b AND path:src)'. Group with parens "+
-				"or use the top-level 'path'/'file'/'include_ext'/'language' parameters to scope the whole query. "+
+				"or use the top-level 'path_filter'/'file'/'include_ext'/'language' parameters to scope the whole query. "+
 				"Query limits: max 250 characters and 12 unique search terms."),
 			mcp.Required(),
 		),
@@ -142,11 +246,20 @@ func StartMCPServer(cfg *Config) {
 			mcp.Description("Comma-separated list of language types to search (e.g. \"Go,Python,JavaScript\"). Convenience parameter equivalent to in-query 'lang:Go,Python' filter."),
 		),
 		mcp.WithString("path",
+			mcp.Description("The DIRECTORY to search in, like grep/rg. Defaults to the directory the server was started with "+
+				"(--dir, or its working directory). Absolute paths are used as-is; relative paths resolve against that default "+
+				"directory; a leading ~ is expanded. Use this to search a different repository or a subdirectory. "+
+				"Must be an existing directory — a glob or a file path is rejected. "+
+				"NOTE: this is not a filter. To narrow results by path use 'path_filter'. "+
+				"Only the default directory is refreshed by --git-sync; other directories are searched as they are on disk. "+
+				"The resolved directory is echoed back as 'searched_directory' in the response."),
+		),
+		mcp.WithString("path_filter",
 			mcp.Description("Restrict results to files whose full path matches. Substring match (e.g. \"src/handlers\"), or glob if it "+
 				"contains */?/[ (e.g. \"*/pkg/*\"). Comma-separated values are ORed (e.g. \"src,internal\" = under src OR internal). "+
 				"Applied as an AND against the ENTIRE query, so — unlike an in-query 'path:' filter — it is never subject to OR "+
-				"precedence and cannot be leaked past. This is the robust way to scope a search to a directory. "+
-				"Equivalent to wrapping your query: '(<query>) path:<value>'."),
+				"precedence and cannot be leaked past. This is the robust way to scope a search to a subdirectory of whatever "+
+				"'path' is being searched. Equivalent to wrapping your query: '(<query>) path:<value>'."),
 		),
 		mcp.WithString("file",
 			mcp.Description("Restrict results to files whose FILENAME matches (not the directory path — use 'path' for that). Substring match "+
@@ -267,23 +380,26 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("path must not be empty"), nil
 		}
 
-		// Resolve path relative to project directory
-		resolved := path
-		if !filepath.IsAbs(resolved) {
-			resolved = filepath.Join(cfg.Directory, resolved)
-		}
-
-		// Security: ensure resolved path is within the project directory
-		absProject, err := filepath.Abs(cfg.Directory)
+		// Resolve relative paths against the default search root, so a bare
+		// filename means the same thing here as it does in a default search.
+		absProject, err := defaultSearchRoot(cfg)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("failed to resolve project directory: %v", err)), nil
+		}
+		resolved := expandHome(path)
+		if !filepath.IsAbs(resolved) {
+			resolved = filepath.Join(absProject, resolved)
 		}
 		absResolved, err := filepath.Abs(resolved)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("failed to resolve file path: %v", err)), nil
 		}
-		if !strings.HasPrefix(absResolved, absProject+string(filepath.Separator)) && absResolved != absProject {
-			return mcp.NewToolResultError("path is outside the project directory"), nil
+
+		// Search can name any directory, so get_file must be able to read what
+		// search returned. --mcp-lock-dir restores the single-tree restriction.
+		if cfg.MCPLockDir && !withinRoot(absProject, absResolved) {
+			return mcp.NewToolResultError(fmt.Sprintf(
+				"path is outside %s and this server was started with --mcp-lock-dir", absProject)), nil
 		}
 
 		// Read the file
@@ -357,11 +473,11 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 
 // mcpSearchParams is the set of accepted parameters for the search tool, in a
 // stable order for error messages. Any argument not in this set is rejected so
-// that malformed calls (e.g. a non-existent "ext" or "path" top-level key) fail
+// that malformed calls (e.g. a non-existent "ext" or "dir" top-level key) fail
 // loudly instead of being silently dropped and running an unfiltered search.
 var mcpSearchParams = []string{
-	"query", "max_results", "offset", "snippet_length", "case_sensitive",
-	"include_ext", "language", "path", "file", "gravity", "profile", "dedup",
+	"query", "path", "max_results", "offset", "snippet_length", "case_sensitive",
+	"include_ext", "language", "path_filter", "file", "gravity", "profile", "dedup",
 	"code_filter", "snippet_mode", "line_limit", "context", "context_before", "context_after",
 }
 
@@ -493,19 +609,32 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Reject unknown parameters so malformed calls fail loudly instead of
 		// silently running an unfiltered search (e.g. a caller passing a
-		// non-existent top-level "ext" or "path" key and getting whole-repo results).
+		// non-existent top-level "ext" or "dir" key and getting whole-repo results).
 		if unknown := unknownSearchParams(request.GetArguments()); len(unknown) > 0 {
 			return mcp.NewToolResultError(fmt.Sprintf(
-				"unknown parameter(s): %s. To filter by path, filename, extension, or language use the "+
-					"'path', 'file', 'include_ext', or 'language' parameters (there is no top-level 'ext' parameter), "+
-					"or in-query filters (path:, file:, ext:, lang:). Accepted parameters: %s.",
+				"unknown parameter(s): %s. To choose the directory to search use 'path'. To filter by path, "+
+					"filename, extension, or language use the 'path_filter', 'file', 'include_ext', or 'language' "+
+					"parameters (there is no top-level 'ext' parameter), or in-query filters (path:, file:, ext:, lang:). "+
+					"Accepted parameters: %s.",
 				strings.Join(unknown, ", "), strings.Join(mcpSearchParams, ", "))), nil
 		}
 
-		// Fold top-level path/file filters into the query so they AND against the
-		// whole query, immune to OR precedence.
-		pathFilter := ""
+		// Resolve the directory to search. "path" is the root, like grep.
+		searchRoot := ""
 		if v, ok := request.GetArguments()["path"]; ok {
+			if s, ok := v.(string); ok {
+				searchRoot = s
+			}
+		}
+		resolvedRoot, explicitRoot, rootErr := resolveSearchRoot(cfg, searchRoot)
+		if rootErr != nil {
+			return mcp.NewToolResultError(rootErr.Error()), nil
+		}
+
+		// Fold top-level path_filter/file filters into the query so they AND
+		// against the whole query, immune to OR precedence.
+		pathFilter := ""
+		if v, ok := request.GetArguments()["path_filter"]; ok {
 			if s, ok := v.(string); ok {
 				pathFilter = s
 			}
@@ -521,6 +650,12 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Copy config so we can override per-request without mutating the shared config
 		searchCfg := *cfg
+		searchCfg.Directory = resolvedRoot
+		if explicitRoot {
+			// The caller named this directory, so walk it literally rather than
+			// letting --find-root climb out to the enclosing repository root.
+			searchCfg.FindRoot = false
+		}
 		searchCfg.Format = "json"
 		searchCfg.MaxQueryChars = common.MaxQueryCharsMCP
 		searchCfg.MaxQueryTerms = common.MaxQueryTermsMCP
@@ -672,12 +807,23 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 
 		// Build response envelope with pagination metadata
 		response := mcpSearchResponse{
-			TotalMatches:    totalMatches,
-			ResultsReturned: len(jsonResults),
-			Offset:          offset,
-			NextOffset:      nextOffset,
-			Truncated:       truncated,
-			Results:         jsonResults,
+			SearchedDirectory: resolvedRoot,
+			TotalMatches:      totalMatches,
+			ResultsReturned:   len(jsonResults),
+			Offset:            offset,
+			NextOffset:        nextOffset,
+			Truncated:         truncated,
+			Results:           jsonResults,
+		}
+
+		// git-sync only follows the default directory, so say so when the caller
+		// searched somewhere else rather than letting them assume it is fresh.
+		if cfg.GitSync && explicitRoot {
+			if base, err := defaultSearchRoot(cfg); err == nil && !withinRoot(base, resolvedRoot) {
+				response.GitSyncNote = fmt.Sprintf(
+					"%s is outside the --git-sync directory (%s) and was searched as it is on disk; it may be stale.",
+					resolvedRoot, base)
+			}
 		}
 		if truncated {
 			startResult := offset + 1
