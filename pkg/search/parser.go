@@ -169,7 +169,14 @@ func (p *Parser) parsePrefix() Node {
 	case PHRASE:
 		node = &PhraseNode{Value: p.tok.Literal}
 	case REGEX:
-		node = &RegexNode{Pattern: p.tok.Literal}
+		regexNode := &RegexNode{Pattern: p.tok.Literal}
+		// An uncompilable pattern matches nothing, which on its own is
+		// indistinguishable from the string genuinely not being in the code, so
+		// say why here rather than returning a clean empty result.
+		if err := regexNode.Compile(); err != nil {
+			p.notices = append(p.notices, fmt.Sprintf("Warning: Regex /%s/ was not searched for because it is not a valid regular expression: %v", regexNode.Pattern, err))
+		}
+		node = regexNode
 	case FUZZY:
 		// Parse "term~N" into FuzzyNode
 		literal := p.tok.Literal

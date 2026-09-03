@@ -217,15 +217,66 @@ func (l *Lexer) scanPhrase() Token {
 	return Token{Type: PHRASE, Literal: sb.String()}
 }
 
+// scanRegex reads the body of a /regex/ term, stopping at the closing delimiter.
+// A backslash escapes the following rune and a '/' inside a character class is
+// literal, so neither ends the term. The text is passed through unchanged
+// because RE2 already understands \\/ and [/]; rewriting it here would invent an
+// escaping dialect the user has to learn.
 func (l *Lexer) scanRegex() Token {
 	var sb strings.Builder
+
+	// classEmpty tracks the POSIX rule RE2 follows, where a ']' immediately after
+	// '[' or '[^' is a literal ']' rather than the end of the class. Without it
+	// "[]/]x" would end its class at once and the '/' would look like the
+	// delimiter.
+	inClass := false
+	classEmpty := false
+
 	for {
 		ch := l.read()
-		if ch == eof || ch == '/' {
+		if ch == eof {
 			break
+		}
+
+		if ch == '\\' {
+			sb.WriteRune(ch)
+			next := l.read()
+			if next == eof {
+				// A trailing backslash is a user error, reported when the pattern
+				// is compiled, not a reason to run off the end of the input.
+				break
+			}
+			sb.WriteRune(next)
+			classEmpty = false
+			continue
+		}
+
+		if inClass {
+			switch {
+			case ch == '^' && classEmpty:
+				// Negation marker, so the class still has no members.
+			case ch == ']' && classEmpty:
+				classEmpty = false
+			case ch == ']':
+				inClass = false
+			default:
+				classEmpty = false
+			}
+			sb.WriteRune(ch)
+			continue
+		}
+
+		switch ch {
+		case '/':
+			return Token{Type: REGEX, Literal: sb.String()}
+		case '[':
+			inClass = true
+			classEmpty = true
 		}
 		sb.WriteRune(ch)
 	}
+
+	// Unterminated regex, such as "/foo" with no closing delimiter.
 	return Token{Type: REGEX, Literal: sb.String()}
 }
 

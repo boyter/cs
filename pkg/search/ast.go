@@ -57,15 +57,24 @@ func (n *PhraseNode) String() string { return fmt.Sprintf("PHRASE(\"%s\")", n.Va
 type RegexNode struct {
 	Pattern  string
 	compiled *regexp.Regexp
+	err      error
 	once     sync.Once
+}
+
+// Compile compiles the pattern, caching the result, and reports why an invalid
+// pattern could not be compiled so the caller can tell the user rather than
+// letting it look like a query that simply matched nothing.
+func (n *RegexNode) Compile() error {
+	n.once.Do(func() {
+		n.compiled, n.err = regexp.Compile(n.Pattern)
+	})
+	return n.err
 }
 
 // Regexp returns the compiled regexp, compiling once on first call.
 // Returns nil if the pattern is invalid.
 func (n *RegexNode) Regexp() *regexp.Regexp {
-	n.once.Do(func() {
-		n.compiled, _ = regexp.Compile(n.Pattern)
-	})
+	_ = n.Compile()
 	return n.compiled
 }
 
