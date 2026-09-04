@@ -44,7 +44,7 @@ github.com/aymanbagabas/go-osc52/v2
 # github.com/boyter/go-string v1.0.6-0.20260611011129-ac73d0bec139
 ## explicit; go 1.24
 github.com/boyter/go-string
-# github.com/boyter/gocodewalker v1.5.2-0.20260627224246-75bd04cd8742
+# github.com/boyter/gocodewalker v1.5.2-0.20260904080516-53f960e1ef35
 ## explicit; go 1.23.0
 github.com/boyter/gocodewalker
 github.com/boyter/gocodewalker/go-gitignore

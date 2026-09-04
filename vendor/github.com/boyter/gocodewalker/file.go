@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/boyter/gocodewalker/go-gitignore"
 	"golang.org/x/sync/errgroup"
@@ -84,6 +85,9 @@ type FileWalker struct {
 	ExcludeListExtensions  []string // Which extensions should be excluded case sensitive
 	walkMutex              sync.Mutex
 	terminateWalking       bool
+	stopWalking            atomic.Bool    // mirrors terminateWalking plus any fatal error, read on the hot path
+	walkErr                error          // first error seen by any walking goroutine, guarded by walkMutex
+	walkWg                 sync.WaitGroup // tracks every detached subdirectory walk for the whole walk
 	isWalking              bool
 	IgnoreIgnoreFile       bool     // Should .ignore files be respected?
 	IgnoreGitIgnore        bool     // Should .gitignore files be respected?
@@ -184,6 +188,9 @@ func NewParallelFileWalker(directories []string, fileListQueue chan<- *File) *Fi
 // walk directories concurrently
 // by default it is set to 8
 // must be a whole integer greater than 0
+//
+// It has no effect once Start has been called, because the value is read
+// once at the beginning of the walk and cannot change while walking.
 func (f *FileWalker) SetConcurrency(i int) {
 	f.walkMutex.Lock()
 	defer f.walkMutex.Unlock()
@@ -206,13 +213,45 @@ func (f *FileWalker) Walking() bool {
 // as such we need to be able to end old processes
 func (f *FileWalker) Terminate() {
 	f.walkMutex.Lock()
-	defer f.walkMutex.Unlock()
 	f.terminateWalking = true
+	if f.walkErr == nil {
+		f.walkErr = ErrTerminateWalk
+	}
+	f.walkMutex.Unlock()
+	// set last so any goroutine that observes the stop flag is guaranteed to
+	// see the error that goes with it
+	f.stopWalking.Store(true)
+}
+
+// stop records the first error seen by any walking goroutine and asks every
+// other goroutine to unwind as soon as it can. Later errors are discarded so
+// the reason the walk ended is the first thing that went wrong, which matches
+// the old serial walk returning on the first error it hit.
+// The supplied error is returned so callers can write `return f.stop(err)`.
+func (f *FileWalker) stop(err error) error {
+	f.walkMutex.Lock()
+	if f.walkErr == nil {
+		f.walkErr = err
+	}
+	f.walkMutex.Unlock()
+	f.stopWalking.Store(true)
+	return err
+}
+
+// firstError returns the error the walk ended with, if any
+func (f *FileWalker) firstError() error {
+	f.walkMutex.Lock()
+	defer f.walkMutex.Unlock()
+	return f.walkErr
 }
 
 // SetErrorHandler sets the function that is called on processing any error
 // where if you return true it will attempt to continue processing, and if false
 // will return the error instantly
+//
+// The handler is called from the goroutines doing the walking and so may be
+// called concurrently by several of them at once. It must be safe for
+// concurrent use.
 func (f *FileWalker) SetErrorHandler(errors func(error) bool) {
 	if errors != nil {
 		f.errorsHandler = errors
@@ -222,6 +261,10 @@ func (f *FileWalker) SetErrorHandler(errors func(error) bool) {
 // SetSkipHandler sets the function that is called whenever a file or directory is skipped
 // by the filter pipeline. The handler receives the full path, the entry name, whether it is
 // a directory, and the reason it was skipped. By default it is a no-op.
+//
+// The handler is called from the goroutines doing the walking and so may be
+// called concurrently by several of them at once. It must be safe for
+// concurrent use.
 func (f *FileWalker) SetSkipHandler(handler func(path string, name string, isDir bool, reason SkipReason)) {
 	if handler != nil {
 		f.skipHandler = handler
@@ -235,41 +278,78 @@ func (f *FileWalker) SetSkipHandler(handler func(path string, name string, isDir
 func (f *FileWalker) Start() error {
 	f.walkMutex.Lock()
 	f.isWalking = true
+	// clear anything left over from a previous walk, but keep a Terminate that
+	// was called before we started, since that has always stopped the walk
+	if f.terminateWalking {
+		f.walkErr = ErrTerminateWalk
+	} else {
+		f.walkErr = nil
+	}
+	// the concurrency is read once here because it must not change while
+	// walking, and this is what SetConcurrency has been setting all along
+	concurrency := f.semaphoreCount
+	// a FileWalker built as a bare struct literal rather than through one of the
+	// constructors has no concurrency set, and a zero sized semaphore would make
+	// the root block forever, so fall back to the package default
+	if concurrency < 1 {
+		concurrency = semaphoreCount
+	}
+	terminated := f.terminateWalking
 	f.walkMutex.Unlock()
+	f.stopWalking.Store(terminated)
 
 	// we now set the counting semaphore based on the count
 	// done here because it should not change while walking
-	f.countingSemaphore = make(chan bool, semaphoreCount)
+	f.countingSemaphore = make(chan bool, concurrency)
 
-	var err error
 	if len(f.directories) != 0 {
 		eg := errgroup.Group{}
 		for _, directory := range f.directories {
 			d := directory // capture var
 			eg.Go(func() error {
+				// each root takes a slot for the whole of its own walk, so that
+				// the number of directories being read at once never exceeds the
+				// configured concurrency however many roots were supplied. This
+				// cannot deadlock: a root holds exactly one slot and never blocks
+				// on another, and its subdirectories only ever take a slot when
+				// one is already free (see walkDirectoryRecursive).
+				f.countingSemaphore <- true
+				defer func() { <-f.countingSemaphore }()
+
 				globalIgnores, gerr := f.buildGlobalIgnores(d)
 				if gerr != nil {
-					return gerr
+					return f.stop(gerr)
 				}
 				return f.walkDirectoryRecursive(0, d, globalIgnores, []gitignore.GitIgnore{}, []gitignore.GitIgnore{}, []gitignore.GitIgnore{}, []gitignore.GitIgnore{})
 			})
 		}
 
-		err = eg.Wait()
+		_ = eg.Wait()
 	} else {
 		if f.directory != "" {
-			var globalIgnores []gitignore.GitIgnore
-			globalIgnores, err = f.buildGlobalIgnores(f.directory)
-			if err == nil {
-				err = f.walkDirectoryRecursive(0, f.directory, globalIgnores, []gitignore.GitIgnore{}, []gitignore.GitIgnore{}, []gitignore.GitIgnore{}, []gitignore.GitIgnore{})
+			f.countingSemaphore <- true
+			globalIgnores, gerr := f.buildGlobalIgnores(f.directory)
+			if gerr != nil {
+				_ = f.stop(gerr)
+			} else {
+				_ = f.walkDirectoryRecursive(0, f.directory, globalIgnores, []gitignore.GitIgnore{}, []gitignore.GitIgnore{}, []gitignore.GitIgnore{}, []gitignore.GitIgnore{})
 			}
+			<-f.countingSemaphore
 		}
 	}
+
+	// subdirectory walks are detached from the frame that forked them, so that a
+	// goroutine holds its semaphore slot only while it is actually reading a
+	// directory rather than while it waits on its children. That means the roots
+	// finishing does not mean the walk has finished, and everything still running
+	// has to be waited on here before the queue can be closed.
+	f.walkWg.Wait()
 
 	close(f.fileListQueue)
 
 	f.walkMutex.Lock()
 	f.isWalking = false
+	err := f.walkErr
 	f.walkMutex.Unlock()
 
 	return err
@@ -326,21 +406,14 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 		return nil
 	}
 
-	if iteration == 1 {
-		f.countingSemaphore <- true
-		defer func() {
-			<-f.countingSemaphore
-		}()
+	// A single atomic load rather than taking the walk mutex, because this runs
+	// once per directory on every walking goroutine and the mutex became a point
+	// of contention once the walk forks below the top level. It is set by
+	// Terminate and by any error the error handler refused to continue past, so
+	// checking it here stops the walk promptly from any depth.
+	if f.stopWalking.Load() {
+		return f.firstError()
 	}
-
-	// NB have to call unlock not using defer because method is recursive
-	// and will deadlock if not done manually
-	f.walkMutex.Lock()
-	if f.terminateWalking {
-		f.walkMutex.Unlock()
-		return ErrTerminateWalk
-	}
-	f.walkMutex.Unlock()
 
 	d, err := f.osOpen(directory)
 	if err != nil {
@@ -348,7 +421,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 		if f.errorsHandler(err) {
 			return nil
 		}
-		return err
+		return f.stop(err)
 	}
 	defer func(d *os.File) {
 		err := d.Close()
@@ -363,7 +436,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 		if f.errorsHandler(err) {
 			return nil
 		}
-		return err
+		return f.stop(err)
 	}
 
 	files := []fs.DirEntry{}
@@ -393,7 +466,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				abs, err := filepath.Abs(directory)
@@ -401,7 +474,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				gitIgnore := gitignore.New(bytes.NewReader(c), filepath.ToSlash(abs), nil)
@@ -416,7 +489,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				abs, err := filepath.Abs(directory)
@@ -424,7 +497,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				gitIgnore := gitignore.New(bytes.NewReader(c), abs, nil)
@@ -445,7 +518,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				abs, err := filepath.Abs(directory)
@@ -453,7 +526,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				for _, gm := range extractGitModuleFolders(string(c)) {
@@ -470,7 +543,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				abs, err := filepath.Abs(directory)
@@ -478,7 +551,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 					if f.errorsHandler(err) {
 						continue // if asked to ignore it lets continue
 					}
-					return err
+					return f.stop(err)
 				}
 
 				gitIgnore := gitignore.New(bytes.NewReader(c), abs, nil)
@@ -510,7 +583,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 		abs, err := filepath.Abs(directory)
 		if err != nil {
 			if !f.errorsHandler(err) {
-				return err
+				return f.stop(err)
 			}
 		}
 
@@ -622,7 +695,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 			s, err := IsHiddenDirEntry(file, directory)
 			if err != nil {
 				if !f.errorsHandler(err) {
-					return err
+					return f.stop(err)
 				}
 			}
 
@@ -667,7 +740,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 			fi, err := os.Open(filepath.Join(directory, file.Name()))
 			if err != nil {
 				if !f.errorsHandler(err) {
-					return err
+					return f.stop(err)
 				}
 			}
 			defer func(fi *os.File) {
@@ -680,7 +753,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 			_, err = io.ReadFull(fi, buffer)
 			if err != nil && err != io.EOF && !errors.Is(err, io.ErrUnexpectedEOF) {
 				if !f.errorsHandler(err) {
-					return err
+					return f.stop(err)
 				}
 			}
 
@@ -706,8 +779,18 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 		}
 	}
 
-	// if we are the 1st iteration IE not the root, we run in parallel
-	wg := sync.WaitGroup{}
+	// The ignore slices are about to be handed to subdirectories, which each
+	// append their own discovered ignore files to them. Appending to a slice
+	// that has spare capacity writes into the shared backing array, so two
+	// sibling directories would otherwise append into the same slot: a data race
+	// now that siblings run concurrently, and before that a silent correctness
+	// bug where a directory could be matched against a sibling's rules rather
+	// than only its ancestors'. Clipping sets cap to len, which forces every
+	// child's append to allocate its own array. It is O(1) and only reslices.
+	gitignores = slices.Clip(gitignores)
+	ignores = slices.Clip(ignores)
+	moduleIgnores = slices.Clip(moduleIgnores)
+	customIgnores = slices.Clip(customIgnores)
 
 	// Now we process the directories after hopefully giving the
 	// channel some files to process
@@ -827,7 +910,7 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 			s, err := IsHiddenDirEntry(dir, directory)
 			if err != nil {
 				if !f.errorsHandler(err) {
-					return err
+					return f.stop(err)
 				}
 			}
 
@@ -850,22 +933,31 @@ func (f *FileWalker) walkDirectoryRecursive(iteration int,
 		}
 
 		if !shouldIgnore {
-			if iteration == 0 {
-				wg.Add(1)
-				go func(iteration int, directory string, gitignores []gitignore.GitIgnore, ignores []gitignore.GitIgnore) {
+			// Walk this subdirectory on its own goroutine if the semaphore has a
+			// slot going spare, otherwise walk it inline on this one. The take is
+			// deliberately non-blocking: a goroutine that already holds a slot
+			// never waits for another, so there is no way for the walk to deadlock
+			// on itself, and the number of live walking goroutines can never
+			// exceed the configured concurrency however deep or wide the tree is.
+			// Contrast the old behaviour, which forked only at iteration 0 and so
+			// walked everything below a root's immediate children serially.
+			select {
+			case f.countingSemaphore <- true:
+				f.walkWg.Add(1)
+				go func(joined string, gitignores, ignores, moduleIgnores, customIgnores []gitignore.GitIgnore) {
+					defer f.walkWg.Done()
+					defer func() { <-f.countingSemaphore }()
+					// the error is recorded by stop rather than returned, since
+					// there is nowhere to return it to from here
 					_ = f.walkDirectoryRecursive(iteration+1, joined, globalIgnores, gitignores, ignores, moduleIgnores, customIgnores)
-					wg.Done()
-				}(iteration, joined, gitignores, ignores)
-			} else {
-				err = f.walkDirectoryRecursive(iteration+1, joined, globalIgnores, gitignores, ignores, moduleIgnores, customIgnores)
-				if err != nil {
+				}(joined, gitignores, ignores, moduleIgnores, customIgnores)
+			default:
+				if err := f.walkDirectoryRecursive(iteration+1, joined, globalIgnores, gitignores, ignores, moduleIgnores, customIgnores); err != nil {
 					return err
 				}
 			}
 		}
 	}
-
-	wg.Wait()
 
 	return nil
 }

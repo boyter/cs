@@ -19,8 +19,8 @@ github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiE
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/boyter/go-string v1.0.6-0.20260611011129-ac73d0bec139 h1:dHTcdm3GjISZ1aLh0BzprxLPlA3eydz3GJN2LZoXx9M=
 github.com/boyter/go-string v1.0.6-0.20260611011129-ac73d0bec139/go.mod h1:kPtIc+VM7/0azF7xOKFPnYl85qJe1Wwf0hJzV8mSGQk=
-github.com/boyter/gocodewalker v1.5.2-0.20260627224246-75bd04cd8742 h1:OSwd32u3f1Au9+jUi5T7EiCOaTt1+3pnwxS9gDmhuc8=
-github.com/boyter/gocodewalker v1.5.2-0.20260627224246-75bd04cd8742/go.mod h1:9k+yM6+fIx61F0xI9ChXEGE5DYoLhggw8AxSOtW+kKo=
+github.com/boyter/gocodewalker v1.5.2-0.20260904080516-53f960e1ef35 h1:N7fmExzy3zJaCtuZajv2W+0v2wFIMxlEkiNvD6SVrc8=
+github.com/boyter/gocodewalker v1.5.2-0.20260904080516-53f960e1ef35/go.mod h1:9k+yM6+fIx61F0xI9ChXEGE5DYoLhggw8AxSOtW+kKo=
 github.com/boyter/scc/v3 v3.7.1-0.20260726014854-dbbf57bc7514 h1:Dayu4wPDBKux/1AwlSo9pV11vhbfmOKJVwEf+2oifm0=
 github.com/boyter/scc/v3 v3.7.1-0.20260726014854-dbbf57bc7514/go.mod h1:7v9keFa3jTfaIhAC2QlwU4Za++F+jtY4YZt4+aqz4oc=
 github.com/boyter/simplecache v0.0.0-20260310220729-445661819a53 h1:7SaPc203yOoH/0V59eIJRorcUBFCEtEX0W6s3h5ybAs=
