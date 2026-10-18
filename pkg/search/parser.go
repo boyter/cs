@@ -135,6 +135,31 @@ func isFilterField(s string) bool {
 	return false
 }
 
+// colonValues reads the value of a colon filter, which may be a comma list:
+// "ext:md,yaml,json". The lexer ends an identifier at a comma, so the first
+// value arrives inside the "field:value" token and the rest as COMMA-separated
+// tokens after it. Without this the parser stopped at the first comma, because
+// a COMMA has no precedence, and silently dropped every later value AND every
+// term after the list — "ext:ts,sql zzznope" searched for ext:ts alone. One
+// value is returned as a string and several as a list, as parseFilterExpression
+// does for the operator form.
+func (p *Parser) colonValues(first string) interface{} {
+	p.nextToken() // Consume the "field:value" identifier
+	values := []interface{}{first}
+	for p.tok.Type == COMMA {
+		p.nextToken() // Consume the comma
+		switch p.tok.Type {
+		case IDENTIFIER, NUMBER, PHRASE, STRING_ALIAS:
+			values = append(values, p.tok.Literal)
+			p.nextToken()
+		}
+	}
+	if len(values) == 1 {
+		return first
+	}
+	return values
+}
+
 func (p *Parser) parsePrefix() Node {
 	var node Node
 	switch p.tok.Type {
@@ -145,8 +170,7 @@ func (p *Parser) parsePrefix() Node {
 			value := p.tok.Literal[colonIdx+1:]
 			if isFilterField(field) {
 				if value != "" {
-					node = &FilterNode{Field: field, Operator: "=", Value: value}
-					p.nextToken() // Consume the identifier
+					node = &FilterNode{Field: field, Operator: "=", Value: p.colonValues(value)}
 					return node
 				}
 				// Colon-filter with empty value followed by operator: complexity:<=25

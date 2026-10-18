@@ -126,7 +126,7 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 		}
 		return results
 	case *RegexNode:
-		re := n.Regexp()
+		re := n.RegexpFor(caseSensitive)
 		if re == nil {
 			return []*Document{}
 		}
@@ -347,7 +347,7 @@ func evalFile(node Node, content []byte, contentStr string, filename string, loc
 		}
 		return false
 	case *RegexNode:
-		re := n.Regexp()
+		re := n.RegexpFor(caseSensitive)
 		if re == nil {
 			return false
 		}
@@ -382,46 +382,54 @@ func evalFile(node Node, content []byte, contentStr string, filename string, loc
 // pass through as true here, and are checked post-evaluation via PostEvalMetadataFilters
 // once fileCodeStats has run.
 func evalFileFilter(n *FilterNode, filename string, location string) bool {
-	filterVal, ok := n.Value.(string)
-	if !ok {
+	var values []string
+	switch v := n.Value.(type) {
+	case string:
+		values = []string{v}
+	case []interface{}:
+		// A list is "any of" (README, Multi-value syntax). This used to return
+		// true for every file, so "ext=sql,py" matched a .ts file.
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				values = append(values, s)
+			}
+		}
+	default:
 		return true
 	}
 
-	field := strings.ToLower(n.Field)
-	switch field {
+	var test func(string) bool
+	switch strings.ToLower(n.Field) {
 	case "file", "filename":
-		var match bool
-		if containsGlobMeta(filterVal) {
-			match = matchGlob(filterVal, filename)
-		} else {
-			match = strings.Contains(strings.ToLower(filename), strings.ToLower(filterVal))
-		}
-		if n.Operator == "!=" {
-			return !match
-		}
-		return match
+		test = func(v string) bool { return filenameMatch(v, filename) }
 	case "ext", "extension":
 		ext := strings.TrimPrefix(filepath.Ext(filename), ".")
-		match := strings.EqualFold(ext, filterVal)
-		if n.Operator == "!=" {
-			return !match
-		}
-		return match
+		test = func(v string) bool { return strings.EqualFold(ext, v) }
 	case "path", "filepath":
-		var match bool
-		if containsGlobMeta(filterVal) {
-			match = matchPathGlob(filterVal, location)
-		} else {
-			match = strings.Contains(strings.ToLower(location), strings.ToLower(filterVal))
-		}
-		if n.Operator == "!=" {
-			return !match
-		}
-		return match
+		test = func(v string) bool { return pathMatch(v, location) }
 	default:
 		// lang, language, complexity, etc. — metadata not available in per-file mode
 		return true
 	}
+
+	match := false
+	for _, v := range values {
+		if test(v) {
+			match = true
+			break
+		}
+	}
+	if n.Operator == "!=" {
+		return !match
+	}
+	return match
+}
+
+func pathMatch(pattern, location string) bool {
+	if containsGlobMeta(pattern) {
+		return matchPathGlob(pattern, location)
+	}
+	return strings.Contains(strings.ToLower(location), strings.ToLower(pattern))
 }
 
 // --- Glob matching helpers ---
@@ -546,16 +554,19 @@ func filenameMatch(pattern, filename string) bool {
 }
 
 func handlePathFilter(op string, val interface{}, doc *Document) bool {
-	p, ok := val.(string)
-	if !ok {
-		return false
-	}
-
 	var match bool
-	if containsGlobMeta(p) {
-		match = matchPathGlob(p, doc.Path)
-	} else {
-		match = strings.Contains(strings.ToLower(doc.Path), strings.ToLower(p))
+	switch v := val.(type) {
+	case string:
+		match = pathMatch(v, doc.Path)
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok && pathMatch(s, doc.Path) {
+				match = true
+				break
+			}
+		}
+	default:
+		return false
 	}
 
 	switch op {

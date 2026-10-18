@@ -54,11 +54,21 @@ type PhraseNode struct {
 func (n *PhraseNode) String() string { return fmt.Sprintf("PHRASE(\"%s\")", n.Value) }
 
 // RegexNode represents a regular expression search term.
+//
+// A pattern is compiled MULTI-LINE, so ^ and $ mean the start and end of a
+// line: search runs over a whole file, and without (?m) "/^\s{8}- Name: /"
+// could only ever match a file that began with it, which nobody writing ^
+// means. \A and \z still anchor to the file. It also follows the search's
+// case setting the way every other term does, so "/api_key/" finds API_KEY
+// unless the search is case-sensitive. A pattern's own flags still apply:
+// "(?-i)" inside it restores case.
 type RegexNode struct {
 	Pattern  string
 	compiled *regexp.Regexp
+	folded   *regexp.Regexp
 	err      error
 	once     sync.Once
+	foldOnce sync.Once
 }
 
 // Compile compiles the pattern, caching the result, and reports why an invalid
@@ -66,16 +76,33 @@ type RegexNode struct {
 // letting it look like a query that simply matched nothing.
 func (n *RegexNode) Compile() error {
 	n.once.Do(func() {
-		n.compiled, n.err = regexp.Compile(n.Pattern)
+		// Checked as written first, so an error quotes what the user typed
+		// rather than a "(?m)" they never saw. A valid pattern stays valid
+		// with a leading flag group.
+		if _, n.err = regexp.Compile(n.Pattern); n.err == nil {
+			n.compiled, n.err = regexp.Compile("(?m)" + n.Pattern)
+		}
 	})
 	return n.err
 }
 
-// Regexp returns the compiled regexp, compiling once on first call.
-// Returns nil if the pattern is invalid.
+// Regexp returns the case-sensitive compiled regexp, compiling once on first
+// call. Returns nil if the pattern is invalid.
 func (n *RegexNode) Regexp() *regexp.Regexp {
 	_ = n.Compile()
 	return n.compiled
+}
+
+// RegexpFor returns the regexp for a search with the given case setting.
+// Returns nil if the pattern is invalid.
+func (n *RegexNode) RegexpFor(caseSensitive bool) *regexp.Regexp {
+	if caseSensitive || n.Compile() != nil {
+		return n.Regexp()
+	}
+	n.foldOnce.Do(func() {
+		n.folded, _ = regexp.Compile("(?mi)" + n.Pattern)
+	})
+	return n.folded
 }
 
 func (n *RegexNode) String() string { return fmt.Sprintf("REGEX(/%s/)", n.Pattern) }

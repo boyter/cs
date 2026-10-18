@@ -11,6 +11,7 @@ This project is a robust, extensible, in-memory search engine written in Go. It 
     -   **Grouping**: Use parentheses `()` for controlling order of operations.
     -   **Phrase Search**: Exact phrases using double quotes (e.g., `"lazy fox"`).
     -   **Regex Search**: Pattern matching using `/.../` syntax (e.g., `/[cb]at/`).
+        `^` and `$` anchor to a line, not the file (`\A` and `\z` anchor to the file), and a regex follows the search's case setting like every other term; `(?-i)` inside the pattern restores case.
 -   **Structured Metadata Filtering**:
     -   Filter on metadata fields using operators: `=`, `!=`, `>=`, `<=`.
     -   Multi-value filtering with commas: `lang=go,python`.
@@ -132,7 +133,7 @@ Examples:
 
 For `path:` globs, a sliding-window approach matches pattern segments against contiguous segments of the file path. `**` (recursive glob) is not supported; use substring matching without glob characters for broad directory matching (e.g., `path:vendor`).
 
-**Multi-value syntax**: Filters that support multi-value accept comma-separated lists (e.g., `lang=go,python`, `ext=ts,tsx`). This works like an `IN` clause — the document matches if its value is any of the listed values.
+**Multi-value syntax**: Filters that support multi-value accept comma-separated lists, in either form (e.g., `lang=go,python`, `ext=ts,tsx`, `ext:ts,tsx`). This works like an `IN` clause — the document matches if its value is any of the listed values.
 
 ## How to Extend the Engine
 
