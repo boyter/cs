@@ -3,6 +3,7 @@ package search
 import (
 	"fmt"
 	"regexp"
+	"regexp/syntax"
 	"sync"
 )
 
@@ -66,6 +67,8 @@ type RegexNode struct {
 	Pattern  string
 	compiled *regexp.Regexp
 	folded   *regexp.Regexp
+	pre      *regexPrefilter
+	preFold  *regexPrefilter
 	err      error
 	once     sync.Once
 	foldOnce sync.Once
@@ -81,6 +84,7 @@ func (n *RegexNode) Compile() error {
 		// with a leading flag group.
 		if _, n.err = regexp.Compile(n.Pattern); n.err == nil {
 			n.compiled, n.err = regexp.Compile("(?m)" + n.Pattern)
+			n.pre = newRegexPrefilter(n.Pattern, syntax.Perl)
 		}
 	})
 	return n.err
@@ -101,8 +105,22 @@ func (n *RegexNode) RegexpFor(caseSensitive bool) *regexp.Regexp {
 	}
 	n.foldOnce.Do(func() {
 		n.folded, _ = regexp.Compile("(?mi)" + n.Pattern)
+		n.preFold = newRegexPrefilter(n.Pattern, syntax.Perl|syntax.FoldCase)
 	})
 	return n.folded
+}
+
+// MayMatch reports whether content could hold a match for a search with the
+// given case setting. False means the regexp cannot match, so the caller can
+// skip running it; see regexPrefilter.
+func (n *RegexNode) MayMatch(content []byte, caseSensitive bool) bool {
+	if n.RegexpFor(caseSensitive) == nil {
+		return false
+	}
+	if caseSensitive {
+		return n.pre.mayMatch(content)
+	}
+	return n.preFold.mayMatch(content)
 }
 
 func (n *RegexNode) String() string { return fmt.Sprintf("REGEX(/%s/)", n.Pattern) }

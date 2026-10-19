@@ -132,7 +132,7 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 		}
 		var results []*Document
 		for _, doc := range docs {
-			if re.Match(doc.Content) {
+			if n.MayMatch(doc.Content, caseSensitive) && re.Match(doc.Content) {
 				results = append(results, doc)
 			}
 		}
@@ -349,6 +349,9 @@ func evalFile(node Node, content []byte, contentStr string, filename string, loc
 	case *RegexNode:
 		re := n.RegexpFor(caseSensitive)
 		if re == nil {
+			return false
+		}
+		if !n.MayMatch(content, caseSensitive) {
 			return false
 		}
 		locs := re.FindAllIndex(content, -1)
