@@ -3,7 +3,9 @@ package search
 import (
 	"bytes"
 	"regexp/syntax"
+	"strings"
 	"testing"
+	"unicode"
 )
 
 // The one rule: the prefilter never rules out content the regexp matches.
@@ -149,4 +151,57 @@ func BenchmarkFoldedLiteralRegexOverCode(b *testing.B) {
 			}
 		}
 	})
+}
+
+// RequiredLiterals carries the same rule outward: every case-insensitive match
+// contains one of the literals, once both are folded the way a case-folding
+// index folds (ToLower of ToUpper, so the long s and the Kelvin sign land on s
+// and k).
+func TestRequiredLiteralsHoldForEveryMatch(t *testing.T) {
+	fold := func(s string) string {
+		return strings.Map(func(r rune) rune { return unicode.ToLower(unicode.ToUpper(r)) }, s)
+	}
+	patterns := []string{
+		`BRMP-[0-9]+`, `(AKIA[0-9A-Z]{16}|sk_live|-----BEGIN|xox[bp]-)`, `[Ss]ecret`, `(?:ss|t)ask`,
+		`(?i)Kelvin`, `colou?r`, `(ab)+cd`, `x(longword)?y`, `[a-z]+Handler`, `aws_[a-z_]+`,
+	}
+	contents := []string{
+		"BRMP-123", "brmp-9", "AKIAABCDEFGHIJKLMNOP", "key = sk_live_123", "XOXB-token", "Secret",
+		"ſecret", "ſſask", "task", "KELVIN", "Kelvin", "color", "ababcd", "xlongwordy", "xy",
+		"func myHandler()", "ResourceHANDLER", "aws_s3_bucket", "AWS_REGION", "awſ_x",
+	}
+	for _, p := range patterns {
+		lits := RequiredLiterals(p)
+		if lits == nil {
+			t.Errorf("/%s/ has required text and RequiredLiterals returned none", p)
+
+			continue
+		}
+		re := (&RegexNode{Pattern: p}).RegexpFor(false)
+		for _, c := range contents {
+			if !re.MatchString(c) {
+				continue
+			}
+			found := false
+			for _, l := range lits {
+				if strings.Contains(fold(c), l) {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("/%s/ matches %q, which holds none of %q once folded", p, c, lits)
+			}
+		}
+	}
+
+	for p, want := range map[string]string{`[a-z]+Handler`: "handler", `aws_[a-z_]+`: "aws_", `BRMP-[0-9]+`: "brmp-"} {
+		if got := RequiredLiterals(p); len(got) != 1 || got[0] != want {
+			t.Errorf("RequiredLiterals(%q) = %q, want [%q]", p, got, want)
+		}
+	}
+	for _, p := range []string{`a*`, `[0-9]+`, `.`, `café`, `(unclosed`} {
+		if got := RequiredLiterals(p); got != nil {
+			t.Errorf("RequiredLiterals(%q) = %q, want nil", p, got)
+		}
+	}
 }

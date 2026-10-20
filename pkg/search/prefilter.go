@@ -84,6 +84,36 @@ func newRegexPrefilter(pattern string, flags syntax.Flags) *regexPrefilter {
 	return p
 }
 
+// RequiredLiterals returns a set of literals one of which every match of the
+// regular expression pattern must contain, case-folded to lower case, or nil
+// when there is no such set or the pattern does not parse.
+//
+// It is for a caller that narrows candidates before running the regexp, such as
+// a trigram index: a document holding none of the literals cannot match. The
+// set is computed case-insensitively whatever the search's own case mode, which
+// is the conservative direction for an index that folds case: a literal whose
+// case variants a byte comparison cannot follow (any non-ASCII letter) makes the
+// whole set nil rather than narrowing on a spelling a match need not use.
+//
+// One literal means every match contains it. Several mean every match contains
+// at least one of them, so a caller that can only intersect must not require
+// them all.
+func RequiredLiterals(pattern string) []string {
+	re, err := syntax.Parse(pattern, syntax.Perl|syntax.FoldCase)
+	if err != nil {
+		return nil
+	}
+	lits := requiredLiterals(re.Simplify())
+	if len(lits) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(lits))
+	for _, l := range lits {
+		out = append(out, string(l.text))
+	}
+	return out
+}
+
 // requiredLiterals returns a set of literals one of which every match of re
 // contains, or nil when there is no such set.
 func requiredLiterals(re *syntax.Regexp) []prefilterLiteral {
