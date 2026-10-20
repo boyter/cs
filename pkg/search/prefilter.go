@@ -2,6 +2,7 @@ package search
 
 import (
 	"bytes"
+	"regexp"
 	"regexp/syntax"
 	"unicode/utf8"
 )
@@ -22,6 +23,15 @@ type regexPrefilter struct {
 	// SMALL LETTER LONG S). The ASCII scan cannot see those, so a file holding
 	// either is handed to the regexp.
 	unicodeFold bool
+	// lineLocal is set when no match can span a line: nothing in the pattern
+	// can consume a newline, and it has no \A or \z, which anchor to the file
+	// and would mean something else on one line. Every match then lies inside
+	// one line that holds a literal, and the regexp need only run on those
+	// lines. A case-insensitive Go regexp gets no literal skip-ahead, so on a
+	// file where the literal is on a few lines in thousands this is most of the
+	// cost: /[a-z]+Handler/ measured 3.7 times slower than the same pattern
+	// case-sensitive over the same files.
+	lineLocal bool
 }
 
 type prefilterLiteral struct {
@@ -72,7 +82,7 @@ func newRegexPrefilter(pattern string, flags syntax.Flags) *regexPrefilter {
 	if len(lits) == 0 {
 		return nil
 	}
-	p := &regexPrefilter{literals: lits}
+	p := &regexPrefilter{literals: lits, lineLocal: isLineLocal(pattern, flags)}
 	for _, l := range lits {
 		if len(l.text) < prefilterMinLen {
 			return nil
@@ -268,4 +278,111 @@ func equalFoldASCII(s, lower []byte) bool {
 		}
 	}
 	return true
+}
+
+// isLineLocal reports whether every match of pattern, compiled the way
+// RegexNode compiles it (with (?m)), lies within one line.
+func isLineLocal(pattern string, flags syntax.Flags) bool {
+	re, err := syntax.Parse("(?m)"+pattern, flags)
+	if err != nil {
+		return false
+	}
+	return !spansLines(re)
+}
+
+// spansLines reports whether re can consume a newline or anchors to the whole
+// text. It errs towards true: an op it does not know is treated as spanning.
+func spansLines(re *syntax.Regexp) bool {
+	switch re.Op {
+	case syntax.OpAnyChar, syntax.OpBeginText, syntax.OpEndText:
+		return true
+	case syntax.OpAnyCharNotNL, syntax.OpEmptyMatch, syntax.OpNoMatch,
+		syntax.OpBeginLine, syntax.OpEndLine, syntax.OpWordBoundary, syntax.OpNoWordBoundary:
+		return false
+	case syntax.OpLiteral:
+		for _, r := range re.Rune {
+			if r == '\n' {
+				return true
+			}
+		}
+		return false
+	case syntax.OpCharClass:
+		for i := 0; i+1 < len(re.Rune); i += 2 {
+			if re.Rune[i] <= '\n' && '\n' <= re.Rune[i+1] {
+				return true
+			}
+		}
+		return false
+	case syntax.OpCapture, syntax.OpStar, syntax.OpPlus, syntax.OpQuest, syntax.OpRepeat,
+		syntax.OpConcat, syntax.OpAlternate:
+		for _, sub := range re.Sub {
+			if spansLines(sub) {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// findAll returns re's matches in content, exactly as re.FindAllIndex(content,
+// -1) would, or only the first when first is set. When the prefilter is
+// line-local it runs re on the lines that hold a literal and nowhere else.
+func (p *regexPrefilter) findAll(re *regexp.Regexp, content []byte, first bool) [][]int {
+	n := -1
+	if first {
+		n = 1
+	}
+	if p == nil || !p.lineLocal ||
+		(p.unicodeFold && (bytes.Contains(content, kelvinSign) || bytes.Contains(content, longS))) {
+		return re.FindAllIndex(content, n)
+	}
+
+	// next[i] caches where literal i next occurs at or after pos, so a rare
+	// literal is scanned for once rather than once per line of a common one.
+	next := make([]int, len(p.literals))
+	for i := range next {
+		next[i] = -2
+	}
+	var out [][]int
+	for pos := 0; pos < len(content); {
+		at := -1
+		for i, l := range p.literals {
+			if next[i] == -1 {
+				continue
+			}
+			if next[i] < pos {
+				var j int
+				if l.fold {
+					j = indexFoldASCII(content[pos:], l.text, l.anchor)
+				} else {
+					j = bytes.Index(content[pos:], l.text)
+				}
+				if j < 0 {
+					next[i] = -1
+					continue
+				}
+				next[i] = pos + j
+			}
+			if at < 0 || next[i] < at {
+				at = next[i]
+			}
+		}
+		if at < 0 {
+			break
+		}
+		start := bytes.LastIndexByte(content[:at], '\n') + 1
+		end := len(content)
+		if k := bytes.IndexByte(content[at:], '\n'); k >= 0 {
+			end = at + k
+		}
+		for _, m := range re.FindAllIndex(content[start:end], -1) {
+			out = append(out, []int{start + m[0], start + m[1]})
+			if first {
+				return out
+			}
+		}
+		pos = end + 1
+	}
+	return out
 }

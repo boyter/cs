@@ -132,7 +132,7 @@ func (se *SearchEngine) evaluate(node Node, docs []*Document, caseSensitive bool
 		}
 		var results []*Document
 		for _, doc := range docs {
-			if n.MayMatch(doc.Content, caseSensitive) && re.Match(doc.Content) {
+			if n.Matches(doc.Content, caseSensitive) {
 				results = append(results, doc)
 			}
 		}
@@ -351,10 +351,7 @@ func evalFile(node Node, content []byte, contentStr string, filename string, loc
 		if re == nil {
 			return false
 		}
-		if !n.MayMatch(content, caseSensitive) {
-			return false
-		}
-		locs := re.FindAllIndex(content, -1)
+		locs := n.FindAll(content, caseSensitive)
 		if len(locs) > 0 {
 			locations[n.Pattern] = locs
 			return true

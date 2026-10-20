@@ -110,6 +110,34 @@ func (n *RegexNode) RegexpFor(caseSensitive bool) *regexp.Regexp {
 	return n.folded
 }
 
+// FindAll returns the regexp's matches in content for a search with the given
+// case setting, exactly as FindAllIndex(content, -1) on RegexpFor would, and
+// nil for an invalid pattern. It runs the regexp only on the lines that can
+// hold a match when the pattern allows it.
+func (n *RegexNode) FindAll(content []byte, caseSensitive bool) [][]int {
+	re := n.RegexpFor(caseSensitive)
+	if re == nil || !n.MayMatch(content, caseSensitive) {
+		return nil
+	}
+	return n.prefilterFor(caseSensitive).findAll(re, content, false)
+}
+
+// Matches reports whether content holds a match, the way FindAll would.
+func (n *RegexNode) Matches(content []byte, caseSensitive bool) bool {
+	re := n.RegexpFor(caseSensitive)
+	if re == nil || !n.MayMatch(content, caseSensitive) {
+		return false
+	}
+	return len(n.prefilterFor(caseSensitive).findAll(re, content, true)) > 0
+}
+
+func (n *RegexNode) prefilterFor(caseSensitive bool) *regexPrefilter {
+	if caseSensitive {
+		return n.pre
+	}
+	return n.preFold
+}
+
 // MayMatch reports whether content could hold a match for a search with the
 // given case setting. False means the regexp cannot match, so the caller can
 // skip running it; see regexPrefilter.

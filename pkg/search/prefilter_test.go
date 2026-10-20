@@ -205,3 +205,93 @@ func TestRequiredLiteralsHoldForEveryMatch(t *testing.T) {
 		}
 	}
 }
+
+// FindAll is a faster spelling of FindAllIndex and nothing else: for every
+// pattern, line-local or not, over content with many lines, it returns the same
+// matches in the same order, and Matches agrees with it.
+func TestFindAllIsFindAllIndex(t *testing.T) {
+	patterns := []string{
+		`[a-z]+Handler`, `aws_[a-z_]+`, `BRMP-[0-9]+`, `^\s*func [A-Z]\w*`, `Handler$`, `\bdef\s+\w+`,
+		`(foo|bar)baz`, `api[_-]?key`, `[Ss]ecret`, `(?-i)API_KEY`, `x(longword)?y`, `colou?r`,
+		// These can span a line or anchor to the file, so they must take the
+		// whole-file path and still agree.
+		`foo\s+bar`, `a[^x]*b`, `(?s)start.end`, `\Afirst`, `last\z`, `one\ntwo`, `[\s\S]handler`,
+	}
+	contents := []string{
+		"",
+		"first line\nfunc NewHandler() {}\nfunc otherhandler() {}\n\nlast",
+		"no match here\nnor here\n",
+		"aws_s3_bucket = 1\nAWS_REGION\r\nx aws_ y\n",
+		"foo\n  bar baz\nfoobaz barbaz\n",
+		"start\nend start.end\n",
+		"one\ntwo\nthree Handler\nHandler",
+		"  func Exported()\n\tfunc lower()\nfunc Upper",
+		"BRMP-1 brmp-22\nBRMP-\nBRMP-333",
+		"secret Secret ſecret SECRET\napi_key api-key apikey API_KEY",
+		"xlongwordy xy\nxlongword\ny colour color",
+		"a\nb axxb ab\naqb",
+		"first\nhandler\nlast",
+	}
+	for _, p := range patterns {
+		for _, caseSensitive := range []bool{true, false} {
+			n := &RegexNode{Pattern: p}
+			re := n.RegexpFor(caseSensitive)
+			if re == nil {
+				t.Fatalf("%s did not compile", p)
+			}
+			for _, c := range contents {
+				want := re.FindAllIndex([]byte(c), -1)
+				got := n.FindAll([]byte(c), caseSensitive)
+				if len(want) != len(got) {
+					t.Errorf("/%s/ caseSensitive=%v on %q: FindAll %v, FindAllIndex %v", p, caseSensitive, c, got, want)
+					continue
+				}
+				for i := range want {
+					if want[i][0] != got[i][0] || want[i][1] != got[i][1] {
+						t.Errorf("/%s/ caseSensitive=%v on %q: FindAll %v, FindAllIndex %v", p, caseSensitive, c, got, want)
+						break
+					}
+				}
+				if n.Matches([]byte(c), caseSensitive) != (len(want) > 0) {
+					t.Errorf("/%s/ caseSensitive=%v on %q: Matches disagrees with FindAllIndex", p, caseSensitive, c)
+				}
+			}
+		}
+	}
+}
+
+// And the patterns that can span a line are recognised as such.
+func TestALinespanningPatternIsNotLineLocal(t *testing.T) {
+	for p, want := range map[string]bool{
+		`[a-z]+Handler`: true, `^\s*func`: false, `\bdef\s+\w+`: false, `foo.bar`: true,
+		`foo\s+bar`: false, `a[^x]*b`: false, `(?s)a.b`: false, `\Afirst`: false, `last\z`: false,
+		`one\ntwo`: false, `Handler$`: true, `^Handler`: true, `[a-z ]+handler`: true,
+	} {
+		if got := isLineLocal(p, syntax.Perl|syntax.FoldCase); got != want {
+			t.Errorf("isLineLocal(%q) = %v, want %v", p, got, want)
+		}
+	}
+}
+
+func BenchmarkFoldedRegexOnAFewLines(b *testing.B) {
+	var sb strings.Builder
+	for i := 0; i < 5000; i++ {
+		sb.WriteString("\tvalue := compute(input, options) // nothing to see on this line at all\n")
+		if i%500 == 0 {
+			sb.WriteString("func (s *Server) routeHandler(w http.ResponseWriter, r *http.Request) {\n")
+		}
+	}
+	content := []byte(sb.String())
+	n := &RegexNode{Pattern: `[a-z]+Handler`}
+	re := n.RegexpFor(false)
+	b.Run("FindAllIndex", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			re.FindAllIndex(content, -1)
+		}
+	})
+	b.Run("FindAll", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			n.FindAll(content, false)
+		}
+	})
+}
