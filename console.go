@@ -66,6 +66,10 @@ func ConsoleSearch(cfg *Config) {
 	default:
 		formatDefault(cfg, results)
 	}
+
+	if cfg.Verbose {
+		warnF(cfg, "%s", stats.Summary())
+	}
 }
 
 func formatDefault(cfg *Config, results []*common.FileJob) {
@@ -215,10 +219,14 @@ func formatDefault(cfg *Config, results []*common.FileJob) {
 // formatCodeStats returns a formatted string of code counting stats for a file result.
 // Returns empty string if no stats are available.
 func formatCodeStats(res *common.FileJob) string {
-	if res.Lines == 0 {
-		return ""
+	truncated := ""
+	if res.Truncated {
+		truncated = " (truncated)"
 	}
-	return fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d Complexity:%d)", res.Lines, res.Code, res.Comment, res.Blank, res.Complexity)
+	if res.Lines == 0 {
+		return truncated
+	}
+	return fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d Complexity:%d)%s", res.Lines, res.Code, res.Comment, res.Blank, res.Complexity, truncated)
 }
 
 type jsonLineResult struct {
@@ -235,7 +243,8 @@ type jsonResult struct {
 	MatchLocations     [][]int          `json:"matchlocations,omitempty"`
 	Lines              []jsonLineResult `json:"lines,omitempty"`
 	Language           string           `json:"language,omitempty"`
-	Encoding           string           `json:"encoding,omitempty"` // set when decoded, see EncodingUTF16LE
+	Encoding           string           `json:"encoding,omitempty"`       // set when decoded, see EncodingUTF16LE
+	FileTruncated      bool             `json:"file_truncated,omitempty"` // only the first --max-read-size-bytes were searched
 	TotalLines         int64            `json:"total_lines"`
 	Code               int64            `json:"code"`
 	Comment            int64            `json:"comment"`
@@ -276,6 +285,7 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				Lines:              jLines,
 				Language:           res.Language,
 				Encoding:           res.Encoding,
+				FileTruncated:      res.Truncated,
 				TotalLines:         res.Lines,
 				Code:               res.Code,
 				Comment:            res.Comment,
@@ -304,6 +314,7 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				Lines:              jLines,
 				Language:           res.Language,
 				Encoding:           res.Encoding,
+				FileTruncated:      res.Truncated,
 				TotalLines:         res.Lines,
 				Code:               res.Code,
 				Comment:            res.Comment,
@@ -342,6 +353,7 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				MatchLocations:     l,
 				Language:           res.Language,
 				Encoding:           res.Encoding,
+				FileTruncated:      res.Truncated,
 				TotalLines:         res.Lines,
 				Code:               res.Code,
 				Comment:            res.Comment,

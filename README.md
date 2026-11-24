@@ -250,7 +250,28 @@ UTF-16 is decoded to UTF-8 before binary detection, matching, snippets and line 
 refer to the decoded text, not the bytes on disk, and JSON results for such files carry an `encoding` field such as
 `"utf-16le"`. `--max-read-size-bytes` limits the raw bytes read from disk, before decoding.
 
-UTF-16 without a byte order mark is treated as binary and skipped, as ripgrep does.
+UTF-16 without a byte order mark, and UTF-32, cannot be told apart from binary cheaply and are skipped as binary, as
+ripgrep does. Run with `--verbose` to see which files were skipped.
+
+#### Why are some files skipped or only partly searched?
+
+`cs` skips files that look binary (a NUL byte in the first 10,000 bytes), minified files (see `--min` and
+`--min-line-length`) and files it cannot read. `--binary` and `--min` turn the first two checks off.
+
+A file larger than `--max-read-size-bytes` (default 1,000,000) is searched only up to that many bytes, and matches past
+the limit are not found. Such results are marked: `(truncated)` in text output and the TUI, `"file_truncated": true` in
+JSON and MCP results, and `fileTruncated` in the HTTP JSON. Raise the limit to search the whole file.
+
+`--verbose` prints a warning to stderr for each skipped or truncated file, in the same format as `scc -v`, then a
+summary line:
+
+```
+WARN 2026-11-24T06:30:57Z: skipping file identified as binary: ./data/export.bin
+WARN 2026-11-24T06:30:57Z: truncating file at 1000000 bytes: ./data/dump.sql
+WARN 2026-11-24T06:30:57Z: skipped 1 files (binary 1, minified 0, unreadable 0), truncated 1
+```
+
+The HTTP UI, TUI status line and MCP search response show the same counts.
 
 #### Where is the index?
 
@@ -450,6 +471,7 @@ Flags:
       --template-style string        built-in theme for the HTTP server UI [dark, light, bare] (default "dark")
       --test-penalty float           score multiplier for test files when query has no test intent (0.0-1.0, 1.0=disabled) (default 0.4)
   -t, --type strings                 limit to language types [comma separated list: e.g. Go,Java,Python]
+      --verbose                      print a warning to stderr for each file skipped as binary, minified or unreadable, or cut at --max-read-size-bytes, then a summary
   -v, --version                      version for cs
       --weight-code float            structural ranker: weight for matches in code (default 1.0) (default 1)
       --weight-comment float         structural ranker: weight for matches in comments (default 0.2) (default 0.2)

@@ -31,6 +31,8 @@ type httpSearch struct {
 	ResultsCount        int                `json:"resultsCount"`
 	RuntimeMilliseconds int64              `json:"runtimeMilliseconds"`
 	ProcessedFileCount  int64              `json:"processedFileCount"`
+	SkippedFileCount    int64              `json:"skippedFileCount,omitempty"`
+	TruncatedFileCount  int64              `json:"truncatedFileCount,omitempty"`
 	ExtensionFacet      []httpFacetResult  `json:"extensionFacet,omitempty"`
 	Pages               []httpPageResult   `json:"pages,omitempty"`
 	Ext                 string             `json:"ext,omitempty"`
@@ -64,6 +66,7 @@ type httpSearchResult struct {
 	Complexity         int64            `json:"complexity,omitempty"`
 	DuplicateCount     int              `json:"duplicateCount,omitempty"`
 	DuplicateLocations []string         `json:"duplicateLocations,omitempty"`
+	FileTruncated      bool             `json:"fileTruncated,omitempty"`
 }
 
 type httpFileDisplay struct {
@@ -252,7 +255,7 @@ func StartHttpServer(cfg *Config) {
 		}
 
 		var results []*common.FileJob
-		var processedFileCount int64
+		var processedFileCount, skippedFileCount, truncatedFileCount int64
 
 		if query != "" {
 			// Make a copy of config so we can adjust per request
@@ -315,6 +318,8 @@ func StartHttpServer(cfg *Config) {
 			}
 
 			processedFileCount = stats.TextFileCount.Load()
+			skippedFileCount = stats.Skipped()
+			truncatedFileCount = stats.TruncatedFiles.Load()
 			testIntent := ranker.HasTestIntent(strings.Fields(query))
 			results = ranker.RankResults(searchCfg.Ranker, int(processedFileCount), results, searchCfg.StructuralRankerConfig(), searchCfg.ResolveRankingProfile(), testIntent)
 		}
@@ -408,6 +413,7 @@ func StartHttpServer(cfg *Config) {
 					Complexity:         res.Complexity,
 					DuplicateCount:     res.DuplicateCount,
 					DuplicateLocations: res.DuplicateLocations,
+					FileTruncated:      res.Truncated,
 				})
 			} else if fileMode == "lines" {
 				lineResults := snippet.FindMatchingLines(res, 2)
@@ -465,6 +471,7 @@ func StartHttpServer(cfg *Config) {
 					Complexity:         res.Complexity,
 					DuplicateCount:     res.DuplicateCount,
 					DuplicateLocations: res.DuplicateLocations,
+					FileTruncated:      res.Truncated,
 				})
 			} else {
 				snippets := snippet.ExtractRelevant(res, documentTermFrequency, snippetLength)
@@ -512,6 +519,7 @@ func StartHttpServer(cfg *Config) {
 					Complexity:         res.Complexity,
 					DuplicateCount:     res.DuplicateCount,
 					DuplicateLocations: res.DuplicateLocations,
+					FileTruncated:      res.Truncated,
 				})
 			}
 		}
@@ -523,6 +531,8 @@ func StartHttpServer(cfg *Config) {
 			ResultsCount:        len(results),
 			RuntimeMilliseconds: makeTimestampMilli() - startTime,
 			ProcessedFileCount:  processedFileCount,
+			SkippedFileCount:    skippedFileCount,
+			TruncatedFileCount:  truncatedFileCount,
 			ExtensionFacet:      httpCalculateExtensionFacet(extensionFacets, query, snippetLength, rankerParam, codeFilter, gravityParam, noiseParam, snippetModeParam),
 			Pages:               pages,
 			Ext:                 ext,

@@ -244,6 +244,12 @@ func main() {
 		[]string{".git", ".hg", ".svn"},
 		"directories to exclude",
 	)
+	flags.BoolVar(
+		&cfg.Verbose,
+		"verbose",
+		false,
+		"print a warning to stderr for each file skipped as binary, minified or unreadable, or cut at --max-read-size-bytes, then a summary",
+	)
 	flags.BoolVarP(
 		&cfg.CaseSensitive,
 		"case-sensitive",

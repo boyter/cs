@@ -37,6 +37,7 @@ type searchResult struct {
 	DuplicateCount int
 	MatchLocations map[string][][]int // absolute byte positions in file
 	Prose          bool               // true for prose/text files (skip syntax highlighting)
+	Truncated      bool               // only the first --max-read-size-bytes were searched
 }
 
 // snippetCount returns the number of cyclable "snippets" — free-text snippets
@@ -105,6 +106,8 @@ type searchResultsMsg struct {
 	done      bool // true = search complete
 	total     int  // total files scanned so far
 	textTotal int  // non-binary, successfully read files (for BM25 ranking)
+	skipped   int  // files read but not searched: binary, minified, unreadable
+	truncated int  // files searched only up to --max-read-size-bytes
 }
 
 // Styles
@@ -177,6 +180,8 @@ type model struct {
 	lastQuery     string                // query that produced current results
 	errMsg        string                // transient error message shown in status line
 	fileCount     int                   // total files scanned (for status line)
+	skippedCount  int                   // files skipped as binary, minified or unreadable (for status line)
+	truncCount    int                   // files cut at --max-read-size-bytes (for status line)
 	textFileCount int                   // non-binary, successfully read files (for BM25 ranking)
 	snippetMode   string                // "snippet" or "lines"
 	searchCache   *SearchCache          // caches file locations across progressive queries
@@ -254,6 +259,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.fileJobs = nil
 			m.searching = false
 			m.fileCount = 0
+			m.skippedCount, m.truncCount = 0, 0
 			return m, nil
 		}
 
@@ -271,6 +277,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.selectedIndex = 0
 		m.scrollOffset = 0
 		m.fileCount = 0
+		m.skippedCount, m.truncCount = 0, 0
 		ch := make(chan searchResultsMsg, 1)
 		m.searchResults = ch
 		go realSearch(ctx, m.cfg, m.searchSeq, query, snippetLen, m.snippetMode, m.searchCache, ch)
@@ -284,6 +291,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.results = append(m.results, msg.results...)
 		m.fileJobs = append(m.fileJobs, msg.fileJobs...)
 		m.fileCount = msg.total
+		m.skippedCount, m.truncCount = msg.skipped, msg.truncated
 		m.textFileCount = msg.textTotal
 
 		if msg.done {
@@ -331,6 +339,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Comment:        fj.Comment,
 							Blank:          fj.Blank,
 							Complexity:     fj.Complexity,
+							Truncated:      fj.Truncated,
 							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
 							Prose:          isProse,
@@ -353,6 +362,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Comment:        fj.Comment,
 							Blank:          fj.Blank,
 							Complexity:     fj.Complexity,
+							Truncated:      fj.Truncated,
 							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
 							Prose:          isProse,
@@ -375,6 +385,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Comment:        fj.Comment,
 							Blank:          fj.Blank,
 							Complexity:     fj.Complexity,
+							Truncated:      fj.Truncated,
 							DuplicateCount: fj.DuplicateCount,
 							MatchLocations: fj.MatchLocations,
 							Prose:          isProse,
@@ -722,6 +733,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Comment:        fj.Comment,
 				Blank:          fj.Blank,
 				Complexity:     fj.Complexity,
+				Truncated:      fj.Truncated,
 				MatchLocations: fj.MatchLocations,
 				Prose:          isProse,
 			}
@@ -737,6 +749,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Comment:        fj.Comment,
 				Blank:          fj.Blank,
 				Complexity:     fj.Complexity,
+				Truncated:      fj.Truncated,
 				MatchLocations: fj.MatchLocations,
 				Prose:          isProse,
 			}
@@ -760,6 +773,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 				Comment:        fj.Comment,
 				Blank:          fj.Blank,
 				Complexity:     fj.Complexity,
+				Truncated:      fj.Truncated,
 				MatchLocations: fj.MatchLocations,
 				Prose:          isProse,
 			}
@@ -773,6 +787,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 			case ch <- searchResultsMsg{
 				seq: seq, results: batch, fileJobs: batchJobs,
 				total: int(stats.FileCount.Load()), textTotal: int(stats.TextFileCount.Load()),
+				skipped: int(stats.Skipped()), truncated: int(stats.TruncatedFiles.Load()),
 			}:
 				batch = nil
 				batchJobs = nil
@@ -787,6 +802,7 @@ func realSearch(ctx context.Context, cfg *Config, seq int, query string, snippet
 	case ch <- searchResultsMsg{
 		seq: seq, results: batch, fileJobs: batchJobs,
 		done: true, total: int(stats.FileCount.Load()), textTotal: int(stats.TextFileCount.Load()),
+		skipped: int(stats.Skipped()), truncated: int(stats.TruncatedFiles.Load()),
 	}:
 	case <-ctx.Done():
 	}
@@ -1028,14 +1044,14 @@ func (m *model) retriggerSearch() tea.Cmd {
 // tuiVimGrep re-reads a file and formats all matches as vimgrep lines.
 // Mirrors the branch structure of formatVimGrep in console.go.
 func tuiVimGrep(cfg *Config, location string, matchLocations map[string][][]int) string {
-	content, _, err := readTextFile(location, cfg.MaxReadSizeBytes)
+	file, err := readTextFile(location, cfg.MaxReadSizeBytes)
 	if err != nil {
 		return location
 	}
 	fj := &common.FileJob{
 		Filename:       location,
 		Location:       location,
-		Content:        content,
+		Content:        file.Content,
 		MatchLocations: matchLocations,
 	}
 	fileMode := resolveSnippetMode(cfg.SnippetMode, location)
@@ -1147,6 +1163,12 @@ func (m model) View() string {
 		}
 		status = fmt.Sprintf("%d result%s for '%s' from %d files",
 			len(m.results), plural, m.lastQuery, m.fileCount)
+		if m.skippedCount > 0 {
+			status += fmt.Sprintf(", %d skipped", m.skippedCount)
+		}
+		if m.truncCount > 0 {
+			status += fmt.Sprintf(", %d truncated", m.truncCount)
+		}
 	}
 	b.WriteString(statusStyle.Render(status))
 	b.WriteString("\n")
@@ -1222,6 +1244,9 @@ func (m model) renderResult(r searchResult, isSelected bool) string {
 	codeStats := ""
 	if r.TotalLines > 0 {
 		codeStats = fmt.Sprintf(" Lines:%d (Code:%d Comment:%d Blank:%d Complexity:%d)", r.TotalLines, r.Code, r.Comment, r.Blank, r.Complexity)
+	}
+	if r.Truncated {
+		codeStats += " (truncated)"
 	}
 	lineRange := r.activeLineRange()
 	var titleText string

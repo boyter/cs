@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/boyter/cs/v3/pkg/common"
 	"github.com/boyter/cs/v3/pkg/ranker"
@@ -26,6 +27,26 @@ import (
 type SearchStats struct {
 	FileCount     atomic.Int64
 	TextFileCount atomic.Int64
+
+	// Files read but not searched, by reason.
+	SkippedBinary     atomic.Int64
+	SkippedMinified   atomic.Int64
+	SkippedUnreadable atomic.Int64
+
+	// Text files searched only up to --max-read-size-bytes.
+	TruncatedFiles atomic.Int64
+}
+
+// Skipped returns the number of files read but not searched, for any reason.
+func (s *SearchStats) Skipped() int64 {
+	return s.SkippedBinary.Load() + s.SkippedMinified.Load() + s.SkippedUnreadable.Load()
+}
+
+// Summary describes skipped and truncated files in one line, as --verbose
+// prints it at the end of a console search.
+func (s *SearchStats) Summary() string {
+	return fmt.Sprintf("skipped %d files (binary %d, minified %d, unreadable %d), truncated %d",
+		s.Skipped(), s.SkippedBinary.Load(), s.SkippedMinified.Load(), s.SkippedUnreadable.Load(), s.TruncatedFiles.Load())
 }
 
 // DoSearch runs the search pipeline and returns a channel of matched FileJob results
@@ -178,8 +199,13 @@ startWorkers:
 				stats.FileCount.Add(1)
 
 				// Read file content into pooled buffer (avoids fstat + per-file alloc)
-				content, err := readFileContentBuf(f.Location, poolBuf[:maxRead])
-				if err != nil || len(content) == 0 {
+				content, truncated, err := readFileContentBuf(f.Location, poolBuf[:maxRead])
+				if err != nil {
+					stats.SkippedUnreadable.Add(1)
+					warnF(cfg, "error reading: %s %s", f.Location, err)
+					continue
+				}
+				if len(content) == 0 {
 					continue
 				}
 
@@ -198,6 +224,8 @@ startWorkers:
 						check = content[:10_000]
 					}
 					if bytes.IndexByte(check, 0) != -1 {
+						stats.SkippedBinary.Add(1)
+						warnF(cfg, "skipping file identified as binary: %s", f.Location)
 						continue
 					}
 				}
@@ -207,11 +235,17 @@ startWorkers:
 					lineCount := bytes.Count(content, []byte("\n")) + 1
 					avgLineLength := len(content) / lineCount
 					if avgLineLength > cfg.MinifiedLineByteLength {
+						stats.SkippedMinified.Add(1)
+						warnF(cfg, "skipping minified file: %s", f.Location)
 						continue
 					}
 				}
 
 				stats.TextFileCount.Add(1)
+				if truncated {
+					stats.TruncatedFiles.Add(1)
+					warnF(cfg, "truncating file at %d bytes: %s", maxRead, f.Location)
+				}
 
 				// Evaluate query AST against file content
 				matched, matchLocations := search.EvaluateFile(ast, content, f.Filename, f.Location, cfg.CaseSensitive)
@@ -291,6 +325,7 @@ startWorkers:
 					Blank:           sccBlank,
 					Complexity:      sccComplexity,
 					Encoding:        encoding,
+					Truncated:       truncated,
 				}
 
 				select {
@@ -369,12 +404,15 @@ func filterMatchLocations(matchLocations map[string][][]int, contentByteType []b
 var bufPool sync.Pool
 
 // readFileContentBuf reads a file into buf, limiting to len(buf) bytes.
-// Returns the sub-slice of buf containing the file content.
-// Eliminates the fstat syscall by reading directly into the pre-sized buffer.
-func readFileContentBuf(location string, buf []byte) ([]byte, error) {
+// Returns the sub-slice of buf containing the file content, and whether the
+// file held more than len(buf) bytes.
+// Eliminates the fstat syscall by reading directly into the pre-sized buffer;
+// only a file that fills the buffer pays for one more read, of one byte, to
+// tell a file cut by the limit from one exactly at it.
+func readFileContentBuf(location string, buf []byte) ([]byte, bool, error) {
 	f, err := os.Open(location)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer f.Close()
 
@@ -382,52 +420,70 @@ func readFileContentBuf(location string, buf []byte) ([]byte, error) {
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			if n == 0 {
-				return nil, nil
+				return nil, false, nil
 			}
-			return buf[:n], nil
+			return buf[:n], false, nil
 		}
-		return nil, err
+		return nil, false, err
 	}
-	return buf[:n], nil
+	var probe [1]byte
+	m, _ := f.Read(probe[:])
+	return buf[:n], m > 0, nil
+}
+
+// textFile is a file read for display, decoded to UTF-8.
+type textFile struct {
+	Content   []byte
+	Encoding  string // as FileJob.Encoding: "" unless decoded
+	Truncated bool   // the file is longer than the read limit
 }
 
 // readTextFile reads a file as readFileContent does, then decodes UTF-16 with a
-// BOM to UTF-8. It returns the encoding it decoded from, or "" for none. The
-// limit applies to the raw bytes, before decoding.
-func readTextFile(location string, maxBytes int64) ([]byte, string, error) {
-	content, err := readFileContent(location, maxBytes)
+// BOM to UTF-8. The limit applies to the raw bytes, before decoding.
+func readTextFile(location string, maxBytes int64) (textFile, error) {
+	content, truncated, err := readFileContent(location, maxBytes)
 	if err != nil {
-		return nil, "", err
+		return textFile{}, err
 	}
 	content, enc := decodeText(content, nil)
-	return content, enc, nil
+	return textFile{Content: content, Encoding: enc, Truncated: truncated}, nil
 }
 
-// readFileContent reads a file, limiting to maxBytes if the file is larger.
-func readFileContent(location string, maxBytes int64) ([]byte, error) {
+// readFileContent reads a file, limiting to maxBytes if the file is larger,
+// and reports whether it was larger.
+func readFileContent(location string, maxBytes int64) ([]byte, bool, error) {
 	f, err := os.Open(location)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	size := fi.Size()
 	if size == 0 {
-		return nil, nil
+		return nil, false, nil
 	}
-	if size > maxBytes {
+	truncated := size > maxBytes
+	if truncated {
 		size = maxBytes
 	}
 
 	buf := make([]byte, size)
 	n, err := io.ReadFull(f, buf)
 	if err != nil && err != io.ErrUnexpectedEOF {
-		return nil, err
+		return nil, false, err
 	}
-	return buf[:n], nil
+	return buf[:n], truncated, nil
+}
+
+// warnF prints a warning to stderr when --verbose is set, in the format scc
+// uses for its own -v warnings. Stdout is left for results.
+func warnF(cfg *Config, msg string, args ...any) {
+	if cfg.Verbose {
+		_, _ = fmt.Fprintf(os.Stderr, "WARN %s: %s\n", time.Now().UTC().Format(time.RFC3339), fmt.Sprintf(msg, args...))
+	}
 }

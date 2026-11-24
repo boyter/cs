@@ -35,4 +35,7 @@ type FileJob struct {
 	// "utf-16le". Empty means the file was read as UTF-8 and Content holds
 	// its bytes as on disk.
 	Encoding string
+	// Truncated is true when the file was longer than --max-read-size-bytes,
+	// so only its first bytes were searched.
+	Truncated bool
 }

@@ -68,7 +68,7 @@
 				<option value="lines" {{ if eq .SnippetMode "lines" }}selected{{ end }}>snippet: lines</option>
 				<option value="grep" {{ if eq .SnippetMode "grep" }}selected{{ end }}>snippet: grep</option>
 			</select>
-			<small id="search-stats">[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms)]</small>
+			<small id="search-stats">[{{ .ResultsCount }} results from {{ .ProcessedFileCount }} files in {{ .RuntimeMilliseconds }} (ms){{ if .SkippedFileCount }}, {{ .SkippedFileCount }} skipped{{ end }}{{ if .TruncatedFileCount }}, {{ .TruncatedFileCount }} truncated{{ end }}]</small>
 		</form>
 		</div>
 		<div id="results-container" style="display:flex;">
@@ -78,7 +78,7 @@
 					{{- range .Results }}
 					<li>
 						<h4><a href="/file/{{ .Location }}?sp={{ .StartPos }}&ep={{ .EndPos }}">{{ .Title }}</a>{{ if .Language }} <small>({{ .Language }})</small>{{ end }}</h4>
-						{{ if .Lines }}<small style="color:#808080">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}</small>{{ end }}
+						{{ if .Lines }}<small style="color:#808080">{{ .Language }} | Lines: {{ .Lines }} | Code: {{ .Code }} | Comment: {{ .Comment }} | Blank: {{ .Blank }} | Complexity: {{ .Complexity }}{{ if .FileTruncated }} | truncated{{ end }}</small>{{ end }}
 						{{ if .IsLineMode }}<pre>{{ range .LineResults }}{{ if .Gap }}
 {{ end }}<span style="color:#808080;user-select:none">{{ printf "%4d " .LineNumber }}</span>{{ .Content }}
 {{ end }}</pre>{{ else }}{{- range .Content }}
@@ -151,7 +151,9 @@
 		controller = new AbortController();
 
 		fetch(url, { signal: controller.signal }).then(function(r) { return r.json(); }).then(function(data) {
-			stats.textContent = '[' + data.resultsCount + ' results from ' + data.processedFileCount + ' files in ' + data.runtimeMilliseconds + ' (ms)]';
+			stats.textContent = '[' + data.resultsCount + ' results from ' + data.processedFileCount + ' files in ' + data.runtimeMilliseconds + ' (ms)' +
+				(data.skippedFileCount ? ', ' + data.skippedFileCount + ' skipped' : '') +
+				(data.truncatedFileCount ? ', ' + data.truncatedFileCount + ' truncated' : '') + ']';
 			renderResults(data);
 		}).catch(function(e) {
 			if (e.name !== 'AbortError') stats.textContent = '[error]';
@@ -168,7 +170,7 @@
 				html += '<h4><a href="/file/' + escapeHTML(r.location) + '?sp=' + r.startPos + '&ep=' + r.endPos + '">' + escapeHTML(r.title) + '</a>';
 				if (r.language) html += ' <small>(' + escapeHTML(r.language) + ')</small>';
 				html += '</h4>';
-				if (r.lines) html += '<small style="color:#808080">' + escapeHTML(r.language) + ' | Lines: ' + r.lines + ' | Code: ' + r.code + ' | Comment: ' + r.comment + ' | Blank: ' + r.blank + ' | Complexity: ' + r.complexity + '</small>';
+				if (r.lines) html += '<small style="color:#808080">' + escapeHTML(r.language) + ' | Lines: ' + r.lines + ' | Code: ' + r.code + ' | Comment: ' + r.comment + ' | Blank: ' + r.blank + ' | Complexity: ' + r.complexity + (r.fileTruncated ? ' | truncated' : '') + '</small>';
 				if (r.isLineMode && r.lineResults) {
 					html += '<pre>';
 					var prevLN = 0;

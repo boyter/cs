@@ -162,6 +162,8 @@ func TestDecodeText(t *testing.T) {
 		// A read limit can cut a file in the middle of a code unit or a pair.
 		{"le odd trailing byte", append(le("ab"), 'c'), "ab", EncodingUTF16LE},
 		{"le cut surrogate pair", le("a😀")[:6], "a\uFFFD", EncodingUTF16LE},
+		// FF FE 00 00 is the UTF-32 LE mark, which stays out of scope.
+		{"utf32 le bom", []byte{0xFF, 0xFE, 0, 0, 'a', 0, 0, 0}, "\xff\xfe\x00\x00a\x00\x00\x00", ""},
 		{"le lone low surrogate", []byte{0xFF, 0xFE, 0x00, 0xDC, 'x', 0}, "\uFFFDx", EncodingUTF16LE},
 	}
 	for _, c := range cases {
@@ -202,6 +204,118 @@ func TestDoSearch_UTF16ReadLimitAppliesToRawBytes(t *testing.T) {
 		}
 		if (n == 1) != tc.match {
 			t.Errorf("limit %d: %d matches, want match=%v", tc.limit, n, tc.match)
+		}
+	}
+}
+
+func runSearch(t *testing.T, cfg *Config, query string) ([]*common.FileJob, *SearchStats) {
+	t.Helper()
+	ch, stats, err := DoSearch(context.Background(), cfg, query, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []*common.FileJob
+	for fj := range ch {
+		out = append(out, fj)
+	}
+	return out, stats
+}
+
+// A file longer than --max-read-size-bytes is searched only up to the limit,
+// and its result says so. UTF-16 is cut on raw bytes, before decoding.
+func TestDoSearch_ReportsTruncatedFiles(t *testing.T) {
+	dir := t.TempDir()
+	long := "onair\n" + strings.Repeat("filler line\n", 50)
+	files := map[string][]byte{
+		"short.txt":      []byte("onair\n"),
+		"long.txt":       []byte(long),
+		"long_utf16.txt": encodeUTF16(long, binary.LittleEndian, true),
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cfg := DefaultConfig()
+	cfg.Directory = dir
+	cfg.ResultLimit = -1
+	cfg.MaxReadSizeBytes = 100
+	got, _ := runSearch(t, &cfg, "onair")
+
+	want := map[string]bool{"short.txt": false, "long.txt": true, "long_utf16.txt": true}
+	seen := map[string]bool{}
+	for _, fj := range got {
+		seen[fj.Filename] = true
+		if fj.Truncated != want[fj.Filename] {
+			t.Errorf("%s: truncated %v, want %v", fj.Filename, fj.Truncated, want[fj.Filename])
+		}
+		if fj.Filename == "long_utf16.txt" && len(fj.Content) != 49 {
+			// 100 raw bytes: a 2 byte BOM, then 49 code units of ASCII.
+			t.Errorf("%s: %d decoded bytes, want 49", fj.Filename, len(fj.Content))
+		}
+	}
+	for name := range want {
+		if !seen[name] {
+			t.Errorf("%s: no match, want a match", name)
+		}
+	}
+
+	// A file exactly at the limit was read whole, so it is not truncated.
+	exact := strings.Repeat("x", 94) + "onair\n"
+	if err := os.WriteFile(filepath.Join(dir, "exact.txt"), []byte(exact), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = runSearch(t, &cfg, "onair")
+	for _, fj := range got {
+		if fj.Filename == "exact.txt" && fj.Truncated {
+			t.Errorf("exact.txt: truncated, want not truncated")
+		}
+	}
+}
+
+// Files that are read but not searched are counted by reason.
+func TestDoSearch_CountsSkippedFiles(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string][]byte{
+		"text.sql":     []byte(encodingFixtureText),
+		"le_nobom.sql": encodeUTF16(encodingFixtureText, binary.LittleEndian, false),
+		"image.bin":    {0x89, 'P', 'N', 'G', 0, 0, 0, 0},
+		"min.js":       []byte(strings.Repeat("a", 1000)),
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unreadable := filepath.Join(dir, "locked.sql")
+	if err := os.WriteFile(unreadable, []byte("onair"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	wantUnreadable := int64(1)
+	if f, err := os.Open(unreadable); err == nil {
+		// Running as root: the file can be read after all.
+		f.Close()
+		wantUnreadable = 0
+	}
+
+	cfg := DefaultConfig()
+	cfg.Directory = dir
+	cfg.ResultLimit = -1
+	cfg.IgnoreIgnoreFile = true
+	_, stats := runSearch(t, &cfg, "onair")
+
+	for _, c := range []struct {
+		name      string
+		got, want int64
+	}{
+		{"binary", stats.SkippedBinary.Load(), 2},
+		{"minified", stats.SkippedMinified.Load(), 1},
+		{"unreadable", stats.SkippedUnreadable.Load(), wantUnreadable},
+		{"text", stats.TextFileCount.Load(), 1},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s: %d files, want %d", c.name, c.got, c.want)
 		}
 	}
 }

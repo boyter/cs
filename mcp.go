@@ -23,6 +23,10 @@ import (
 // mcpSearchResponse wraps search results with metadata so callers always know
 // which directory was searched, whether results were truncated, and what the
 // full match count was.
+//
+// SkippedFiles counts files read but not searched: binary, minified or
+// unreadable. TruncatedFiles counts files searched only up to
+// --max-read-size-bytes; each such result has file_truncated set.
 type mcpSearchResponse struct {
 	SearchedDirectory string       `json:"searched_directory"`
 	TotalMatches      int          `json:"total_matches"`
@@ -30,21 +34,26 @@ type mcpSearchResponse struct {
 	Offset            int          `json:"offset"`
 	NextOffset        int          `json:"next_offset"`
 	Truncated         bool         `json:"truncated"`
+	SkippedFiles      int64        `json:"skipped_files,omitempty"`
+	TruncatedFiles    int64        `json:"truncated_files,omitempty"`
 	Message           string       `json:"message,omitempty"`
 	GitSyncNote       string       `json:"git_sync_note,omitempty"`
 	Results           []jsonResult `json:"results"`
 }
 
-// mcpFileResult is the JSON response for the get_file tool.
+// mcpFileResult is the JSON response for the get_file tool. FileTruncated is
+// true when the file is longer than --max-read-size-bytes and content holds
+// only its first bytes.
 type mcpFileResult struct {
-	Language   string `json:"language,omitempty"`
-	Encoding   string `json:"encoding,omitempty"`
-	Lines      int64  `json:"lines,omitempty"`
-	Code       int64  `json:"code,omitempty"`
-	Comment    int64  `json:"comment,omitempty"`
-	Blank      int64  `json:"blank,omitempty"`
-	Complexity int64  `json:"complexity,omitempty"`
-	Content    string `json:"content"`
+	Language      string `json:"language,omitempty"`
+	Encoding      string `json:"encoding,omitempty"`
+	FileTruncated bool   `json:"file_truncated,omitempty"`
+	Lines         int64  `json:"lines,omitempty"`
+	Code          int64  `json:"code,omitempty"`
+	Comment       int64  `json:"comment,omitempty"`
+	Blank         int64  `json:"blank,omitempty"`
+	Complexity    int64  `json:"complexity,omitempty"`
+	Content       string `json:"content"`
 }
 
 // defaultSearchRoot returns the root a call uses when the caller passes no
@@ -404,10 +413,11 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		// Read the file
-		content, encoding, err := readTextFile(absResolved, cfg.MaxReadSizeBytes)
+		file, err := readTextFile(absResolved, cfg.MaxReadSizeBytes)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("failed to read file: %v", err)), nil
 		}
+		content := file.Content
 
 		// Binary detection: check first 10KB for NUL bytes
 		check := content
@@ -454,8 +464,9 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		result := mcpFileResult{
-			Encoding: encoding,
-			Content:  sb.String(),
+			Encoding:      file.Encoding,
+			FileTruncated: file.Truncated,
+			Content:       sb.String(),
 		}
 		if lang != "" {
 			result.Language = lang
@@ -815,6 +826,8 @@ func mcpSearchHandler(cfg *Config, cache *SearchCache) server.ToolHandlerFunc {
 			Offset:            offset,
 			NextOffset:        nextOffset,
 			Truncated:         truncated,
+			SkippedFiles:      stats.Skipped(),
+			TruncatedFiles:    stats.TruncatedFiles.Load(),
 			Results:           jsonResults,
 		}
 

@@ -19,6 +19,7 @@ const (
 // Only UTF-16 that starts with a byte order mark is decoded; the mark is
 // dropped. Anything else, UTF-8 with or without a BOM included, is returned
 // as it is with an empty encoding, after a check of its first two bytes only.
+// UTF-32 is out of scope and left for the binary check to skip.
 //
 // Decoded text is appended to dst[:0], so a caller can reuse one buffer
 // across files. A trailing odd byte, as left when a read limit cuts a file
@@ -31,6 +32,10 @@ func decodeText(raw []byte, dst []byte) ([]byte, string) {
 	var enc string
 	switch {
 	case raw[0] == 0xFF && raw[1] == 0xFE:
+		// FF FE 00 00 is the UTF-32 LE mark, which this does not handle.
+		if len(raw) >= 4 && raw[2] == 0 && raw[3] == 0 {
+			return raw, ""
+		}
 		enc = EncodingUTF16LE
 	case raw[0] == 0xFE && raw[1] == 0xFF:
 		bigEndian, enc = true, EncodingUTF16BE
