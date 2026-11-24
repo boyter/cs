@@ -235,6 +235,7 @@ type jsonResult struct {
 	MatchLocations     [][]int          `json:"matchlocations,omitempty"`
 	Lines              []jsonLineResult `json:"lines,omitempty"`
 	Language           string           `json:"language,omitempty"`
+	Encoding           string           `json:"encoding,omitempty"` // set when decoded, see EncodingUTF16LE
 	TotalLines         int64            `json:"total_lines"`
 	Code               int64            `json:"code"`
 	Comment            int64            `json:"comment"`
@@ -274,6 +275,7 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				Score:              res.Score,
 				Lines:              jLines,
 				Language:           res.Language,
+				Encoding:           res.Encoding,
 				TotalLines:         res.Lines,
 				Code:               res.Code,
 				Comment:            res.Comment,
@@ -301,6 +303,7 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				Score:              res.Score,
 				Lines:              jLines,
 				Language:           res.Language,
+				Encoding:           res.Encoding,
 				TotalLines:         res.Lines,
 				Code:               res.Code,
 				Comment:            res.Comment,
@@ -338,6 +341,7 @@ func buildJSONResults(cfg *Config, results []*common.FileJob) []jsonResult {
 				Score:              res.Score,
 				MatchLocations:     l,
 				Language:           res.Language,
+				Encoding:           res.Encoding,
 				TotalLines:         res.Lines,
 				Code:               res.Code,
 				Comment:            res.Comment,

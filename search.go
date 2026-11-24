@@ -165,6 +165,9 @@ startWorkers:
 			}
 			defer bufPool.Put(poolBuf)
 
+			// Per-worker buffer for files decoded from UTF-16, reused like poolBuf
+			var decodeBuf []byte
+
 			for f := range fileQueue {
 				select {
 				case <-ctx.Done():
@@ -178,6 +181,14 @@ startWorkers:
 				content, err := readFileContentBuf(f.Location, poolBuf[:maxRead])
 				if err != nil || len(content) == 0 {
 					continue
+				}
+
+				// Decode UTF-16 with a BOM to UTF-8 before the binary check, which
+				// would otherwise see the NUL in every ASCII code unit. The read
+				// limit applies to the raw bytes, before decoding.
+				var encoding string
+				if content, encoding = decodeText(content, decodeBuf); encoding != "" {
+					decodeBuf = content
 				}
 
 				// Binary check: look for NUL byte in first 10KB
@@ -279,6 +290,7 @@ startWorkers:
 					Comment:         sccComment,
 					Blank:           sccBlank,
 					Complexity:      sccComplexity,
+					Encoding:        encoding,
 				}
 
 				select {
@@ -377,6 +389,18 @@ func readFileContentBuf(location string, buf []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf[:n], nil
+}
+
+// readTextFile reads a file as readFileContent does, then decodes UTF-16 with a
+// BOM to UTF-8. It returns the encoding it decoded from, or "" for none. The
+// limit applies to the raw bytes, before decoding.
+func readTextFile(location string, maxBytes int64) ([]byte, string, error) {
+	content, err := readFileContent(location, maxBytes)
+	if err != nil {
+		return nil, "", err
+	}
+	content, enc := decodeText(content, nil)
+	return content, enc, nil
 }
 
 // readFileContent reads a file, limiting to maxBytes if the file is larger.

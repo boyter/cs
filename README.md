@@ -241,6 +241,17 @@ Using a 9950x3D it can search the kernel in ~400 milliseconds.
 So long as they are text. I wrote it to search code, but it works just as well on full-text documents. The snippet
 extraction, for example, was tested on Pride and Prejudice, a text I know more about than I probably should considering I'm male.
 
+#### What text encodings does it read?
+
+UTF-8, with or without a byte order mark, and UTF-16 that starts with a byte order mark (`FF FE` little endian, `FE FF`
+big endian). SQL Server Management Studio and Visual Studio save files as UTF-16 with a mark by default.
+
+UTF-16 is decoded to UTF-8 before binary detection, matching, snippets and line counts. Line numbers and match positions
+refer to the decoded text, not the bytes on disk, and JSON results for such files carry an `encoding` field such as
+`"utf-16le"`. `--max-read-size-bytes` limits the raw bytes read from disk, before decoding.
+
+UTF-16 without a byte order mark is treated as binary and skipped, as ripgrep does.
+
 #### Where is the index?
 
 There is none. Everything is brute force calculated on the fly. There is some caching to speed things up, but should in
@@ -412,7 +423,7 @@ Flags:
   -d, --http-server                  start the HTTP server
   -i, --include-ext strings          limit to file extensions (N.B. case sensitive) [comma separated list: e.g. go,java,js,C,cpp]
       --line-limit int               max matching lines per file in grep mode (-1 = unlimited) (default -1)
-      --max-read-size-bytes int      number of bytes to read into a file with the remaining content ignored (default 1000000)
+      --max-read-size-bytes int      number of raw bytes to read from a file, before any decoding, with the remaining content ignored (default 1000000)
       --mcp                          start as an MCP (Model Context Protocol) server over stdio
       --mcp-lock-dir                 restrict the MCP server to --dir: reject searching or reading outside that tree
       --min                          include minified files

@@ -274,7 +274,7 @@ func main() {
 		&cfg.MaxReadSizeBytes,
 		"max-read-size-bytes",
 		1_000_000,
-		"number of bytes to read into a file with the remaining content ignored",
+		"number of raw bytes to read from a file, before any decoding, with the remaining content ignored",
 	)
 	flags.StringVarP(
 		&cfg.Format,

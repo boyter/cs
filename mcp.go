@@ -38,6 +38,7 @@ type mcpSearchResponse struct {
 // mcpFileResult is the JSON response for the get_file tool.
 type mcpFileResult struct {
 	Language   string `json:"language,omitempty"`
+	Encoding   string `json:"encoding,omitempty"`
 	Lines      int64  `json:"lines,omitempty"`
 	Code       int64  `json:"code,omitempty"`
 	Comment    int64  `json:"comment,omitempty"`
@@ -403,7 +404,7 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		// Read the file
-		content, err := readFileContent(absResolved, cfg.MaxReadSizeBytes)
+		content, encoding, err := readTextFile(absResolved, cfg.MaxReadSizeBytes)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("failed to read file: %v", err)), nil
 		}
@@ -453,7 +454,8 @@ func mcpGetFileHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		result := mcpFileResult{
-			Content: sb.String(),
+			Encoding: encoding,
+			Content:  sb.String(),
 		}
 		if lang != "" {
 			result.Language = lang

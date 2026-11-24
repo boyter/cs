@@ -174,6 +174,8 @@ func StartHttpServer(cfg *Config) {
 			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 			return
 		}
+		// startPos and endPos refer to decoded text, so decode the same way search did.
+		content, _ = decodeText(content, nil)
 
 		// Clamp startPos and endPos to valid range
 		contentLen := len(content)

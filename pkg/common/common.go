@@ -31,4 +31,8 @@ type FileJob struct {
 	MatchHash          string
 	DuplicateCount     int
 	DuplicateLocations []string
+	// Encoding names the encoding the file was decoded from, such as
+	// "utf-16le". Empty means the file was read as UTF-8 and Content holds
+	// its bytes as on disk.
+	Encoding string
 }
